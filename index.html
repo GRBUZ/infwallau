@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Influencers Wall</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+
+</head>
+<body>
+ <header class="masthead">
+  <!-- 1) Titre tout en haut -->
+  <h1 class="masthead-title">Influencers Wall</h1>
+
+  <!-- 2) Bande violette -->
+  <div class="masthead-strip">
+    <div class="masthead-inner">
+      <!-- Accroche à gauche -->
+      <p class="masthead-tagline">
+        Claim your spot on the wall.<br>
+        Be unmissable.
+      </p>
+
+      <!-- Stats à droite -->
+      <div class="masthead-meta">
+        <div class="pixels-left" id="pixelsLeft">1,000,000 pixels</div>
+        <div class="price-line" id="priceLine">1 pixel = $1.22</div>
+        <div class="note">Every 1,000 pixels sold, price +$0.01</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3) Boutons flottants qui chevauchent la bande -->
+  <div class="masthead-actions">
+    <button id="buyBtn" class="pill pill-primary">Buy Pixels</button>
+    <a id="contactBtn" href="#contact" class="pill pill-secondary">Contact me</a>
+  </div>
+</header>
+
+
+  <main>
+    <div id="grid" class="grid" aria-label="pixel grid"></div>
+  </main>
+
+  <!-- Modal (with Profile Photo upload + URL field) -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="backdrop" data-close></div>
+    <div class="panel">
+      <div class="header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <h2 style="margin:0;">Buy Pixels</h2>
+        <div id="modalStats" style="font-size:13px;color:#555;"></div>
+        <button class="close" title="Close" data-close>&times;</button>
+      </div>
+      <form id="form" class="body">
+        <label>Pseudo (Display name)
+          <input id="name" name="name" placeholder="@yourname" maxlength="40" required />
+        </label>
+        <label>Email
+          <input id="email" name="email" type="email" placeholder="you@example.com" required />
+        </label>
+        <label>Profile URL
+          <input id="link" name="linkUrl" placeholder="https://instagram.com/your-handle" required />
+        </label>
+
+        <div class="hr"></div>
+
+        <label>Profile Photo
+          <input id="image" type="file" accept="image/*" />
+          <small class="hint">Max ~1.5 MB.</small>
+        </label>
+
+        <div class="footer">
+          <button type="button" class="btn" data-close>Cancel</button>
+          <button type="submit" id="confirm" class="btn primary">Confirm</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <nav class="footer-links">
+      <a href="/terms.html">Terms of Use</a>
+    </nav>
+    <div class="footer-copy">© 2025 Influencers Wall. All rights reserved.</div>
+  </div>
+</footer>
+
+
+  <!-- Contact Modal (paste this just before your closing </body> tag, after your existing purchase modal) -->
+<div id="contactModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="backdrop" data-close></div>
+  <div class="panel">
+    <div class="header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <h2 style="margin:0;">Contact</h2>
+      <button class="close" title="Close" data-close>&times;</button>
+    </div>
+
+    <!-- Netlify Forms: ensure this form exists in HTML at build time -->
+    <form name="contact" method="POST" action="/contact-success.html"
+          data-netlify="true" netlify-honeypot="bot-field" class="body">
+      <input type="hidden" name="form-name" value="contact" />
+      <p hidden><label>Don’t fill this out: <input name="bot-field" /></label></p>
+
+      <label>Your name
+        <input name="name" placeholder="Your name" required />
+      </label>
+      <label>Your email
+        <input name="email" type="email" placeholder="you@example.com" required />
+      </label>
+      <label>Message
+        <textarea name="message" placeholder="How can we help?" rows="5" required></textarea>
+      </label>
+
+      <div class="footer">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn primary">Send</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add this script tag somewhere after your other scripts -->
+ <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+  <script src="js/app.js"></script>
+  <script src="js/iw_finalize_upload_patch.js"></script>
+  <script src="js/upload-addon.js"></script>
+  <script src="js/contact-modal.js"></script>
+</body>
+</html>

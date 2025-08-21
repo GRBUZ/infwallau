@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Terms of Use — Influencers Wall</title>
+  <style>
+    :root { --text:#1f2937; --muted:#6b7280; --line:#e5e7eb; --accent:#6D28D9; }
+    html, body { margin:0; padding:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; color:var(--text); }
+    header { background: linear-gradient(180deg, #7C3AED 0%, #6D28D9 60%, #5B21B6 100%); color:#fff; padding:28px 16px; }
+    header .wrap, main .wrap { max-width: 900px; margin: 0 auto; }
+    header h1 { margin:0; font-size: 28px; line-height:1.15; }
+    header p { margin:6px 0 0; opacity:.95 }
+    main { padding: 24px 16px 40px; }
+    h2 { margin: 26px 0 8px; font-size: 20px; }
+    p, li { line-height: 1.6; }
+    .muted { color:var(--muted); }
+    .card { border:1px solid var(--line); border-radius:12px; padding:16px; }
+    ul { margin:10px 0 10px 22px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    footer { border-top:1px solid var(--line); padding:16px; text-align:center; color:var(--muted); }
+    .pill { display:inline-block; background:#f3f4f6; color:#111827; border:1px solid var(--line); padding:4px 10px; border-radius:9999px; font-size:12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Terms of Use</h1>
+      <p class="muted">Effective date: August 13, 2025</p>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <p class="muted">Welcome to <strong>Influencers Wall</strong>. By purchasing pixels or placing content on our grid, you agree to these Terms of Use. Please read them carefully.</p>
+
+      <h2>1) Purchases & Pricing</h2>
+      <div class="card">
+        <ul>
+          <li><strong>Minimum purchase:</strong> 10×10 pixels (100&nbsp;€) for optimal visibility.</li>
+          <li>Pricing may change over time (e.g., per‑pixel price can increase as sales progress). Checkout always shows the current price.</li>
+          <li><strong>Secure payment:</strong> via <span class="pill">PayPal</span>.</li>
+        </ul>
+      </div>
+
+      <h2>2) Content Rules</h2>
+      <div class="card">
+        <ul>
+          <li>Your submitted content (including image, display name, and link) must be appropriate and comply with these Terms.</li>
+          <li><strong>No offensive, illegal, hateful, violent, pornographic, deceptive, or misleading content.</strong></li>
+          <li>We may reject or remove any content, at our sole discretion, if it violates these rules.</li>
+        </ul>
+      </div>
+
+      <h2>3) Links Policy</h2>
+      <div class="card">
+        <ul>
+          <li>All links must point to <strong>legal and safe websites</strong>.</li>
+          <li>No malware, phishing, deceptive landing pages, or prohibited goods/services.</li>
+          <li>We may disable links that pose security risks to users.</li>
+        </ul>
+      </div>
+
+      <h2>4) Permanence & Refunds</h2>
+      <div class="card">
+        <ul>
+          <li><strong>Purchased pixels are permanent</strong> on the grid for the life of the project.</li>
+          <li>Purchases are <strong>non‑refundable</strong>.</li>
+          <li><strong>No modifications</strong> are possible after purchase (including changing images, text, or links).</li>
+        </ul>
+      </div>
+
+      <h2>5) Ownership & License</h2>
+      <div class="card">
+        <ul>
+          <li>You retain ownership of your uploaded/linked content.</li>
+          <li>You grant us a worldwide, non‑exclusive, royalty‑free license to host, display, and link your content on the grid and in promotional screenshots or archives of the site.</li>
+          <li>You confirm you have all necessary rights to use and publish the content and links you provide.</li>
+        </ul>
+      </div>
+
+      <h2>6) Uptime & Changes</h2>
+      <div class="card">
+        <ul>
+          <li>We aim for high availability but do not guarantee uninterrupted uptime.</li>
+          <li>We may update the site, the grid, or these Terms at any time. Material changes will be noted on this page.</li>
+        </ul>
+      </div>
+
+      <h2>7) Liability</h2>
+      <div class="card">
+        <ul>
+          <li>To the maximum extent permitted by law, we are not liable for indirect, incidental, or consequential damages arising from your use of the site.</li>
+          <li>In any case, our total liability is limited to the amount you paid for the affected pixels.</li>
+        </ul>
+      </div>
+
+      <h2>8) Contact</h2>
+      <p>Questions? Contact us at <a href="mailto:hello@example.com">hello@example.com</a>.</p>
+
+      <p class="muted" style="margin-top:24px;">These Terms are for general guidance and do not constitute legal advice. Consider consulting a qualified attorney to adapt them to your situation.</p>
+    </div>
+  </main>
+
+  <footer>
+    © <span id="year"></span> Influencers Wall
+  </footer>
+
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</body>
+</html>
