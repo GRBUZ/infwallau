@@ -2262,6 +2262,36 @@
       "ts": 1755196633601,
       "regionId": "r_mebqra4g_ual8"
     },
+    "665": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755791896896,
+      "regionId": "r_mell5u7z_ndh6"
+    },
+    "666": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755791896896,
+      "regionId": "r_mell5u7z_ndh6"
+    },
+    "667": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755791896896,
+      "regionId": "r_mell5u7z_ndh6"
+    },
+    "668": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755791896896,
+      "regionId": "r_mell5u7z_ndh6"
+    },
+    "669": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755791896896,
+      "regionId": "r_mell5u7z_ndh6"
+    },
     "672": {
       "name": "tztatat",
       "linkUrl": "https://tata.insta.com/",
@@ -2544,6 +2574,36 @@
       "ts": 1755196633601,
       "regionId": "r_mebqra4g_ual8"
     },
+    "765": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755791896896,
+      "regionId": "r_mell5u7z_ndh6"
+    },
+    "766": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755791896896,
+      "regionId": "r_mell5u7z_ndh6"
+    },
+    "767": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755791896896,
+      "regionId": "r_mell5u7z_ndh6"
+    },
+    "768": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755791896896,
+      "regionId": "r_mell5u7z_ndh6"
+    },
+    "769": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755791896896,
+      "regionId": "r_mell5u7z_ndh6"
+    },
     "772": {
       "name": "tztatat",
       "linkUrl": "https://tata.insta.com/",
@@ -2825,6 +2885,36 @@
       "linkUrl": "https://toto2.com/",
       "ts": 1755196633601,
       "regionId": "r_mebqra4g_ual8"
+    },
+    "865": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755791896896,
+      "regionId": "r_mell5u7z_ndh6"
+    },
+    "866": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755791896896,
+      "regionId": "r_mell5u7z_ndh6"
+    },
+    "867": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755791896896,
+      "regionId": "r_mell5u7z_ndh6"
+    },
+    "868": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755791896896,
+      "regionId": "r_mell5u7z_ndh6"
+    },
+    "869": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755791896896,
+      "regionId": "r_mell5u7z_ndh6"
     },
     "872": {
       "name": "tztatat",
@@ -7723,68 +7813,7 @@
       "regionId": "r_med2dt87_m6t9"
     }
   },
-  "locks": {
-    "665": {
-      "uid": "23189b1a-3740-4066-ad99-81469f52178e",
-      "until": 1755792075148
-    },
-    "666": {
-      "uid": "23189b1a-3740-4066-ad99-81469f52178e",
-      "until": 1755792075148
-    },
-    "667": {
-      "uid": "23189b1a-3740-4066-ad99-81469f52178e",
-      "until": 1755792075148
-    },
-    "668": {
-      "uid": "23189b1a-3740-4066-ad99-81469f52178e",
-      "until": 1755792075148
-    },
-    "669": {
-      "uid": "23189b1a-3740-4066-ad99-81469f52178e",
-      "until": 1755792075148
-    },
-    "765": {
-      "uid": "23189b1a-3740-4066-ad99-81469f52178e",
-      "until": 1755792075148
-    },
-    "766": {
-      "uid": "23189b1a-3740-4066-ad99-81469f52178e",
-      "until": 1755792075148
-    },
-    "767": {
-      "uid": "23189b1a-3740-4066-ad99-81469f52178e",
-      "until": 1755792075148
-    },
-    "768": {
-      "uid": "23189b1a-3740-4066-ad99-81469f52178e",
-      "until": 1755792075148
-    },
-    "769": {
-      "uid": "23189b1a-3740-4066-ad99-81469f52178e",
-      "until": 1755792075148
-    },
-    "865": {
-      "uid": "23189b1a-3740-4066-ad99-81469f52178e",
-      "until": 1755792075148
-    },
-    "866": {
-      "uid": "23189b1a-3740-4066-ad99-81469f52178e",
-      "until": 1755792075148
-    },
-    "867": {
-      "uid": "23189b1a-3740-4066-ad99-81469f52178e",
-      "until": 1755792075148
-    },
-    "868": {
-      "uid": "23189b1a-3740-4066-ad99-81469f52178e",
-      "until": 1755792075148
-    },
-    "869": {
-      "uid": "23189b1a-3740-4066-ad99-81469f52178e",
-      "until": 1755792075148
-    }
-  },
+  "locks": {},
   "regions": {
     "r_meb9lgam_ka82": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/newfixrepo/main/assets/images/testimage.jpg",
@@ -8142,6 +8171,15 @@
       "rect": {
         "x": 43,
         "y": 13,
+        "w": 5,
+        "h": 3
+      }
+    },
+    "r_mell5u7z_ndh6": {
+      "imageUrl": "",
+      "rect": {
+        "x": 65,
+        "y": 6,
         "w": 5,
         "h": 3
       }
