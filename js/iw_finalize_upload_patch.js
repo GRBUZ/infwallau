@@ -111,7 +111,7 @@
     }
   });
 
-  async function doConfirm(){
+   async function doConfirm(){
     const name=(nameInput&&nameInput.value||'').trim();
     const linkUrl=normalizeUrl(linkInput&&linkInput.value);
     const blocks=getSelectedIndices();
@@ -120,40 +120,32 @@
 
     confirmBtn.disabled = true;
 
-    // Re-reserve juste avant finalize
+    // Re-reserve just before finalize (if backend supports it), using the SAME uid
     try{
-      const jr = await callJson('/reserve',{
-        method:'POST',
-        body:JSON.stringify({ blocks, ttl:180000 })
-      });
-      if(!jr || !jr.ok){
+      const rsv=await fetch('/.netlify/functions/reserve',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({uid,blocks,ttl:180000})});
+      const jr=await rsv.json();
+      if(!jr.ok){
         await window.refreshStatus().catch(()=>{});
-        alert((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
+        alert(jr.error||'Some blocks are already locked/sold. Please reselect.');
         confirmBtn.disabled=false; return;
       }
-    }catch(_){}
+    }catch(_){ /* ignore if not present */ }
 
-    // Finalize
-    const out = await callJson('/finalize',{
-      method:'POST',
-      body:JSON.stringify({ name, linkUrl, blocks })
-    });
-    if(!out || !out.ok){ alert((out && out.error) || 'Finalize failed'); confirmBtn.disabled=false; return; }
+    // Finalize WITH uid
+    const fRes=await fetch('/.netlify/functions/finalize',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({uid,name,linkUrl,blocks})});
+    const out=await fRes.json();
+    if(!out.ok){ alert(out.error||'Finalize failed'); confirmBtn.disabled=false; return; }
 
-    // Upload optionnel via apiCallMultipart (multipart sécurisé)
+    // Optional upload
     try{
       const file=fileInput&&fileInput.files&&fileInput.files[0];
       if(file){
         if(!file.type.startsWith('image/')) throw new Error('Please upload an image file.');
         if(file.size>5*1024*1024) throw new Error('Max 5 MB.');
-        const fd=new FormData();
-        
-        fd.append('file', file, file.name); // ✅ CORRECT
-        
-        if (out.regionId) fd.append('regionId', out.regionId);
-        const up = await callMultipart('/upload', fd);
-        if(!up || !up.ok) throw new Error((up && up.error) || 'UPLOAD_FAILED');
-        console.log('[IW patch] image linked:', up.imageUrl || up.filename);
+        const fd=new FormData(); fd.append('file',file,file.name); fd.append('regionId',out.regionId);
+        const upRes=await fetch('/.netlify/functions/upload',{method:'POST',body:fd});
+        const up=await upRes.json(); if(!up.ok) throw new Error(up.error||'UPLOAD_FAILED');
+        console.log('[IW patch] image linked:', up.imageUrl);
       }
     }catch(e){ console.warn('[IW patch] upload failed:', e); }
 
