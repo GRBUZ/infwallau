@@ -124,7 +124,20 @@ exports.handler = async (event) => {
       if (state.locks) delete state.locks[idx];
     }
 
-    await ghPutJson(STATE_PATH, state, sha);
+    //await ghPutJson(STATE_PATH, state, sha);
+    try {
+      await ghPutJson('data.json', mergedData, `Finalize blocks for: ${validatedName}`);
+    } catch (error) {
+    if (error.message.includes('409')) {
+    // Retry une seule fois en cas de conflit
+    console.warn('Conflict detected, retrying once...');
+    const freshData = await ghGetJson('data.json');
+    const freshMerged = { ...freshData, [validatedBlocks[0]]: { name: validatedName, linkUrl: validatedLinkUrl } };
+    await ghPutJson('data.json', freshMerged, `Finalize blocks for: ${validatedName} (retry)`);
+    } else {
+    throw error;
+    }
+    }
     
     return {
       statusCode: 200,
