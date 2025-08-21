@@ -7633,7 +7633,56 @@
       "regionId": "r_med2dt87_m6t9"
     }
   },
-  "locks": {},
+  "locks": {
+    "566": {
+      "uid": "cb2eb373-cd72-44b6-b6c4-e028faf584c5",
+      "until": 1755790688090
+    },
+    "567": {
+      "uid": "cb2eb373-cd72-44b6-b6c4-e028faf584c5",
+      "until": 1755790688090
+    },
+    "568": {
+      "uid": "cb2eb373-cd72-44b6-b6c4-e028faf584c5",
+      "until": 1755790688090
+    },
+    "569": {
+      "uid": "cb2eb373-cd72-44b6-b6c4-e028faf584c5",
+      "until": 1755790688090
+    },
+    "666": {
+      "uid": "cb2eb373-cd72-44b6-b6c4-e028faf584c5",
+      "until": 1755790688090
+    },
+    "667": {
+      "uid": "cb2eb373-cd72-44b6-b6c4-e028faf584c5",
+      "until": 1755790688090
+    },
+    "668": {
+      "uid": "cb2eb373-cd72-44b6-b6c4-e028faf584c5",
+      "until": 1755790688090
+    },
+    "669": {
+      "uid": "cb2eb373-cd72-44b6-b6c4-e028faf584c5",
+      "until": 1755790688090
+    },
+    "766": {
+      "uid": "cb2eb373-cd72-44b6-b6c4-e028faf584c5",
+      "until": 1755790688090
+    },
+    "767": {
+      "uid": "cb2eb373-cd72-44b6-b6c4-e028faf584c5",
+      "until": 1755790688090
+    },
+    "768": {
+      "uid": "cb2eb373-cd72-44b6-b6c4-e028faf584c5",
+      "until": 1755790688090
+    },
+    "769": {
+      "uid": "cb2eb373-cd72-44b6-b6c4-e028faf584c5",
+      "until": 1755790688090
+    }
+  },
   "regions": {
     "r_meb9lgam_ka82": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/newfixrepo/main/assets/images/testimage.jpg",
