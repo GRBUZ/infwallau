@@ -7633,7 +7633,88 @@
       "regionId": "r_med2dt87_m6t9"
     }
   },
-  "locks": {},
+  "locks": {
+    "536": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "537": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "538": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "539": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "540": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "636": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "637": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "638": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "639": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "640": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "736": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "737": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "738": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "739": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "740": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "836": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "837": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "838": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "839": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    },
+    "840": {
+      "uid": "5f2fedfc-9fd4-499e-be0c-70510687572c",
+      "until": 1755789754789
+    }
+  },
   "regions": {
     "r_meb9lgam_ka82": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/newfixrepo/main/assets/images/testimage.jpg",
