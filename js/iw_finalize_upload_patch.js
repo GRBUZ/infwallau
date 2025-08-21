@@ -147,7 +147,9 @@
         if(!file.type.startsWith('image/')) throw new Error('Please upload an image file.');
         if(file.size>5*1024*1024) throw new Error('Max 5 MB.');
         const fd=new FormData();
-        fd.append('image', file, file.name); // aligné avec app.js
+        
+        fd.append('file', file, file.name); // ✅ CORRECT
+        
         if (out.regionId) fd.append('regionId', out.regionId);
         const up = await callMultipart('/upload', fd);
         if(!up || !up.ok) throw new Error((up && up.error) || 'UPLOAD_FAILED');
