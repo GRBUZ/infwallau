@@ -14,10 +14,28 @@ function bad(status, error, extra = {}) {
   };
 }
 
+//function safeFilename(name) {
+  //const parts = String(name || "image").split("/").pop().split("\\");
+  //const base  = parts[parts.length - 1];
+  //return base.replace(/\s+/g, "-").replace(/[^\w.\-]/g, "_").slice(0, 120) || "image.jpg";
+//}
+
 function safeFilename(name) {
   const parts = String(name || "image").split("/").pop().split("\\");
   const base  = parts[parts.length - 1];
-  return base.replace(/\s+/g, "-").replace(/[^\w.\-]/g, "_").slice(0, 120) || "image.jpg";
+  
+  // Nettoyer le nom de base
+  const cleaned = base.replace(/\s+/g, "-").replace(/[^\w.\-]/g, "_").slice(0, 100);
+  
+  // Séparer nom et extension
+  const nameWithoutExt = cleaned.replace(/\.[^.]*$/, '') || 'image';
+  const ext = cleaned.match(/\.[^.]*$/)?.[0] || '.jpg';
+  
+  // Ajouter timestamp + random pour garantir l'unicité
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8); // 6 caractères aléatoires
+  
+  return `${nameWithoutExt}_${timestamp}_${random}${ext}`;
 }
 
 async function ghGetJson(path){
