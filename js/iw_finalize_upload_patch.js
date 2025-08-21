@@ -111,48 +111,57 @@
     }
   });
 
-   async function doConfirm(){
-    const name=(nameInput&&nameInput.value||'').trim();
-    const linkUrl=normalizeUrl(linkInput&&linkInput.value);
-    const blocks=getSelectedIndices();
-    if(!blocks.length){ alert('Please select at least one block.'); return; }
-    if(!name||!linkUrl){ alert('Name and Profile URL are required.'); return; }
+ async function doConfirm(){
+  const name=(nameInput&&nameInput.value||'').trim();
+  const linkUrl=normalizeUrl(linkInput&&linkInput.value);
+  const blocks=getSelectedIndices();
+  if(!blocks.length){ alert('Please select at least one block.'); return; }
+  if(!name||!linkUrl){ alert('Name and Profile URL are required.'); return; }
 
-    confirmBtn.disabled = true;
+  confirmBtn.disabled = true;
 
-    // Re-reserve just before finalize (if backend supports it), using the SAME uid
-    try{
-      const rsv=await fetch('/.netlify/functions/reserve',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({uid,blocks,ttl:180000})});
-      const jr=await rsv.json();
-      if(!jr.ok){
-        await window.refreshStatus().catch(()=>{});
-        alert(jr.error||'Some blocks are already locked/sold. Please reselect.');
-        confirmBtn.disabled=false; return;
-      }
-    }catch(_){ /* ignore if not present */ }
+  // ✅ Re-reserve avec authentification JWT
+  try{
+    const jr = await callJson('/reserve',{
+      method:'POST',
+      body:JSON.stringify({ blocks, ttl:180000 })
+    });
+    if(!jr || !jr.ok){
+      await window.refreshStatus().catch(()=>{});
+      alert((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
+      confirmBtn.disabled=false; return;
+    }
+  }catch(_){}
 
-    // Finalize WITH uid
-    const fRes=await fetch('/.netlify/functions/finalize',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({uid,name,linkUrl,blocks})});
-    const out=await fRes.json();
-    if(!out.ok){ alert(out.error||'Finalize failed'); confirmBtn.disabled=false; return; }
+  // ✅ Finalize avec authentification JWT
+  const out = await callJson('/finalize',{
+    method:'POST',
+    body:JSON.stringify({ name, linkUrl, blocks })
+  });
+  if(!out || !out.ok){ alert((out && out.error) || 'Finalize failed'); confirmBtn.disabled=false; return; }
 
-    // Optional upload
-    try{
-      const file=fileInput&&fileInput.files&&fileInput.files[0];
-      if(file){
-        if(!file.type.startsWith('image/')) throw new Error('Please upload an image file.');
-        if(file.size>5*1024*1024) throw new Error('Max 5 MB.');
-        const fd=new FormData(); fd.append('file',file,file.name); fd.append('regionId',out.regionId);
-        const upRes=await fetch('/.netlify/functions/upload',{method:'POST',body:fd});
-        const up=await upRes.json(); if(!up.ok) throw new Error(up.error||'UPLOAD_FAILED');
-        console.log('[IW patch] image linked:', up.imageUrl);
-      }
-    }catch(e){ console.warn('[IW patch] upload failed:', e); }
+  // ✅ Upload avec fetch() direct (pas d'auth nécessaire)
+  try{
+    const file=fileInput&&fileInput.files&&fileInput.files[0];
+    if(file){
+      if(!file.type.startsWith('image/')) throw new Error('Please upload an image file.');
+      if(file.size>5*1024*1024) throw new Error('Max 5 MB.');
+      
+      const fd=new FormData(); 
+      fd.append('file',file,file.name); 
+      fd.append('regionId',out.regionId);
+      
+      const upRes=await fetch('/.netlify/functions/upload',{method:'POST',body:fd});
+      const up=await upRes.json(); 
+      if(!up.ok) throw new Error(up.error||'UPLOAD_FAILED');
+      console.log('[IW patch] image linked:', up.imageUrl);
+    }
+  }catch(e){ console.warn('[IW patch] upload failed:', e); }
 
-    await window.refreshStatus().catch(()=>{});
-    modal?.classList?.add('hidden');
-    confirmBtn.disabled=false;
-  }
+  await window.refreshStatus().catch(()=>{});
+  modal?.classList?.add('hidden');
+  confirmBtn.disabled=false;
+}
 
   // Force-rebind Confirm
   const newBtn = confirmBtn.cloneNode(true);
