@@ -1,12 +1,18 @@
-// app.js — robust locks: local-wins merge + heartbeat during modal + JWT-secured API calls
+// app.js — robust locks: local-wins merge + heartbeat during modal + JWT-secured API calls (anonymous, no login)
 
 // ===================
-// JWT + API helpers
+// JWT + API helpers (anonymous bootstrap)
 // ===================
 const API_BASE = '/.netlify/functions';
 
 function getAuthToken() {
   try { return localStorage.getItem('authToken'); } catch { return null; }
+}
+function setAuthToken(tkn) {
+  try {
+    if (tkn) localStorage.setItem('authToken', tkn);
+    else localStorage.removeItem('authToken');
+  } catch {}
 }
 function decodeTokenPayload() {
   const t = getAuthToken();
@@ -18,16 +24,66 @@ function clearAuth() {
   console.log('[auth] cleared');
 }
 
-// Low-level: returns raw Response, attaches Authorization and sensible headers
+// Try to obtain an anonymous JWT from the backend. Adjust endpoints if needed.
+async function getOrCreateAnonToken(force = false) {
+  if (!force) {
+    const existing = getAuthToken();
+    if (existing) return existing;
+  }
+  const payload = { uid: localStorage.getItem('iw_uid') || null };
+  const candidates = [
+    '/auth-anon',   // preferred if implemented
+    '/auth/anon',   // alternative
+    '/auth'         // fallback if your function issues anon tokens without credentials
+  ];
+  for (const ep of candidates) {
+    try {
+      const r = await fetch(`${API_BASE}${ep}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+      const j = await r.json().catch(() => null);
+      if (j && j.ok && j.token) {
+        setAuthToken(j.token);
+        // align uid with token if provided
+        const p = decodeTokenPayload();
+        if (p?.uid) {
+          localStorage.setItem('iw_uid', String(p.uid));
+          window.uid = String(p.uid);
+        }
+        console.log('[auth] anonymous token acquired via', ep);
+        return j.token;
+      }
+    } catch (e) {
+      // try next candidate
+    }
+  }
+  console.warn('[auth] Could not obtain anonymous token (check your auth function endpoint).');
+  return null;
+}
+
+// Low-level call: attaches Authorization; on 401 it auto-fetches anon token and retries once
 async function apiCallRaw(endpoint, options = {}) {
-  const token = getAuthToken();
+  let token = getAuthToken();
   const headers = Object.assign(
     {},
     (options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
     options.headers || {}
   );
   if (token && !headers.Authorization) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+
+  let res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers, credentials: 'include' });
+
+  if (res.status === 401) {
+    // Try to bootstrap/refresh anonymous token and retry once
+    const fresh = await getOrCreateAnonToken(true);
+    if (fresh) {
+      headers.Authorization = `Bearer ${fresh}`;
+      res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers, credentials: 'include' });
+    }
+  }
   if (res.status === 401) {
     clearAuth();
   }
@@ -74,42 +130,30 @@ const modalStats = document.getElementById('modalStats');
 function formatInt(n){ return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
 function formatMoney(n){ const [i,d]=Number(n).toFixed(2).split('.'); return '$'+i.replace(/\B(?=(\d{3})+(?!\d))/g,' ') + '.' + d; }
 
-// 1. UID: si token présent, on aligne l'uid sur le JWT; sinon génération locale
+// UID génération (puis réalignement éventuel après obtention du token)
 const uid = (()=>{ 
-  const k='iw_uid';
-  const payload = decodeTokenPayload(); // { uid, exp, ... } ou null
-  let v = null;
-
-  if (payload && payload.uid) {
-    v = String(payload.uid);
-    localStorage.setItem(k, v);
-  } else {
-    v = localStorage.getItem(k);
-    if(!v){ 
-      if (window.crypto && window.crypto.randomUUID) {
-        v = crypto.randomUUID();
-      } else if (window.crypto && window.crypto.getRandomValues) {
-        const arr = new Uint8Array(16);
-        crypto.getRandomValues(arr);
-        v = Array.from(arr, byte => byte.toString(16).padStart(2, '0')).join('');
-      } else {
-        v = Date.now().toString(36) + Math.random().toString(36).slice(2);
-      }
-      localStorage.setItem(k,v);
+  const k='iw_uid'; 
+  let v=localStorage.getItem(k); 
+  if(!v){ 
+    if (window.crypto && window.crypto.randomUUID) {
+      v = crypto.randomUUID();
+    } else if (window.crypto && window.crypto.getRandomValues) {
+      const arr = new Uint8Array(16);
+      crypto.getRandomValues(arr);
+      v = Array.from(arr, byte => byte.toString(16).padStart(2, '0')).join('');
+    } else {
+      v = Date.now().toString(36) + Math.random().toString(36).slice(2);
     }
-  }
-  window.uid = v; 
-  // Debug utile: comparer les uids si token présent
-  if (payload && payload.uid && payload.uid !== v) {
-    console.warn('[auth] uid mismatch corrected. token.uid=', payload.uid, 'local uid=', v);
-  }
+    localStorage.setItem(k,v);
+  } 
+  window.uid=v; 
   return v; 
 })();
 
 let sold = {};
 let locks = {};
 let selected = new Set();
-let holdIncomingLocksUntil = 0;
+let holdIncomingLocksUntil = 0;   // fenêtre pendant laquelle on NE TOUCHE PAS aux locks venant du serveur
 
 // Heartbeat while modal open
 let currentLock = [];
@@ -119,7 +163,7 @@ function startHeartbeat(){
   heartbeat = setInterval(async ()=>{
     if (!currentLock.length) return;
     try { await reserve(currentLock); } catch {}
-  }, 4000);
+  }, 4000); // 4s
 }
 function stopHeartbeat(){
   if (heartbeat){ clearInterval(heartbeat); heartbeat=null; }
@@ -130,27 +174,33 @@ function mergeLocksPreferLocal(local, incoming){
   const now = Date.now();
   const out = Object.create(null);
 
+  // 1) Mes locks à moi (uid === uid) : on garde s'ils sont encore valides
   for (const [k, l] of Object.entries(local || {})) {
     if (l && l.uid === uid && l.until > now) {
       out[k] = { uid: l.uid, until: l.until };
     }
   }
+
+  // 2) Locks entrants (serveur) : vérité pour les autres + on note "vu à now"
   for (const [k, l] of Object.entries(incoming || {})) {
     if (l && l.until > now) {
       out[k] = { uid: l.uid, until: l.until };
       othersLastSeen[k] = now;
     }
   }
+
+  // 3) Si un lock d’autrui a "disparu" à ce poll, on le garde en grâce qq secondes
   for (const [k, l] of Object.entries(local || {})) {
     if (!out[k] && l && l.uid !== uid && l.until > now) {
       const last = othersLastSeen[k] || 0;
       if (now - last < OTHERS_GRACE_MS) {
-        out[k] = { uid: l.uid, until: l.until };
+        out[k] = { uid: l.uid, until: l.until }; // on le maintient temporairement
       } else {
-        delete othersLastSeen[k];
+        delete othersLastSeen[k]; // grâce expirée : on laisse tomber
       }
     }
   }
+
   return out;
 }
 
@@ -195,6 +245,7 @@ function isBlockedCell(idx){
 
 function paintCell(idx){
   const d=grid.children[idx]; const s=sold[idx]; const l=locks[idx];
+  // DEBUG TEMPORAIRE pour quelques cellules
   if (idx < 5 || (l && l.until > Date.now())) {
     console.log(`🎨 [paintCell] idx=${idx}:`, {
       sold: !!s,
@@ -306,6 +357,7 @@ function openModal(){
   const total = selectedPixels * currentPrice;
   modalStats.textContent = `${formatInt(selectedPixels)} px — ${formatMoney(total)}`;
   
+  // ✅ UN SEUL heartbeat !
   if (currentLock.length) {
     startHeartbeat();
     console.log('[MODAL] Started heartbeat for', currentLock.length, 'blocks');
@@ -314,16 +366,22 @@ function openModal(){
 
 function closeModal(){ 
   modal.classList.add('hidden'); 
-  stopHeartbeat();
+  stopHeartbeat(); // ← C'est suffisant, pas besoin de répéter
 }
 
 document.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', async () => {
+  // PRENDS un snapshot AVANT
   const toRelease = (currentLock && currentLock.length) ? currentLock.slice() : Array.from(selected);
+
+  // 🔒 Couper toute relock possible AVANT d’unlock
   currentLock = [];
   stopHeartbeat();
+
+  // Libère au serveur
   if (toRelease.length) {
     try { await unlock(toRelease); } catch {}
   }
+
   closeModal();
   clearSelection();
   setTimeout(async () => { await loadStatus(); paintAll(); }, 150);
@@ -332,18 +390,21 @@ document.querySelectorAll('[data-close]').forEach(el => el.addEventListener('cli
 window.addEventListener('keydown', async (e)=>{
   if(e.key==='Escape' && !modal.classList.contains('hidden')){
     const toRelease = (currentLock && currentLock.length) ? currentLock.slice() : Array.from(selected);
+
     currentLock = [];
     stopHeartbeat();
+
     if (toRelease.length) {
       try { await unlock(toRelease); } catch {}
     }
+
     closeModal();
     clearSelection();
     setTimeout(async () => { await loadStatus(); paintAll(); }, 150);
   }
 });
 
-// JWT-SECURED
+// JWT-SECURED (anonymous)
 async function reserve(indices){
   const res = await apiCall('/reserve', {
     method:'POST',
@@ -351,13 +412,18 @@ async function reserve(indices){
   });
   if (!res || !res.ok) throw new Error(res?.error || 'RESERVE_FAILED');
 
+  // Ensure local locks reflect what we just reserved, with a full TTL
   const now = Date.now();
   for (const i of (res.locked||[])){
     locks[i] = { uid, until: now + 300000 };
   }
+  // Merge incoming (others' locks) without dropping ours
   locks = mergeLocksPreferLocal(locks, res.locks || {});
   paintAll();
+  
+  // Empêche loadStatus() d’écraser nos locks pendant 8s (latence GitHub/Netlify)
   holdIncomingLocksUntil = Date.now() + 8000;
+  // Souviens-toi de ce que TU viens de réserver (pour le heartbeat et la finalisation)
   currentLock = Array.isArray(res.locked) ? res.locked.slice() : [];
   return res;
 }
@@ -365,32 +431,35 @@ async function reserve(indices){
 // JWT-SECURED (keeps HTTP status logs)
 async function unlock(indices){
   console.log('🔓 [UNLOCK] Début pour', indices.length, 'blocs:', indices);
+  
   const r = await apiCallRaw('/unlock',{
     method:'POST', 
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ uid, blocks: indices })
   });
+  
   console.log('🔓 [UNLOCK] Réponse HTTP:', r.status, r.ok);
+  
   const res = await r.json().catch(()=> ({})); 
   console.log('🔓 [UNLOCK] Réponse serveur:', res);
+  
   if(!r.ok || !res.ok) {
     console.error('❌ [UNLOCK] Échec:', res.error || ('HTTP '+r.status));
     throw new Error(res.error || ('HTTP '+r.status));
   }
+  
+  // ✅ Mettre à jour les locks ET supprimer la protection
   locks = res.locks || {}; 
   holdIncomingLocksUntil = 0;
+  
   console.log('🔄 [UNLOCK] Locks mis à jour:', Object.keys(locks).length);
   console.log('🔄 [UNLOCK] Protection supprimée');
+  
   paintAll(); 
   return res;
 }
 
-// Click buy: empêcher si non authentifié
 buyBtn.addEventListener('click', async ()=>{
-  if(!getAuthToken()){
-    alert('Veuillez vous connecter avant de réserver.');
-    return;
-  }
   if(!selected.size) return;
   const want = Array.from(selected);
   try{
@@ -401,6 +470,7 @@ buyBtn.addEventListener('click', async ()=>{
       clearSelection(); paintAll();
       return;
     }
+    // remember our current lock and start heartbeat in modal
     currentLock = got.locked.slice();
     clearSelection();
     for(const i of got.locked){ selected.add(i); grid.children[i].classList.add('sel'); }
@@ -412,10 +482,6 @@ buyBtn.addEventListener('click', async ()=>{
 
 form.addEventListener('submit', async (e)=>{
   e.preventDefault();
-  if(!getAuthToken()){
-    alert('Veuillez vous connecter avant de finaliser.');
-    return;
-  }
   let linkUrl = linkInput.value.trim();
   const name  = nameInput.value.trim();
   const email = emailInput.value.trim();
@@ -425,12 +491,15 @@ form.addEventListener('submit', async (e)=>{
   confirmBtn.disabled=true; confirmBtn.textContent='Processing…';
   try{
     const blocks = currentLock.length ? currentLock.slice() : Array.from(selected);
+
+    // finalize with JWT; keep HTTP status for 409
     const r = await apiCallRaw('/finalize', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ uid, blocks, linkUrl, name, email })
     });
     const res = await r.json().catch(()=> ({}));
+
     if (r.status===409 && res.taken){
       const rect = rectFromIndices(blocks);
       if (rect) showInvalidRect(rect.r0, rect.c0, rect.r1, rect.c1, 1200);
@@ -462,31 +531,44 @@ function rectFromIndices(arr){
 // CORRECTION CRITIQUE : Nettoyer les locks expirés dans loadStatus
 async function loadStatus(){
   try{
+    // status public
     const r = await fetch('/.netlify/functions/status', { cache:'no-store' });
     const s = await r.json();
     if (!s || !s.ok) return;
 
+    // 1) Màj des ventes
     sold = s.sold || {};
+
     const incoming = s.locks || {};
     const now = Date.now();
 
+    // 2) Renouvelle la "dernière vue" pour les locks d'AUTRUI présents dans la réponse
     for (const [k, l] of Object.entries(incoming)) {
       if (!l) continue;
       if (l.uid !== uid && l.until > now) {
-        othersHold[k] = now + OTHERS_GRACE_MS;
+        othersHold[k] = now + OTHERS_GRACE_MS;  // on les gardera au moins jusque-là
       }
     }
+
+    // 3) Purge des holds expirés (pas vus depuis > OTHERS_GRACE_MS)
     for (const [k, exp] of Object.entries(othersHold)) {
       if (exp <= now) delete othersHold[k];
     }
 
+    // 4) Construit la carte de locks "visibles"
     const visible = Object.create(null);
+
+    // a) base = locks renvoyés par le serveur (si encore valides)
     for (const [k, l] of Object.entries(incoming)) {
       if (l && l.until > now) visible[k] = { uid: l.uid, until: l.until };
     }
+
+    // b) ajoute les holds (locks d'autrui "aperçus récemment") absents du snapshot courant
     for (const [k, exp] of Object.entries(othersHold)) {
       if (!visible[k]) visible[k] = { uid: 'other', until: exp };
     }
+
+    // c) par-dessus, impose MES locks locaux s'ils sont plus longs/encore valides
     for (const [k, l] of Object.entries(locks || {})) {
       if (l && l.uid === uid && l.until > now) {
         const cur = visible[k];
@@ -496,15 +578,22 @@ async function loadStatus(){
       }
     }
 
+    // 5) remplace la carte active et repeins
     locks = visible;
     paintAll();
   } catch {}
 }
 
 (async function init(){ 
-  // Log debug pour vérifier l’alignement uid/token
+  // Bootstrap anonymous token up-front (no UI/login)
+  await getOrCreateAnonToken();
+  // Align UID to token if backend assigns one
   const p = decodeTokenPayload();
-  if (p?.uid) console.log('[auth] token uid:', p.uid, ' | client uid:', uid);
+  if (p?.uid && String(p.uid) !== window.uid) {
+    localStorage.setItem('iw_uid', String(p.uid));
+    window.uid = String(p.uid);
+    console.log('[auth] uid aligned to token at init:', window.uid);
+  }
 
   await loadStatus(); paintAll(); 
   setInterval(async()=>{ 
@@ -522,9 +611,16 @@ window.__regionsPoll = setInterval(async () => {
     console.log('🌍 [REGIONS] Début polling regions...');
     const res = await fetch('/.netlify/functions/status?ts=' + Date.now());
     const data = await res.json();
+    
+    // SEULEMENT regions et sold, PAS de locks !
     window.sold = data.sold || {};
     window.regions = data.regions || {};
-    console.log('🌍 [REGIONS] Mise à jour:', { regions: Object.keys(window.regions).length, sold: Object.keys(window.sold).length });
+    
+    console.log('🌍 [REGIONS] Mise à jour:', {
+      regions: Object.keys(window.regions).length,
+      sold: Object.keys(window.sold).length
+    });
+    
     if (typeof window.renderRegions === 'function') window.renderRegions();
     console.log('🌍 [REGIONS] Terminé');
   } catch (e) { 
@@ -576,25 +672,26 @@ window.renderRegions = renderRegions;
 (async function regionsBootOnce(){
   try {
     await loadStatus();
-    paintAll();
+    paintAll(); // S'assurer que tout est rendu
     console.log('[regions] initial load via loadStatus()');
   } catch (e) { 
     console.warn('[regions] initial load failed', e); 
   }
 })();
 console.log('✅ Unified polling implemented - no more timing conflicts!');
-/*console.log('app.js (robust locks + heartbeat) loaded');*/
 
 // BONUS : Fonction de nettoyage manuel pour débugger
 function debugCleanExpiredLocks() {
   const now = Date.now();
   const before = Object.keys(locks).length;
+  
   for (const [k, l] of Object.entries(locks)) {
     if (!l || l.until <= now) {
       delete locks[k];
       console.log(`🧹 [DEBUG] Supprimé lock expiré ${k}`);
     }
   }
+  
   const after = Object.keys(locks).length;
   console.log(`🧹 [DEBUG] Nettoyage: ${before} -> ${after} locks`);
   paintAll();
