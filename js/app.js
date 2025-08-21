@@ -17,11 +17,52 @@ async function apiCallRaw(endpoint, options = {}) {
 }
 
 // Appel haut-niveau: retourne JSON (ou null en cas d’erreur réseau)
+//async function apiCall(endpoint, options = {}) {
+  //try {
+    //const res = await apiCallRaw(endpoint, options);
+    //const json = await res.json().catch(() => null);
+    //return json;
+  //} catch (e) {
+    //console.error('[apiCall] error:', e);
+    //return null;
+  //}
+//}
+
+// Appel haut-niveau: retourne JSON (ou null en cas d'erreur réseau) AVEC AUTH
 async function apiCall(endpoint, options = {}) {
   try {
-    const res = await apiCallRaw(endpoint, options);
-    const json = await res.json().catch(() => null);
-    return json;
+    // ✅ AJOUT : Attendre les headers d'auth
+    const authHeaders = window.AuthUtils ? await window.AuthUtils.getAuthHeaders() : {};
+    
+    const headers = Object.assign(
+      {},
+      (options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
+      authHeaders, // ✅ Inclure le token JWT
+      options.headers || {}
+    );
+    
+    const res = await fetch(`${API_BASE}${endpoint}`, { 
+      ...options, 
+      headers, 
+      credentials: 'same-origin' 
+    });
+    
+    // ✅ AJOUT : Gérer les erreurs d'auth
+    if (res.status === 401 && window.AuthUtils) {
+      console.warn('[AUTH] Token expired, refreshing...');
+      localStorage.removeItem('iw_jwt');
+      // Retry once with new token
+      const newAuthHeaders = await window.AuthUtils.getAuthHeaders();
+      const retryHeaders = Object.assign({}, headers, newAuthHeaders);
+      const retryRes = await fetch(`${API_BASE}${endpoint}`, { 
+        ...options, 
+        headers: retryHeaders, 
+        credentials: 'same-origin' 
+      });
+      return await retryRes.json().catch(() => null);
+    }
+    
+    return await res.json().catch(() => null);
   } catch (e) {
     console.error('[apiCall] error:', e);
     return null;

@@ -1,8 +1,7 @@
-// auth-utils.js — JWT auth légère sans modules
+// auth-utils.js — JWT auth légère sans modules (VERSION CORRIGÉE)
 (function(){
   const JWT_EXPIRY_HOURS = 24;
   
-  // Simple JWT encoder/decoder sans crypto (pour le frontend seulement)
   function base64UrlEncode(str) {
     return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   }
@@ -12,7 +11,8 @@
     return atob(str.replace(/-/g, '+').replace(/_/g, '/'));
   }
   
-  function getOrCreateToken() {
+  // ✅ CORRECTION : Rendre cette fonction async
+  async function getOrCreateToken() {
     const stored = localStorage.getItem('iw_jwt');
     if (stored) {
       try {
@@ -29,14 +29,18 @@
       }
     }
     
-    // Créer un nouveau token
-    return refreshToken();
+    // ✅ CORRECTION : Attendre le nouveau token
+    return await refreshToken();
   }
   
   async function refreshToken() {
     try {
-      const uid = window.uid || localStorage.getItem('iw_uid');
+      const uid = window.uid || localStorage.getItem('iw_uid') || generateUID();
       if (!uid) throw new Error('No UID available');
+      
+      // ✅ CORRECTION : Sauvegarder l'UID
+      localStorage.setItem('iw_uid', uid);
+      window.uid = uid;
       
       const response = await fetch('/.netlify/functions/auth-token', {
         method: 'POST',
@@ -55,8 +59,14 @@
     }
   }
   
-  function getAuthHeaders() {
-    const token = getOrCreateToken();
+  // ✅ AJOUT : Générer un UID unique si nécessaire
+  function generateUID() {
+    return 'user_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+  }
+  
+  // ✅ CORRECTION : Rendre cette fonction async aussi
+  async function getAuthHeaders() {
+    const token = await getOrCreateToken();
     return token ? { 'Authorization': `Bearer ${token}` } : {};
   }
   
@@ -64,6 +74,7 @@
   window.AuthUtils = {
     getOrCreateToken,
     refreshToken,
-    getAuthHeaders
+    getAuthHeaders,
+    generateUID
   };
 })();
