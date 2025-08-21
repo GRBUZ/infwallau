@@ -1,4 +1,4 @@
-/* iw_finalize_upload_patch.js — UID unify + DOM-selection + file input id compat */
+/* iw_finalize_upload_patch.js — UID unify + DOM-selection + file input id compat + JWT auth REAL */
 (function(){
   const grid        = document.getElementById('grid');
   const modal       = document.getElementById('modal');
@@ -27,6 +27,38 @@
   })();
   const uid = window.uid;
 
+  // === JWT Authentication helpers ===
+  function getAuthToken() {
+    return localStorage.getItem('authToken');
+  }
+
+  function isTokenValid(token) {
+    if (!token) return false;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 > Date.now();
+    } catch {
+      return false;
+    }
+  }
+
+  function getAuthHeaders() {
+    const token = getAuthToken();
+    if (token && isTokenValid(token)) {
+      return { 'Authorization': `Bearer ${token}` };
+    }
+    return {};
+  }
+
+  function requireAuth() {
+    const token = getAuthToken();
+    if (!token || !isTokenValid(token)) {
+      alert('Veuillez vous connecter pour effectuer cette action');
+      return false;
+    }
+    return true;
+  }
+
   // Always derive selected indices from DOM to avoid cross-browser mismatch
   function getSelectedIndices(){
     return Array.from(document.querySelectorAll('.cell.sel')).map(el => +el.dataset.idx);
@@ -53,30 +85,66 @@
       gridEl.style.position='relative'; gridEl.style.zIndex=2;
     };
   }
+  
   if (typeof window.refreshStatus !== 'function') {
     window.refreshStatus = async function(){
-      const r=await fetch('/.netlify/functions/status?ts='+Date.now()); const d=await r.json();
-      window.sold=d.sold||{}; window.locks=d.locks||{}; window.regions=d.regions||{}; window.renderRegions?.();
+      // Status reste public (pas d'auth nécessaire)
+      const r=await fetch('/.netlify/functions/status?ts='+Date.now()); 
+      const d=await r.json();
+      window.sold=d.sold||{}; window.locks=d.locks||{}; window.regions=d.regions||{}; 
+      window.renderRegions?.();
     };
   }
 
   async function unlockSelection(){
+    if (!requireAuth()) return;
+    
     try{
-      const blocks=getSelectedIndices(); if(!blocks.length) return;
-      await fetch('/.netlify/functions/unlock',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({uid,blocks})});
+      const blocks=getSelectedIndices(); 
+      if(!blocks.length) return;
+      
+      // 🔥 SÉCURISÉ avec JWT
+      const token = getAuthToken();
+      await fetch('/.netlify/functions/unlock',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body:JSON.stringify({blocks})
+      });
     }catch(_){}
   }
+
   document.addEventListener('keydown',e=>{ if(e.key==='Escape') unlockSelection(); },{passive:true});
+  
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='hidden'){
       try{
-        const blocks=getSelectedIndices(); if(!blocks.length) return;
-        navigator.sendBeacon('/.netlify/functions/unlock', new Blob([JSON.stringify({uid,blocks})],{type:'application/json'}));
+        const blocks=getSelectedIndices(); 
+        if(!blocks.length) return;
+        
+        const token = getAuthToken();
+        if (token && isTokenValid(token)) {
+          // 🔥 SÉCURISÉ avec JWT
+          fetch('/.netlify/functions/unlock', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({blocks}),
+            keepalive: true
+          }).catch(()=>{});
+        }
       }catch(_){}
     }
   });
 
   async function doConfirm(){
+    // Vérifier l'authentification avant toute action
+    if (!requireAuth()) return;
+
     const name=(nameInput&&nameInput.value||'').trim();
     const linkUrl=normalizeUrl(linkInput&&linkInput.value);
     const blocks=getSelectedIndices();
@@ -84,10 +152,18 @@
     if(!name||!linkUrl){ alert('Name and Profile URL are required.'); return; }
 
     confirmBtn.disabled = true;
+    const token = getAuthToken();
 
-    // Re-reserve just before finalize (if backend supports it), using the SAME uid
+    // 🔥 Re-reserve SÉCURISÉ avec JWT
     try{
-      const rsv=await fetch('/.netlify/functions/reserve',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({uid,blocks,ttl:180000})});
+      const rsv=await fetch('/.netlify/functions/reserve',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body:JSON.stringify({blocks,ttl:180000})
+      });
       const jr=await rsv.json();
       if(!jr.ok){
         await window.refreshStatus().catch(()=>{});
@@ -96,20 +172,55 @@
       }
     }catch(_){ /* ignore if not present */ }
 
-    // Finalize WITH uid
-    const fRes=await fetch('/.netlify/functions/finalize',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({uid,name,linkUrl,blocks})});
+    // 🔥 Finalize SÉCURISÉ avec JWT
+    const fRes=await fetch('/.netlify/functions/finalize',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body:JSON.stringify({name,linkUrl,blocks})
+    });
     const out=await fRes.json();
-    if(!out.ok){ alert(out.error||'Finalize failed'); confirmBtn.disabled=false; return; }
+    
+    if(!out.ok){ 
+      if (fRes.status === 401) {
+        alert('Session expirée. Veuillez vous reconnecter.');
+        localStorage.removeItem('authToken');
+        window.location.reload();
+        return;
+      }
+      alert(out.error||'Finalize failed'); 
+      confirmBtn.disabled=false; 
+      return; 
+    }
 
-    // Optional upload
+    // 🔥 Upload SÉCURISÉ avec JWT
     try{
       const file=fileInput&&fileInput.files&&fileInput.files[0];
       if(file){
         if(!file.type.startsWith('image/')) throw new Error('Please upload an image file.');
         if(file.size>5*1024*1024) throw new Error('Max 5 MB.');
-        const fd=new FormData(); fd.append('file',file,file.name); fd.append('regionId',out.regionId);
-        const upRes=await fetch('/.netlify/functions/upload',{method:'POST',body:fd});
-        const up=await upRes.json(); if(!up.ok) throw new Error(up.error||'UPLOAD_FAILED');
+        
+        const fd=new FormData(); 
+        fd.append('file',file,file.name); 
+        fd.append('regionId',out.regionId);
+        
+        // 🔥 VRAIMENT SÉCURISÉ avec JWT
+        const upRes=await fetch('/.netlify/functions/upload',{
+          method:'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body:fd
+        });
+        
+        if (upRes.status === 401) {
+          throw new Error('Session expirée pour upload');
+        }
+        
+        const up=await upRes.json(); 
+        if(!up.ok) throw new Error(up.error||'UPLOAD_FAILED');
         console.log('[IW patch] image linked:', up.imageUrl);
       }
     }catch(e){ console.warn('[IW patch] upload failed:', e); }
@@ -119,19 +230,24 @@
     confirmBtn.disabled=false;
   }
 
-  // Force-rebind Confirm to avoid old handler keeping a wrong uid
+  // Force-rebind Confirm to avoid old handler
   const newBtn = confirmBtn.cloneNode(true);
   confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
-  newBtn.id = 'confirm'; // keep same id
+  newBtn.id = 'confirm';
   newBtn.addEventListener('click', (e)=>{ e.preventDefault(); doConfirm(); });
-  // Rebind cancel too (optional)
+  
+  // Rebind cancel too
   if (cancelBtn){
     const nc = cancelBtn.cloneNode(true);
     cancelBtn.parentNode.replaceChild(nc, cancelBtn);
     nc.id='cancel';
-    nc.addEventListener('click', async (e)=>{ e.preventDefault(); await unlockSelection(); modal?.classList?.add('hidden'); });
+    nc.addEventListener('click', async (e)=>{ 
+      e.preventDefault(); 
+      await unlockSelection(); 
+      modal?.classList?.add('hidden'); 
+    });
   }
 
   window.refreshStatus().catch(()=>{});
-  console.log('[IW patch] UID unify active. uid=', uid);
+  console.log('[IW patch] JWT auth VRAIMENT ACTIVÉ. uid=', uid);
 })();
