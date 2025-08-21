@@ -1,13 +1,17 @@
-// netlify/functions/upload.mjs (v2, avec diagnostics)
+// netlify/functions/upload.js (v2, converti en fonction classique)
+const { requireAuth } = require('./auth-middleware');
+
 const STATE_PATH = process.env.STATE_PATH || "data/state.json";
 const GH_REPO    = process.env.GH_REPO;
 const GH_TOKEN   = process.env.GH_TOKEN;
 const GH_BRANCH  = process.env.GH_BRANCH || "main";
 
 function bad(status, error, extra = {}) {
-  return new Response(JSON.stringify({ ok:false, error, ...extra, signature:"upload.v2" }), {
-    status, headers: { "content-type":"application/json", "cache-control":"no-store" }
-  });
+  return {
+    statusCode: status,
+    headers: { "content-type":"application/json", "cache-control":"no-store" },
+    body: JSON.stringify({ ok:false, error, ...extra, signature:"upload.v2" })
+  };
 }
 
 function safeFilename(name) {
@@ -35,7 +39,7 @@ async function ghPutJson(path, jsonData, sha, message){
     content: Buffer.from(pretty, "utf-8").toString("base64"),
     branch: GH_BRANCH
   };
-  if (sha) body.sha = sha; // n’ajouter sha que s’il existe, sinon 422
+  if (sha) body.sha = sha; // n'ajouter sha que s'il existe, sinon 422
   const r = await fetch(
     `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`,
     {
@@ -52,7 +56,7 @@ async function ghPutJson(path, jsonData, sha, message){
   return r.json(); // contient { commit:{ sha:... }, content:{ sha:... } }
 }
 
-// Remplace ta ghPutBinary par cette version "upsert"
+// Version "upsert" pour les binaires
 async function ghPutBinary(path, buffer, message){
   const baseURL = `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`;
   const headers = {
@@ -85,28 +89,78 @@ async function ghPutBinary(path, buffer, message){
   return put.json();
 }
 
-export default async (req) => {
-  try {
-    if (req.method !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
-    if (!GH_REPO || !GH_TOKEN)  return bad(500, "GITHUB_CONFIG_MISSING", { GH_REPO, GH_BRANCH });
+// Helper pour parser multipart/form-data dans Function classique
+function parseMultipartFormData(body, boundary) {
+  const parts = body.split(`--${boundary}`);
+  const formData = {};
+  
+  for (const part of parts) {
+    if (!part.trim() || part.trim() === '--') continue;
+    
+    const [headers, ...bodyParts] = part.split('\r\n\r\n');
+    if (!headers || bodyParts.length === 0) continue;
+    
+    const disposition = headers.match(/Content-Disposition: form-data; name="([^"]+)"/);
+    if (!disposition) continue;
+    
+    const fieldName = disposition[1];
+    let content = bodyParts.join('\r\n\r\n').replace(/\r\n--$/, '');
+    
+    if (headers.includes('filename=')) {
+      // C'est un fichier
+      const filename = headers.match(/filename="([^"]+)"/)?.[1] || 'unknown';
+      const contentType = headers.match(/Content-Type: ([^\r\n]+)/)?.[1] || 'application/octet-stream';
+      
+      formData[fieldName] = {
+        name: filename,
+        type: contentType,
+        data: content
+      };
+    } else {
+      // C'est un champ texte
+      formData[fieldName] = content.trim();
+    }
+  }
+  
+  return formData;
+}
 
-    const ct = (req.headers.get("content-type") || "").toLowerCase();
+exports.handler = async (event) => {
+  try {
+    // Authentification requise
+    const auth = requireAuth(event);
+    if (auth.statusCode) return auth; // Erreur d'auth
+    
+    const authenticatedUID = auth.uid;
+    
+    if (event.httpMethod !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
+    if (!GH_REPO || !GH_TOKEN) return bad(500, "GITHUB_CONFIG_MISSING", { GH_REPO, GH_BRANCH });
+
+    const ct = (event.headers['content-type'] || event.headers['Content-Type'] || "").toLowerCase();
 
     let regionId = "";
     let filename = "";
     let buffer   = null;
 
     if (ct.includes("multipart/form-data")) {
-      const form = await req.formData();
-      const file = form.get("file");
-      regionId   = String(form.get("regionId") || "").trim();
+      // Parser multipart manuellement pour Function classique
+      const boundary = ct.match(/boundary=([^;]+)/)?.[1];
+      if (!boundary) return bad(400, "NO_BOUNDARY");
+      
+      const formData = parseMultipartFormData(event.body, boundary);
+      
+      const file = formData.file;
+      regionId   = String(formData.regionId || "").trim();
+      
       if (!file || !file.name) return bad(400, "NO_FILE");
       if (!file.type || !file.type.startsWith("image/")) return bad(400, "NOT_IMAGE");
+      
       filename = safeFilename(file.name);
-      buffer   = Buffer.from(await file.arrayBuffer());
+      // Le contenu est en base64 dans event.body pour les binaires
+      buffer   = Buffer.from(file.data, 'binary');
     } else {
-      const body = await req.json().catch(() => null);
-      if (!body) return bad(400, "BAD_JSON");
+      // JSON format
+      const body = JSON.parse(event.body || '{}');
       regionId = String(body.regionId || "").trim();
       filename = safeFilename(body.filename || "image.jpg");
       const b64 = String(body.contentBase64 || "");
@@ -134,17 +188,22 @@ export default async (req) => {
     const putJson = await ghPutJson(STATE_PATH, state, sha, `chore: set imageUrl for ${regionId}`);
     const jsonSha = putJson?.commit?.sha;
 
-    return new Response(JSON.stringify({
-      ok: true,
-      signature: "upload.v2",
-      regionId,
-      path: repoPath,
-      imageUrl,
-      GH_REPO,
-      GH_BRANCH,
-      binSha,
-      jsonSha
-    }), { headers: { "content-type":"application/json", "cache-control":"no-store" } });
+    return {
+      statusCode: 200,
+      headers: { "content-type":"application/json", "cache-control":"no-store" },
+      body: JSON.stringify({
+        ok: true,
+        signature: "upload.v2",
+        regionId,
+        path: repoPath,
+        imageUrl,
+        GH_REPO,
+        GH_BRANCH,
+        binSha,
+        jsonSha
+      })
+    };
+    
   } catch (e) {
     return bad(500, "SERVER_ERROR", { message: String(e?.message || e), signature:"upload.v2" });
   }

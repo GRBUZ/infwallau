@@ -1,4 +1,3 @@
-
 const GH_REPO   = process.env.GH_REPO;
 const GH_TOKEN  = process.env.GH_TOKEN;
 const GH_BRANCH = process.env.GH_BRANCH || 'main';
@@ -7,10 +6,11 @@ const PATH_JSON = process.env.PATH_JSON || 'data/state.json';
 const API_BASE = 'https://api.github.com';
 
 function jres(status, obj) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' }
-  });
+  return {
+    statusCode: status,
+    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+    body: JSON.stringify(obj)
+  };
 }
 
 async function ghGetFile(path) {
@@ -27,29 +27,6 @@ async function ghGetFile(path) {
   const data = await r.json();
   const buf = Buffer.from(data.content, data.encoding || 'base64');
   return { sha: data.sha, content: buf.toString('utf8'), status: 200 };
-}
-
-async function ghPutFile(path, content, sha, message) {
-  const url = `${API_BASE}/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`;
-  const body = {
-    message,
-    content: Buffer.from(content, 'utf8').toString('base64'),
-    branch: GH_BRANCH
-  };
-  if (sha) body.sha = sha;
-  const r = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `token ${GH_TOKEN}`,
-      'User-Agent': 'netlify-fn',
-      'Accept': 'application/vnd.github+json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
-  if (!r.ok) throw new Error(`GITHUB_PUT_FAILED ${r.status}`);
-  const data = await r.json();
-  return data.content.sha;
 }
 
 function parseState(raw) {
@@ -81,18 +58,48 @@ function pruneLocks(locks) {
   return out;
 }
 
-export default async () => {
+exports.handler = async (event) => {
   try {
+    // Pas d'auth requise - fonction de diagnostic publique
+    
     if (!GH_REPO || !GH_TOKEN) {
-      return jres(500, { ok:false, error:'MISSING_ENV', need: ['GH_REPO','GH_TOKEN'], have: { GH_REPO: !!GH_REPO, GH_TOKEN: !!GH_TOKEN } });
+      return jres(500, { 
+        ok: false, 
+        error: 'MISSING_ENV', 
+        need: ['GH_REPO','GH_TOKEN'], 
+        have: { GH_REPO: !!GH_REPO, GH_TOKEN: !!GH_TOKEN } 
+      });
     }
+    
     const got = await ghGetFile(PATH_JSON);
     if (got.status === 404) {
-      return jres(200, { ok:true, readable:false, status:404, message:'state.json not found yet (will be created on first finalize)' });
+      return jres(200, { 
+        ok: true, 
+        readable: false, 
+        status: 404, 
+        message: 'state.json not found yet (will be created on first finalize)' 
+      });
     }
+    
     const st = parseState(got.content);
-    return jres(200, { ok:true, readable:true, counts: { sold: Object.keys(st.sold).length, locks: Object.keys(st.locks).length } });
+    const prunedLocks = pruneLocks(st.locks);
+    
+    return jres(200, { 
+      ok: true, 
+      readable: true, 
+      counts: { 
+        sold: Object.keys(st.sold).length, 
+        locks: Object.keys(prunedLocks).length,
+        regions: Object.keys(st.regions || {}).length
+      },
+      health: 'OK'
+    });
+    
   } catch (e) {
-    return jres(500, { ok:false, error:'DIAG_FAILED', message: String(e) });
+    return jres(500, { 
+      ok: false, 
+      error: 'DIAG_FAILED', 
+      message: String(e) 
+    });
   }
 };

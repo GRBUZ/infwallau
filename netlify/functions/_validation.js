@@ -1,8 +1,8 @@
-// _validation.mjs — drop-in guards for finalize()
-// Place this file at: netlify/functions/_validation.mjs
-// Usage in finalize.mjs:
-//   import { guardFinalizeInput } from './_validation.mjs';
-//   const { name, linkUrl, blocks } = await guardFinalizeInput(req);
+// _validation.js — drop-in guards for finalize()
+// Place this file at: netlify/functions/_validation.js
+// Usage in finalize.js:
+//   const { guardFinalizeInput } = require('./_validation.js');
+//   const { name, linkUrl, blocks } = await guardFinalizeInput(event);
 
 const GRID_CELLS = 100 * 100;          // 100x100 blocks
 const MAX_BLOCKS_PER_ORDER = 3000;     // safety cap (30% of grid) — adjust to your needs
@@ -15,9 +15,11 @@ const ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '';
 
 function bad(status, error) {
-  return new Response(JSON.stringify({ ok:false, error }), {
-    status, headers: { 'content-type': 'application/json', 'cache-control':'no-store' }
-  });
+  return {
+    statusCode: status,
+    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+    body: JSON.stringify({ ok: false, error })
+  };
 }
 
 function sanitizeName(name) {
@@ -52,9 +54,13 @@ function validateBlocksOrThrow(blocks) {
   return blocks;
 }
 
-function checkOriginOrThrow(req) {
+function checkOriginOrThrow(event) {
   if (!ALLOWED_ORIGIN) return; // skip if not configured
-  const origin = req.headers.get('origin') || req.headers.get('referer') || '';
+  
+  // Dans les Functions classiques, les headers sont dans event.headers
+  const origin = event.headers.origin || event.headers.referer || 
+                 event.headers.Origin || event.headers.Referer || '';
+                 
   if (!origin) throw new Error('ORIGIN_MISSING');
   try {
     const allowed = new URL(ALLOWED_ORIGIN).origin;
@@ -65,14 +71,21 @@ function checkOriginOrThrow(req) {
   }
 }
 
-export async function guardFinalizeInput(req) {
+async function guardFinalizeInput(event) {
   // 1) Origin check (optional but recommended)
-  try { checkOriginOrThrow(req); } catch (e) { throw bad(403, e.message); }
+  try { 
+    checkOriginOrThrow(event); 
+  } catch (e) { 
+    throw bad(403, e.message); 
+  }
 
   // 2) Parse JSON body safely (limit size ~100KB via Netlify defaults, still validate)
   let payload;
-  try { payload = await req.json(); }
-  catch { throw bad(400, 'BAD_JSON'); }
+  try { 
+    payload = JSON.parse(event.body || '{}'); 
+  } catch { 
+    throw bad(400, 'BAD_JSON'); 
+  }
 
   // 3) Extract + validate
   const name = sanitizeName(payload?.name || '');
@@ -84,3 +97,11 @@ export async function guardFinalizeInput(req) {
 
   return { name, linkUrl, blocks };
 }
+
+// Export pour Functions classiques (CommonJS)
+module.exports = {
+  guardFinalizeInput,
+  sanitizeName,
+  validateUrlOrThrow,
+  validateBlocksOrThrow
+};
