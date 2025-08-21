@@ -126,17 +126,27 @@ exports.handler = async (event) => {
 
     //await ghPutJson(STATE_PATH, state, sha);
     try {
-      await ghPutJson('data.json', mergedData, `Finalize blocks for: ${validatedName}`);
+      await ghPutJson(STATE_PATH, state, sha);
     } catch (error) {
     if (error.message.includes('409')) {
-    // Retry une seule fois en cas de conflit
-    console.warn('Conflict detected, retrying once...');
-    const freshData = await ghGetJson('data.json');
-    const freshMerged = { ...freshData, [validatedBlocks[0]]: { name: validatedName, linkUrl: validatedLinkUrl } };
-    await ghPutJson('data.json', freshMerged, `Finalize blocks for: ${validatedName} (retry)`);
-    } else {
-    throw error;
-    }
+      // Retry une seule fois en cas de conflit
+      console.warn('Conflict detected, retrying once...');
+      const { json: freshState, sha: freshSha } = await ghGetJson(STATE_PATH);
+      const mergedState = { ...freshState };
+    
+      // Re-apply les changements sur l'état frais
+      const newTs = Date.now();
+      for (const idx of validatedBlocks) {
+        mergedState.sold[idx] = { name: validatedName, linkUrl: validatedLinkUrl, ts: newTs, regionId };
+        if (mergedState.locks) delete mergedState.locks[idx];
+      }
+      if (!mergedState.regions) mergedState.regions = {};
+      mergedState.regions[regionId] = { imageUrl: "", rect };
+    
+      await ghPutJson(STATE_PATH, mergedState, freshSha);
+      } else {
+        throw error;
+      }
     }
     
     return {
