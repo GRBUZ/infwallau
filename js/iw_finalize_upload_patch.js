@@ -83,7 +83,7 @@
   async function unlockSelection(){
     try{
       const blocks=getSelectedIndices(); if(!blocks.length) return;
-      await callJson('/unlock',{
+      await apiCall('/unlock',{
         method:'POST',
         body:JSON.stringify({ blocks })
       });
@@ -122,7 +122,7 @@
 
   // Re-reserve juste avant finalize
   try{
-    const jr = await callJson('/reserve',{
+    const jr = await apiCall('/reserve',{
       method:'POST',
       body:JSON.stringify({ blocks, ttl:180000 })
     });
@@ -134,7 +134,7 @@
   }catch(_){}
 
   // Finalize
-  const out = await callJson('/finalize',{
+  const out = await apiCall('/finalize',{
     method:'POST',
     body:JSON.stringify({ name, linkUrl, blocks })
   });
@@ -169,7 +169,7 @@
       console.log('[DEBUG] Base64 conversion done, length:', base64.length);
       console.log('[DEBUG] Calling upload with JSON...');
       
-      const up = await callJson('/upload', {
+      const up = await apiCall('/upload', {
         method: 'POST',
         body: JSON.stringify({
           regionId: out.regionId,
