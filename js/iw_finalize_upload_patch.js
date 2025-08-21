@@ -111,7 +111,7 @@
     }
   });
 
- async function doConfirm(){
+async function doConfirm(){
   const name=(nameInput&&nameInput.value||'').trim();
   const linkUrl=normalizeUrl(linkInput&&linkInput.value);
   const blocks=getSelectedIndices();
@@ -120,7 +120,7 @@
 
   confirmBtn.disabled = true;
 
-  // ✅ Re-reserve avec authentification JWT
+  // Re-reserve juste avant finalize
   try{
     const jr = await callJson('/reserve',{
       method:'POST',
@@ -133,30 +133,58 @@
     }
   }catch(_){}
 
-  // ✅ Finalize avec authentification JWT
+  // Finalize
   const out = await callJson('/finalize',{
     method:'POST',
     body:JSON.stringify({ name, linkUrl, blocks })
   });
   if(!out || !out.ok){ alert((out && out.error) || 'Finalize failed'); confirmBtn.disabled=false; return; }
 
-  // ✅ Upload avec fetch() direct (pas d'auth nécessaire)
+  // Upload avec authentification JWT et debug complet
   try{
     const file=fileInput&&fileInput.files&&fileInput.files[0];
+    console.log('[DEBUG] file:', file);
+    console.log('[DEBUG] fileInput:', fileInput);
+    console.log('[DEBUG] out.regionId:', out.regionId);
+    
     if(file){
+      console.log('[DEBUG] file details:', {
+        name: file.name, 
+        type: file.type, 
+        size: file.size
+      });
+      
       if(!file.type.startsWith('image/')) throw new Error('Please upload an image file.');
       if(file.size>5*1024*1024) throw new Error('Max 5 MB.');
       
       const fd=new FormData(); 
-      fd.append('file',file,file.name); 
-      fd.append('regionId',out.regionId);
+      fd.append('file', file, file.name); 
+      fd.append('regionId', out.regionId);
       
-      const upRes=await fetch('/.netlify/functions/upload',{method:'POST',body:fd});
-      const up=await upRes.json(); 
-      if(!up.ok) throw new Error(up.error||'UPLOAD_FAILED');
+      console.log('[DEBUG] FormData created with regionId:', out.regionId);
+      console.log('[DEBUG] FormData entries:');
+      for (let [key, value] of fd.entries()) {
+        console.log(`  ${key}:`, value);
+      }
+      
+      console.log('[DEBUG] Calling callMultipart...');
+      const up = await callMultipart('/upload', fd);
+      console.log('[DEBUG] Upload response:', up);
+      console.log('[DEBUG] up.ok:', up?.ok);
+      console.log('[DEBUG] up.error:', up?.error);
+      
+      if(!up || !up.ok) throw new Error(up.error || 'UPLOAD_FAILED');
       console.log('[IW patch] image linked:', up.imageUrl);
+    } else {
+      console.log('[DEBUG] No file selected');
     }
-  }catch(e){ console.warn('[IW patch] upload failed:', e); }
+  }catch(e){ 
+    console.error('[IW patch] upload failed:', e);
+    console.error('[DEBUG] Error details:', {
+      message: e.message,
+      stack: e.stack
+    });
+  }
 
   await window.refreshStatus().catch(()=>{});
   modal?.classList?.add('hidden');
