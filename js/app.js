@@ -68,8 +68,54 @@ async function apiCall(endpoint, options = {}) {
     return null;
   }
 }
-// Expose pour les autres scripts front
+
+// Appel multipart pour upload de fichiers AVEC AUTH
+async function apiCallMultipart(endpoint, formData, options = {}) {
+  try {
+    // ✅ Attendre les headers d'auth
+    const authHeaders = window.AuthUtils ? await window.AuthUtils.getAuthHeaders() : {};
+    
+    const headers = Object.assign(
+      {},
+      authHeaders, // ✅ Inclure le token JWT (pas de Content-Type pour FormData)
+      options.headers || {}
+    );
+    
+    const res = await fetch(`${API_BASE}${endpoint}`, { 
+      method: 'POST',
+      body: formData, // FormData directement
+      headers, 
+      credentials: 'same-origin',
+      ...options
+    });
+    
+    // ✅ Gérer les erreurs d'auth
+    if (res.status === 401 && window.AuthUtils) {
+      console.warn('[AUTH] Token expired during upload, refreshing...');
+      localStorage.removeItem('iw_jwt');
+      // Retry once with new token
+      const newAuthHeaders = await window.AuthUtils.getAuthHeaders();
+      const retryHeaders = Object.assign({}, headers, newAuthHeaders);
+      const retryRes = await fetch(`${API_BASE}${endpoint}`, { 
+        method: 'POST',
+        body: formData,
+        headers: retryHeaders, 
+        credentials: 'same-origin',
+        ...options
+      });
+      return await retryRes.json().catch(() => null);
+    }
+    
+    return await res.json().catch(() => null);
+  } catch (e) {
+    console.error('[apiCallMultipart] error:', e);
+    return null;
+  }
+}
+
+// Exposer pour les autres scripts
 window.apiCall = apiCall;
+window.apiCallMultipart = apiCallMultipart; // ✅ AJOUTER CETTE LIGNE
 
 // ===================
 // Anti-flicker pour les locks d’autrui
