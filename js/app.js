@@ -429,11 +429,11 @@ async function reserve(indices){
 
 async function unlock(indices){
   console.log('🔓 [UNLOCK] Début pour', indices.length, 'blocs:', indices);
-  const r = await apiCallRaw('/unlock',{
-    method:'POST', 
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ uid, blocks: indices })
-  });
+  const r = await callJson('/unlock', {
+      method: 'POST',
+      body: JSON.stringify({ uid, blocks: indices })
+    });
+  
   console.log('🔓 [UNLOCK] Réponse HTTP:', r.status, r.ok);
   const res = await r.json().catch(()=> ({})); 
   console.log('🔓 [UNLOCK] Réponse serveur:', res);
@@ -480,9 +480,8 @@ form.addEventListener('submit', async (e)=>{
   confirmBtn.disabled=true; confirmBtn.textContent='Processing…';
   try{
     const blocks = currentLock.length ? currentLock.slice() : Array.from(selected);
-    const r = await apiCallRaw('/finalize', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+    const r = await callJson('/finalize', {
+      method: 'POST',
       body: JSON.stringify({ uid, blocks, linkUrl, name, email })
     });
     const res = await r.json().catch(()=> ({}));
