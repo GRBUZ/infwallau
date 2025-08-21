@@ -1,4 +1,4 @@
-/* iw_finalize_upload_patch.js — UID unify + DOM-selection + file input id compat + JWT auth REAL */
+/* iw_finalize_upload_patch.js — UID unify + DOM-selection + JWT via apiCall/apiCallMultipart (aucun fetch direct sur endpoints sensibles) */
 (function(){
   const grid        = document.getElementById('grid');
   const modal       = document.getElementById('modal');
@@ -27,45 +27,12 @@
   })();
   const uid = window.uid;
 
-  // === JWT Authentication helpers ===
-  function getAuthToken() {
-    return localStorage.getItem('authToken');
-  }
-
-  function isTokenValid(token) {
-    if (!token) return false;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp * 1000 > Date.now();
-    } catch {
-      return false;
-    }
-  }
-
-  function getAuthHeaders() {
-    const token = getAuthToken();
-    if (token && isTokenValid(token)) {
-      return { 'Authorization': `Bearer ${token}` };
-    }
-    return {};
-  }
-
-  function requireAuth() {
-    const token = getAuthToken();
-    if (!token || !isTokenValid(token)) {
-      alert('Veuillez vous connecter pour effectuer cette action');
-      return false;
-    }
-    return true;
-  }
-
-  // Always derive selected indices from DOM to avoid cross-browser mismatch
   function getSelectedIndices(){
     return Array.from(document.querySelectorAll('.cell.sel')).map(el => +el.dataset.idx);
   }
   function normalizeUrl(u){ u=String(u||'').trim(); if(!u) return ''; if(!/^https?:\/\//i.test(u)) u='https://'+u; return u; }
 
-  // Fallbacks if missing
+  // Fallbacks si absents (status peut rester public)
   if (typeof window.renderRegions !== 'function') {
     window.renderRegions = function(){
       const gridEl = document.getElementById('grid'); if (!gridEl) return;
@@ -85,66 +52,66 @@
       gridEl.style.position='relative'; gridEl.style.zIndex=2;
     };
   }
-  
   if (typeof window.refreshStatus !== 'function') {
     window.refreshStatus = async function(){
-      // Status reste public (pas d'auth nécessaire)
-      const r=await fetch('/.netlify/functions/status?ts='+Date.now()); 
-      const d=await r.json();
-      window.sold=d.sold||{}; window.locks=d.locks||{}; window.regions=d.regions||{}; 
-      window.renderRegions?.();
+      try{
+        const r=await fetch('/.netlify/functions/status?ts='+Date.now());
+        const d=await r.json();
+        window.sold=d.sold||{}; window.locks=d.locks||{}; window.regions=d.regions||{}; window.renderRegions?.();
+      }catch(e){ console.warn('[IW patch] refreshStatus failed', e); }
     };
   }
 
+  // Appel JSON sécurisé via app.js
+  async function callJson(endpoint, options = {}){
+    if (typeof window.apiCall !== 'function') {
+      console.error('[IW patch] apiCall indisponible: appel annulé pour', endpoint);
+      return null;
+    }
+    return window.apiCall(endpoint, options);
+  }
+
+  // Upload multipart sécurisé via app.js
+  async function callMultipart(endpoint, formData, options = {}){
+    if (typeof window.apiCallMultipart !== 'function') {
+      console.error('[IW patch] apiCallMultipart indisponible: upload annulé');
+      return null;
+    }
+    return window.apiCallMultipart(endpoint, formData, options);
+  }
+
   async function unlockSelection(){
-    if (!requireAuth()) return;
-    
     try{
-      const blocks=getSelectedIndices(); 
-      if(!blocks.length) return;
-      
-      // 🔥 SÉCURISÉ avec JWT
-      const token = getAuthToken();
-      await fetch('/.netlify/functions/unlock',{
+      const blocks=getSelectedIndices(); if(!blocks.length) return;
+      await callJson('/unlock',{
         method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body:JSON.stringify({blocks})
+        body:JSON.stringify({ blocks })
+      });
+    }catch(_){}
+  }
+
+  // Déverrouillage en arrière-plan (keepalive) — via apiCall uniquement
+  async function unlockKeepalive(){
+    try{
+      if (typeof window.apiCall !== 'function') return;
+      const blocks=getSelectedIndices(); if(!blocks.length) return;
+      await window.apiCall('/unlock', {
+        method:'POST',
+        body:JSON.stringify({ blocks }),
+        headers:{ 'Content-Type':'application/json' },
+        keepalive:true
       });
     }catch(_){}
   }
 
   document.addEventListener('keydown',e=>{ if(e.key==='Escape') unlockSelection(); },{passive:true});
-  
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='hidden'){
-      try{
-        const blocks=getSelectedIndices(); 
-        if(!blocks.length) return;
-        
-        const token = getAuthToken();
-        if (token && isTokenValid(token)) {
-          // 🔥 SÉCURISÉ avec JWT
-          fetch('/.netlify/functions/unlock', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({blocks}),
-            keepalive: true
-          }).catch(()=>{});
-        }
-      }catch(_){}
+      unlockKeepalive();
     }
   });
 
   async function doConfirm(){
-    // Vérifier l'authentification avant toute action
-    if (!requireAuth()) return;
-
     const name=(nameInput&&nameInput.value||'').trim();
     const linkUrl=normalizeUrl(linkInput&&linkInput.value);
     const blocks=getSelectedIndices();
@@ -152,76 +119,39 @@
     if(!name||!linkUrl){ alert('Name and Profile URL are required.'); return; }
 
     confirmBtn.disabled = true;
-    const token = getAuthToken();
 
-    // 🔥 Re-reserve SÉCURISÉ avec JWT
+    // Re-reserve juste avant finalize
     try{
-      const rsv=await fetch('/.netlify/functions/reserve',{
+      const jr = await callJson('/reserve',{
         method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body:JSON.stringify({blocks,ttl:180000})
+        body:JSON.stringify({ blocks, ttl:180000 })
       });
-      const jr=await rsv.json();
-      if(!jr.ok){
+      if(!jr || !jr.ok){
         await window.refreshStatus().catch(()=>{});
-        alert(jr.error||'Some blocks are already locked/sold. Please reselect.');
+        alert((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
         confirmBtn.disabled=false; return;
       }
-    }catch(_){ /* ignore if not present */ }
+    }catch(_){}
 
-    // 🔥 Finalize SÉCURISÉ avec JWT
-    const fRes=await fetch('/.netlify/functions/finalize',{
+    // Finalize
+    const out = await callJson('/finalize',{
       method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body:JSON.stringify({name,linkUrl,blocks})
+      body:JSON.stringify({ name, linkUrl, blocks })
     });
-    const out=await fRes.json();
-    
-    if(!out.ok){ 
-      if (fRes.status === 401) {
-        alert('Session expirée. Veuillez vous reconnecter.');
-        localStorage.removeItem('authToken');
-        window.location.reload();
-        return;
-      }
-      alert(out.error||'Finalize failed'); 
-      confirmBtn.disabled=false; 
-      return; 
-    }
+    if(!out || !out.ok){ alert((out && out.error) || 'Finalize failed'); confirmBtn.disabled=false; return; }
 
-    // 🔥 Upload SÉCURISÉ avec JWT
+    // Upload optionnel via apiCallMultipart (multipart sécurisé)
     try{
       const file=fileInput&&fileInput.files&&fileInput.files[0];
       if(file){
         if(!file.type.startsWith('image/')) throw new Error('Please upload an image file.');
         if(file.size>5*1024*1024) throw new Error('Max 5 MB.');
-        
-        const fd=new FormData(); 
-        fd.append('file',file,file.name); 
-        fd.append('regionId',out.regionId);
-        
-        // 🔥 VRAIMENT SÉCURISÉ avec JWT
-        const upRes=await fetch('/.netlify/functions/upload',{
-          method:'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body:fd
-        });
-        
-        if (upRes.status === 401) {
-          throw new Error('Session expirée pour upload');
-        }
-        
-        const up=await upRes.json(); 
-        if(!up.ok) throw new Error(up.error||'UPLOAD_FAILED');
-        console.log('[IW patch] image linked:', up.imageUrl);
+        const fd=new FormData();
+        fd.append('image', file, file.name); // aligné avec app.js
+        if (out.regionId) fd.append('regionId', out.regionId);
+        const up = await callMultipart('/upload', fd);
+        if(!up || !up.ok) throw new Error((up && up.error) || 'UPLOAD_FAILED');
+        console.log('[IW patch] image linked:', up.imageUrl || up.filename);
       }
     }catch(e){ console.warn('[IW patch] upload failed:', e); }
 
@@ -230,24 +160,19 @@
     confirmBtn.disabled=false;
   }
 
-  // Force-rebind Confirm to avoid old handler
+  // Force-rebind Confirm
   const newBtn = confirmBtn.cloneNode(true);
   confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
   newBtn.id = 'confirm';
   newBtn.addEventListener('click', (e)=>{ e.preventDefault(); doConfirm(); });
-  
-  // Rebind cancel too
+
   if (cancelBtn){
     const nc = cancelBtn.cloneNode(true);
     cancelBtn.parentNode.replaceChild(nc, cancelBtn);
     nc.id='cancel';
-    nc.addEventListener('click', async (e)=>{ 
-      e.preventDefault(); 
-      await unlockSelection(); 
-      modal?.classList?.add('hidden'); 
-    });
+    nc.addEventListener('click', async (e)=>{ e.preventDefault(); await unlockSelection(); modal?.classList?.add('hidden'); });
   }
 
   window.refreshStatus().catch(()=>{});
-  console.log('[IW patch] JWT auth VRAIMENT ACTIVÉ. uid=', uid);
+  console.log('[IW patch] UID unify active. uid=', uid);
 })();

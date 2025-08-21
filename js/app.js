@@ -161,14 +161,42 @@ async function apiCall(endpoint, options = {}) {
   }
 }
 
+// Spécifique multipart (FormData) avec gestion 401 comme apiCall
+async function apiCallMultipart(endpoint, formData, options = {}) {
+  const token = getAuthToken();
+  const config = {
+    method: 'POST',
+    ...options,
+    headers: {
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...(options.headers || {})
+    },
+    body: formData
+  };
+
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, config);
+    const result = await response.json();
+    if (response.status === 401) {
+      console.log('Token invalide, déconnexion');
+      clearAuth();
+      return null;
+    }
+    return result;
+  } catch (error) {
+    console.error('Erreur API (multipart):', error);
+    return null;
+  }
+}
+
 // ===================
 // GESTION ÉTAT DU JEU
 // ===================
 
 async function loadStatus() {
   try {
-    // Status est public, pas besoin d'auth
-    const response = await fetch(`${API_BASE}/status`);
+    // Status est public, mais on ajoute un cache-buster pour éviter d'éventuels caches
+    const response = await fetch(`${API_BASE}/status?ts=${Date.now()}`);
     const result = await response.json();
     
     if (result.ok) {
@@ -379,26 +407,15 @@ async function uploadImage() {
   const formData = new FormData();
   formData.append('image', file);
 
-  try {
-    const response = await fetch(`${API_BASE}/upload`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${getAuthToken()}`
-      },
-      body: formData
-    });
+  const result = await apiCallMultipart('/upload', formData);
 
-    const result = await response.json();
-    
-    if (result.ok) {
-      alert(`Image uploadée avec succès : ${result.filename}`);
-      fileInput.value = '';
-    } else {
-      alert(result.error || 'Erreur lors de l\'upload');
-    }
-  } catch (error) {
-    console.error('Erreur upload:', error);
-    alert('Erreur lors de l\'upload');
+  if (result && result.ok) {
+    alert(`Image uploadée avec succès : ${result.filename || result.imageUrl || 'OK'}`);
+    fileInput.value = '';
+  } else if (result === null) {
+    // déjà géré: clearAuth() sur 401 dans apiCallMultipart
+  } else {
+    alert(result?.error || 'Erreur lors de l\'upload');
   }
 }
 
