@@ -1,9 +1,7 @@
 {
-  "name": "iw-github-locks",
+  "name": "netlify-functions",
   "version": "1.0.0",
-  "private": true,
-  "type": "module",
-  "engines": {
-    "node": ">=18"
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2"
   }
 }
