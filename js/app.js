@@ -8,9 +8,13 @@ const API_BASE = '/.netlify/functions';
 function getAuthToken() {
   try { return localStorage.getItem('authToken'); } catch { return null; }
 }
+function decodeTokenPayload() {
+  const t = getAuthToken();
+  if (!t) return null;
+  try { return JSON.parse(atob(t.split('.')[1])); } catch { return null; }
+}
 function clearAuth() {
   try { localStorage.removeItem('authToken'); } catch {}
-  // Hook UI here if needed (e.g., hide game, show login)
   console.log('[auth] cleared');
 }
 
@@ -19,7 +23,6 @@ async function apiCallRaw(endpoint, options = {}) {
   const token = getAuthToken();
   const headers = Object.assign(
     {},
-    // default JSON when body is plain object/string; caller can override
     (options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
     options.headers || {}
   );
@@ -71,33 +74,42 @@ const modalStats = document.getElementById('modalStats');
 function formatInt(n){ return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
 function formatMoney(n){ const [i,d]=Number(n).toFixed(2).split('.'); return '$'+i.replace(/\B(?=(\d{3})+(?!\d))/g,' ') + '.' + d; }
 
-// 1. UID génération plus robuste pour Edge
+// 1. UID: si token présent, on aligne l'uid sur le JWT; sinon génération locale
 const uid = (()=>{ 
-  const k='iw_uid'; 
-  let v=localStorage.getItem(k); 
-  if(!v){ 
-    // Meilleure compatibilité Edge
-    if (window.crypto && window.crypto.randomUUID) {
-      v = crypto.randomUUID();
-    } else if (window.crypto && window.crypto.getRandomValues) {
-      // Fallback pour Edge anciennes versions
-      const arr = new Uint8Array(16);
-      crypto.getRandomValues(arr);
-      v = Array.from(arr, byte => byte.toString(16).padStart(2, '0')).join('');
-    } else {
-      // Fallback ultime
-      v = Date.now().toString(36) + Math.random().toString(36).slice(2);
+  const k='iw_uid';
+  const payload = decodeTokenPayload(); // { uid, exp, ... } ou null
+  let v = null;
+
+  if (payload && payload.uid) {
+    v = String(payload.uid);
+    localStorage.setItem(k, v);
+  } else {
+    v = localStorage.getItem(k);
+    if(!v){ 
+      if (window.crypto && window.crypto.randomUUID) {
+        v = crypto.randomUUID();
+      } else if (window.crypto && window.crypto.getRandomValues) {
+        const arr = new Uint8Array(16);
+        crypto.getRandomValues(arr);
+        v = Array.from(arr, byte => byte.toString(16).padStart(2, '0')).join('');
+      } else {
+        v = Date.now().toString(36) + Math.random().toString(36).slice(2);
+      }
+      localStorage.setItem(k,v);
     }
-    localStorage.setItem(k,v);
-  } 
-  window.uid=v; 
+  }
+  window.uid = v; 
+  // Debug utile: comparer les uids si token présent
+  if (payload && payload.uid && payload.uid !== v) {
+    console.warn('[auth] uid mismatch corrected. token.uid=', payload.uid, 'local uid=', v);
+  }
   return v; 
 })();
 
 let sold = {};
 let locks = {};
 let selected = new Set();
-let holdIncomingLocksUntil = 0;   // fenêtre pendant laquelle on NE TOUCHE PAS aux locks venant du serveur
+let holdIncomingLocksUntil = 0;
 
 // Heartbeat while modal open
 let currentLock = [];
@@ -107,7 +119,7 @@ function startHeartbeat(){
   heartbeat = setInterval(async ()=>{
     if (!currentLock.length) return;
     try { await reserve(currentLock); } catch {}
-  }, 4000); // 25s
+  }, 4000);
 }
 function stopHeartbeat(){
   if (heartbeat){ clearInterval(heartbeat); heartbeat=null; }
@@ -118,33 +130,27 @@ function mergeLocksPreferLocal(local, incoming){
   const now = Date.now();
   const out = Object.create(null);
 
-  // 1) Mes locks à moi (uid === uid) : on garde s'ils sont encore valides
   for (const [k, l] of Object.entries(local || {})) {
     if (l && l.uid === uid && l.until > now) {
       out[k] = { uid: l.uid, until: l.until };
     }
   }
-
-  // 2) Locks entrants (serveur) : vérité pour les autres + on note "vu à now"
   for (const [k, l] of Object.entries(incoming || {})) {
     if (l && l.until > now) {
       out[k] = { uid: l.uid, until: l.until };
       othersLastSeen[k] = now;
     }
   }
-
-  // 3) Si un lock d’autrui a "disparu" à ce poll, on le garde en grâce qq secondes
   for (const [k, l] of Object.entries(local || {})) {
     if (!out[k] && l && l.uid !== uid && l.until > now) {
       const last = othersLastSeen[k] || 0;
       if (now - last < OTHERS_GRACE_MS) {
-        out[k] = { uid: l.uid, until: l.until }; // on le maintient temporairement
+        out[k] = { uid: l.uid, until: l.until };
       } else {
-        delete othersLastSeen[k]; // grâce expirée : on laisse tomber
+        delete othersLastSeen[k];
       }
     }
   }
-
   return out;
 }
 
@@ -189,7 +195,6 @@ function isBlockedCell(idx){
 
 function paintCell(idx){
   const d=grid.children[idx]; const s=sold[idx]; const l=locks[idx];
-  // DEBUG TEMPORAIRE pour quelques cellules
   if (idx < 5 || (l && l.until > Date.now())) {
     console.log(`🎨 [paintCell] idx=${idx}:`, {
       sold: !!s,
@@ -228,7 +233,6 @@ function refreshTopbar(){
   const blocksSold=Object.keys(sold).length, pixelsSold=blocksSold*100;
   const currentPrice = 1 + Math.floor(pixelsSold / 1000) * 0.01;
   priceLine.textContent = `1 pixel = ${formatMoney(currentPrice)}`;
-  // Afficher toujours le total fixe "1,000,000 pixels"
   pixelsLeftEl.textContent = `${TOTAL_PIXELS.toLocaleString('en-US')} pixels`;
 
   const selectedPixels = selected.size * 100;
@@ -302,7 +306,6 @@ function openModal(){
   const total = selectedPixels * currentPrice;
   modalStats.textContent = `${formatInt(selectedPixels)} px — ${formatMoney(total)}`;
   
-  // ✅ UN SEUL heartbeat !
   if (currentLock.length) {
     startHeartbeat();
     console.log('[MODAL] Started heartbeat for', currentLock.length, 'blocks');
@@ -311,22 +314,16 @@ function openModal(){
 
 function closeModal(){ 
   modal.classList.add('hidden'); 
-  stopHeartbeat(); // ← C'est suffisant, pas besoin de répéter
+  stopHeartbeat();
 }
 
 document.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', async () => {
-  // PRENDS un snapshot AVANT
   const toRelease = (currentLock && currentLock.length) ? currentLock.slice() : Array.from(selected);
-
-  // 🔒 Couper toute relock possible AVANT d’unlock
   currentLock = [];
   stopHeartbeat();
-
-  // Libère au serveur
   if (toRelease.length) {
     try { await unlock(toRelease); } catch {}
   }
-
   closeModal();
   clearSelection();
   setTimeout(async () => { await loadStatus(); paintAll(); }, 150);
@@ -335,14 +332,11 @@ document.querySelectorAll('[data-close]').forEach(el => el.addEventListener('cli
 window.addEventListener('keydown', async (e)=>{
   if(e.key==='Escape' && !modal.classList.contains('hidden')){
     const toRelease = (currentLock && currentLock.length) ? currentLock.slice() : Array.from(selected);
-
     currentLock = [];
     stopHeartbeat();
-
     if (toRelease.length) {
       try { await unlock(toRelease); } catch {}
     }
-
     closeModal();
     clearSelection();
     setTimeout(async () => { await loadStatus(); paintAll(); }, 150);
@@ -357,18 +351,13 @@ async function reserve(indices){
   });
   if (!res || !res.ok) throw new Error(res?.error || 'RESERVE_FAILED');
 
-  // Ensure local locks reflect what we just reserved, with a full TTL
   const now = Date.now();
   for (const i of (res.locked||[])){
     locks[i] = { uid, until: now + 300000 };
   }
-  // Merge incoming (others' locks) without dropping ours
   locks = mergeLocksPreferLocal(locks, res.locks || {});
   paintAll();
-  
-  // Empêche loadStatus() d’écraser nos locks pendant 8s (latence GitHub/Netlify)
   holdIncomingLocksUntil = Date.now() + 8000;
-  // Souviens-toi de ce que TU viens de réserver (pour le heartbeat et la finalisation)
   currentLock = Array.isArray(res.locked) ? res.locked.slice() : [];
   return res;
 }
@@ -376,35 +365,32 @@ async function reserve(indices){
 // JWT-SECURED (keeps HTTP status logs)
 async function unlock(indices){
   console.log('🔓 [UNLOCK] Début pour', indices.length, 'blocs:', indices);
-  
   const r = await apiCallRaw('/unlock',{
     method:'POST', 
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ uid, blocks: indices })
   });
-  
   console.log('🔓 [UNLOCK] Réponse HTTP:', r.status, r.ok);
-  
   const res = await r.json().catch(()=> ({})); 
   console.log('🔓 [UNLOCK] Réponse serveur:', res);
-  
   if(!r.ok || !res.ok) {
     console.error('❌ [UNLOCK] Échec:', res.error || ('HTTP '+r.status));
     throw new Error(res.error || ('HTTP '+r.status));
   }
-  
-  // ✅ CORRECTION CRITIQUE : Mettre à jour les locks ET supprimer la protection
   locks = res.locks || {}; 
-  holdIncomingLocksUntil = 0; // ✅ Supprimer immédiatement la protection !
-  
+  holdIncomingLocksUntil = 0;
   console.log('🔄 [UNLOCK] Locks mis à jour:', Object.keys(locks).length);
   console.log('🔄 [UNLOCK] Protection supprimée');
-  
   paintAll(); 
   return res;
 }
 
+// Click buy: empêcher si non authentifié
 buyBtn.addEventListener('click', async ()=>{
+  if(!getAuthToken()){
+    alert('Veuillez vous connecter avant de réserver.');
+    return;
+  }
   if(!selected.size) return;
   const want = Array.from(selected);
   try{
@@ -415,7 +401,6 @@ buyBtn.addEventListener('click', async ()=>{
       clearSelection(); paintAll();
       return;
     }
-    // remember our current lock and start heartbeat in modal
     currentLock = got.locked.slice();
     clearSelection();
     for(const i of got.locked){ selected.add(i); grid.children[i].classList.add('sel'); }
@@ -427,6 +412,10 @@ buyBtn.addEventListener('click', async ()=>{
 
 form.addEventListener('submit', async (e)=>{
   e.preventDefault();
+  if(!getAuthToken()){
+    alert('Veuillez vous connecter avant de finaliser.');
+    return;
+  }
   let linkUrl = linkInput.value.trim();
   const name  = nameInput.value.trim();
   const email = emailInput.value.trim();
@@ -436,15 +425,12 @@ form.addEventListener('submit', async (e)=>{
   confirmBtn.disabled=true; confirmBtn.textContent='Processing…';
   try{
     const blocks = currentLock.length ? currentLock.slice() : Array.from(selected);
-
-    // JWT-SECURED finalize, preserving HTTP status (409 handling)
     const r = await apiCallRaw('/finalize', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ uid, blocks, linkUrl, name, email })
     });
     const res = await r.json().catch(()=> ({}));
-
     if (r.status===409 && res.taken){
       const rect = rectFromIndices(blocks);
       if (rect) showInvalidRect(rect.r0, rect.c0, rect.r1, rect.c1, 1200);
@@ -476,44 +462,31 @@ function rectFromIndices(arr){
 // CORRECTION CRITIQUE : Nettoyer les locks expirés dans loadStatus
 async function loadStatus(){
   try{
-    // status can remain public
     const r = await fetch('/.netlify/functions/status', { cache:'no-store' });
     const s = await r.json();
     if (!s || !s.ok) return;
 
-    // 1) Màj des ventes
     sold = s.sold || {};
-
     const incoming = s.locks || {};
     const now = Date.now();
 
-    // 2) Renouvelle la "dernière vue" pour les locks d'AUTRUI présents dans la réponse
     for (const [k, l] of Object.entries(incoming)) {
       if (!l) continue;
       if (l.uid !== uid && l.until > now) {
-        othersHold[k] = now + OTHERS_GRACE_MS;  // on les gardera au moins jusque-là
+        othersHold[k] = now + OTHERS_GRACE_MS;
       }
     }
-
-    // 3) Purge des holds expirés (pas vus depuis > OTHERS_GRACE_MS)
     for (const [k, exp] of Object.entries(othersHold)) {
       if (exp <= now) delete othersHold[k];
     }
 
-    // 4) Construit la carte de locks "visibles"
     const visible = Object.create(null);
-
-    // a) base = locks renvoyés par le serveur (si encore valides)
     for (const [k, l] of Object.entries(incoming)) {
       if (l && l.until > now) visible[k] = { uid: l.uid, until: l.until };
     }
-
-    // b) ajoute les holds (locks d'autrui "aperçus récemment") absents du snapshot courant
     for (const [k, exp] of Object.entries(othersHold)) {
       if (!visible[k]) visible[k] = { uid: 'other', until: exp };
     }
-
-    // c) par-dessus, impose MES locks locaux s'ils sont plus longs/encore valides
     for (const [k, l] of Object.entries(locks || {})) {
       if (l && l.uid === uid && l.until > now) {
         const cur = visible[k];
@@ -523,13 +496,16 @@ async function loadStatus(){
       }
     }
 
-    // 5) remplace la carte active et repeins
     locks = visible;
     paintAll();
   } catch {}
 }
 
 (async function init(){ 
+  // Log debug pour vérifier l’alignement uid/token
+  const p = decodeTokenPayload();
+  if (p?.uid) console.log('[auth] token uid:', p.uid, ' | client uid:', uid);
+
   await loadStatus(); paintAll(); 
   setInterval(async()=>{ 
     console.log('⏰ [POLLING PRINCIPAL] Début cycle');
@@ -537,7 +513,6 @@ async function loadStatus(){
     paintAll(); 
     console.log('⏰ [POLLING PRINCIPAL] Fin cycle - locks actuels:', Object.keys(locks).length);
   }, 2500);
-
 }
 )();
 
@@ -547,16 +522,9 @@ window.__regionsPoll = setInterval(async () => {
     console.log('🌍 [REGIONS] Début polling regions...');
     const res = await fetch('/.netlify/functions/status?ts=' + Date.now());
     const data = await res.json();
-    
-    // SEULEMENT regions et sold, PAS de locks !
     window.sold = data.sold || {};
     window.regions = data.regions || {};
-    
-    console.log('🌍 [REGIONS] Mise à jour:', {
-      regions: Object.keys(window.regions).length,
-      sold: Object.keys(window.sold).length
-    });
-    
+    console.log('🌍 [REGIONS] Mise à jour:', { regions: Object.keys(window.regions).length, sold: Object.keys(window.sold).length });
     if (typeof window.renderRegions === 'function') window.renderRegions();
     console.log('🌍 [REGIONS] Terminé');
   } catch (e) { 
@@ -607,9 +575,8 @@ window.renderRegions = renderRegions;
 // Initial regions fetch + periodic refresh (15s)
 (async function regionsBootOnce(){
   try {
-    // Utilise la même fonction que le polling principal
     await loadStatus();
-    paintAll(); // S'assurer que tout est rendu
+    paintAll();
     console.log('[regions] initial load via loadStatus()');
   } catch (e) { 
     console.warn('[regions] initial load failed', e); 
@@ -622,14 +589,12 @@ console.log('✅ Unified polling implemented - no more timing conflicts!');
 function debugCleanExpiredLocks() {
   const now = Date.now();
   const before = Object.keys(locks).length;
-  
   for (const [k, l] of Object.entries(locks)) {
     if (!l || l.until <= now) {
       delete locks[k];
       console.log(`🧹 [DEBUG] Supprimé lock expiré ${k}`);
     }
   }
-  
   const after = Object.keys(locks).length;
   console.log(`🧹 [DEBUG] Nettoyage: ${before} -> ${after} locks`);
   paintAll();
