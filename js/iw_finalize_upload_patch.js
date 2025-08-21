@@ -111,7 +111,7 @@
     }
   });
 
-async function doConfirm(){
+  async function doConfirm(){
   const name=(nameInput&&nameInput.value||'').trim();
   const linkUrl=normalizeUrl(linkInput&&linkInput.value);
   const blocks=getSelectedIndices();
@@ -140,11 +140,10 @@ async function doConfirm(){
   });
   if(!out || !out.ok){ alert((out && out.error) || 'Finalize failed'); confirmBtn.disabled=false; return; }
 
-  // Upload avec authentification JWT et debug complet
+  // Upload en base64 avec authentification JWT
   try{
     const file=fileInput&&fileInput.files&&fileInput.files[0];
     console.log('[DEBUG] file:', file);
-    console.log('[DEBUG] fileInput:', fileInput);
     console.log('[DEBUG] out.regionId:', out.regionId);
     
     if(file){
@@ -157,21 +156,29 @@ async function doConfirm(){
       if(!file.type.startsWith('image/')) throw new Error('Please upload an image file.');
       if(file.size>5*1024*1024) throw new Error('Max 5 MB.');
       
-      const fd=new FormData(); 
-      fd.append('file', file, file.name); 
-      fd.append('regionId', out.regionId);
+      console.log('[DEBUG] Converting to base64...');
       
-      console.log('[DEBUG] FormData created with regionId:', out.regionId);
-      console.log('[DEBUG] FormData entries:');
-      for (let [key, value] of fd.entries()) {
-        console.log(`  ${key}:`, value);
-      }
+      // Convertir en base64
+      const reader = new FileReader();
+      const base64 = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result.split(',')[1]); // Retirer le préfixe data:
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
       
-      console.log('[DEBUG] Calling callMultipart...');
-      const up = await callMultipart('/upload', fd);
+      console.log('[DEBUG] Base64 conversion done, length:', base64.length);
+      console.log('[DEBUG] Calling upload with JSON...');
+      
+      const up = await callJson('/upload', {
+        method: 'POST',
+        body: JSON.stringify({
+          regionId: out.regionId,
+          filename: file.name,
+          contentBase64: base64
+        })
+      });
+      
       console.log('[DEBUG] Upload response:', up);
-      console.log('[DEBUG] up.ok:', up?.ok);
-      console.log('[DEBUG] up.error:', up?.error);
       
       if(!up || !up.ok) throw new Error(up.error || 'UPLOAD_FAILED');
       console.log('[IW patch] image linked:', up.imageUrl);
