@@ -446,3 +446,33 @@ main{ padding-top: 20px; }  /* ajuste 12–28px selon ton recouvrement */
   .masthead-strip{ margin: 0 10px; }
 }*/
 
+/* === HEADER FIXE === */
+.masthead {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #fff; /* Fond blanc pour le titre */
+}
+
+/* Compenser l'espace pris par le header fixe */
+body {
+  padding-top: 120px; /* Ajustez cette valeur selon la hauteur réelle de votre header */
+}
+
+/* Optionnel : ombre pour marquer la séparation */
+.masthead {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* Ajustement pour que les boutons chevauchants restent visibles */
+.masthead-actions {
+  position: relative;
+  z-index: 1001; /* Un cran au-dessus du header */
+}
+@media (max-width: 760px) {
+  body {
+    padding-top: 110px; /* Hauteur différente sur mobile */
+  }
+}
