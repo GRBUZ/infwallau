@@ -3175,7 +3175,12 @@
       "regionId": "r_memor6t3_3n8p"
     }
   },
-  "locks": {},
+  "locks": {
+    "7": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755864605043
+    }
+  },
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
