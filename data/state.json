@@ -4237,20 +4237,7 @@
       "regionId": "r_memor6t3_3n8p"
     }
   },
-  "locks": {
-    "430": {
-      "uid": "65a12b40-681e-48f5-8b1b-5cd948dc3b69",
-      "until": 1755891907553
-    },
-    "431": {
-      "uid": "65a12b40-681e-48f5-8b1b-5cd948dc3b69",
-      "until": 1755891907553
-    },
-    "432": {
-      "uid": "65a12b40-681e-48f5-8b1b-5cd948dc3b69",
-      "until": 1755891907553
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
