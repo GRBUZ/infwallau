@@ -14,12 +14,6 @@ function bad(status, error, extra = {}) {
   };
 }
 
-//function safeFilename(name) {
-  //const parts = String(name || "image").split("/").pop().split("\\");
-  //const base  = parts[parts.length - 1];
-  //return base.replace(/\s+/g, "-").replace(/[^\w.\-]/g, "_").slice(0, 120) || "image.jpg";
-//}
-
 function safeFilename(name) {
   const parts = String(name || "image").split("/").pop().split("\\");
   const base  = parts[parts.length - 1];

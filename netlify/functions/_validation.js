@@ -1,8 +1,6 @@
 // _validation.js — drop-in guards for finalize()
 // Place this file at: netlify/functions/_validation.js
 // Usage in finalize.js:
-//   const { guardFinalizeInput } = require('./_validation.js');
-//   const { name, linkUrl, blocks } = await guardFinalizeInput(event);
 
 const GRID_CELLS = 100 * 100;          // 100x100 blocks
 const MAX_BLOCKS_PER_ORDER = 3000;     // safety cap (30% of grid) — adjust to your needs
@@ -11,7 +9,6 @@ const NAME_MAX = 40;
 const ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
 
 // If you want to restrict to your production origin, set env ALLOWED_ORIGIN
-// Example: https://warm-malabi-05bff8.netlify.app
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '';
 
 function bad(status, error) {

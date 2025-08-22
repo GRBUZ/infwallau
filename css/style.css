@@ -362,14 +362,26 @@ main{display:flex;justify-content:center;padding:16px}
 }
 
 /* Le header reste collé en haut pendant le scroll */
-.masthead{
+/*.masthead{
   position: sticky;
   top: 0;
-  z-index: 1000;           /* au-dessus de la grille */
+  z-index: 1000;           
+}*/
+.masthead{
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
 }
 
+
 /* (Option) évite que les boutons chevauchent trop la grille */
-main{ padding-top: 20px; }  /* ajuste 12–28px selon ton recouvrement */
+/*main{ padding-top: 20px; }*/  /* ajuste 12–28px selon ton recouvrement */
+main{
+  padding-top: 120px; /* ajuste selon la hauteur totale de ton header+boutons */
+}
+
 
 /* Footer style assorti au header, mais plus léger */
 .site-footer{

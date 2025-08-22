@@ -16,18 +16,6 @@ async function apiCallRaw(endpoint, options = {}) {
   return res;
 }
 
-// Appel haut-niveau: retourne JSON (ou null en cas d’erreur réseau)
-//async function apiCall(endpoint, options = {}) {
-  //try {
-    //const res = await apiCallRaw(endpoint, options);
-    //const json = await res.json().catch(() => null);
-    //return json;
-  //} catch (e) {
-    //console.error('[apiCall] error:', e);
-    //return null;
-  //}
-//}
-
 // Appel haut-niveau: retourne JSON (ou null en cas d'erreur réseau) AVEC AUTH
 async function apiCall(endpoint, options = {}) {
   try {
