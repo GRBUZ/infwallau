@@ -317,10 +317,9 @@
       locks = window.LockManager.getLocalLocks();
       currentLock = [];
       window.LockManager.heartbeat.stop();
-
+      refreshTopbar();
       await loadStatus();
       clearSelection();
-      refreshTopbar(); 
       paintAll();
       closeModal();
     }catch(err){
