@@ -33,7 +33,8 @@
   const form         = document.getElementById('form') || document.querySelector('form[data-finalize]');
   const nameInput    = document.getElementById('name') || document.querySelector('input[name="name"]');
   const linkInput    = document.getElementById('link') || document.querySelector('input[name="link"]');
-  const fileInput    = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
+  const fileInput = document.getElementById('avatar');
+  //const fileInput    = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
 
   // UI helpers
   function uiWarn(msg){
@@ -172,9 +173,12 @@
     if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
 
     // NOUVELLE VALIDATION : Vérifier que l'image est uploadée
-    // VALIDATION SIMPLE ET RAPIDE
+    // VALIDATION AVEC LES BONS IDs
     const uploadedUrl = document.getElementById('uploadedUrl');
     const imageUrl = uploadedUrl ? uploadedUrl.value.trim() : '';
+  
+    console.log('DEBUG: uploadedUrl element:', uploadedUrl);
+    console.log('DEBUG: imageUrl value:', imageUrl);
   
     if (!imageUrl) {
       uiWarn('Profile photo is required. Please upload an image first.');
