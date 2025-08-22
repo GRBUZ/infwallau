@@ -171,6 +171,21 @@
     if (!blocks.length){ uiWarn('Please select at least one block.'); return; }
     if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
 
+    // NOUVELLE VALIDATION : Vérifier que l'image est uploadée
+    const imageUrl = document.querySelector('#imageUrl, [name="imageUrl"]')?.value?.trim() || '';
+    const fileInput = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
+    const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+  
+    if (!imageUrl && !hasFile) {
+      uiWarn('Profile photo is required. Please upload an image.');
+      return;
+    }
+  
+    if (!imageUrl) {
+      uiWarn('Image upload is required. Please wait for the upload to complete.');
+      return;
+    }
+
     btnBusy(true);
 
     // Re-reserve just before finalize (defensive)

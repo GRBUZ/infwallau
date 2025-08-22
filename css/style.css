@@ -421,3 +421,38 @@ main{ padding-top: 18px; }  /* ajuste 12–28px selon ton recouvrement */
   font-variant-numeric: tabular-nums;        /* chiffres alignés */
   font-feature-settings: "tnum";
 }
+
+/*pour image obligatoire*/
+/* Ajoutez à votre fichier CSS */
+
+/* Style pour les champs requis */
+input[data-required="true"]:not([data-has-image="true"]) {
+  border-left: 3px solid #ef4444;
+}
+
+input[data-required="true"][data-has-image="true"] {
+  border-left: 3px solid #10b981;
+}
+
+/* Message d'erreur si pas d'image */
+input[data-required="true"][data-upload-error="true"] {
+  border-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+/* Indicateur visuel dans le label */
+label:has(input[data-required="true"]) {
+  position: relative;
+}
+
+label:has(input[data-required="true"]):after {
+  content: " *";
+  color: #ef4444;
+  font-weight: bold;
+}
+
+/* Style pour le bouton confirm quand image manque */
+button[id="confirm"]:has(+ form input[data-required="true"]:not([data-has-image="true"])) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

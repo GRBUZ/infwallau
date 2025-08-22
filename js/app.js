@@ -289,14 +289,6 @@
     if(!linkUrl || !name){ return; }
     if (!/^https?:\/\//i.test(linkUrl)) linkUrl = 'https://' + linkUrl;  
 
-    //upload image sucess obligatoire
-    // Ajoute ce bloc minimal pour bloquer la finalisation s'il n'y a pas d'image
-    const imageUrl = document.querySelector('#imageUrl, [name="imageUrl"]')?.value?.trim() || '';
-    if (!imageUrl) {
-      alert('Upload d’image manquant ou échoué. Merci d’uploader une image avant de confirmer.');
-      return;
-    }
-
     confirmBtn.disabled = true;
     confirmBtn.textContent = 'Processing…';
     try{
