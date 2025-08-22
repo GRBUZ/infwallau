@@ -206,10 +206,17 @@
     }
 
     // Finalize
-    const imageUrlInput = document.querySelector('#imageUrl, [name="imageUrl"]');
-    const imageUrl = (imageUrlInput && imageUrlInput.value || '').trim();
     let out = null;
+    // Vérifiez que l'image a bien été uploadée
+    
     try {
+      const imageUrlInput = document.querySelector('#imageUrl, [name="imageUrl"]');
+      const imageUrl = (imageUrlInput && imageUrlInput.value || '').trim();
+      if (!imageUrl) {
+        uiWarn('Please upload the image first before finalizing.');
+        btnBusy(false);
+        return;
+      }
       out = await apiCall('/finalize', {
         method:'POST',
         body: JSON.stringify({ name, linkUrl, blocks, imageUrl }) // ← Ajoutez imageUrl
