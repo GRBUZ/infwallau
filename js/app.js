@@ -161,12 +161,17 @@
     refreshTopbar();
   }
 
+  // Optimisé: ne repeint que la cellule cliquée (plus topbar), pas tout le grid
   function toggleCell(idx){
     if (isBlockedCell(idx)) return;
-    const d=grid.children[idx];
-    if (selected.has(idx)) { selected.delete(idx); d.classList.remove('sel'); }
-    else { selected.add(idx); d.classList.add('sel'); }
-    refreshTopbar();
+    if (selected.has(idx)) { selected.delete(idx); }
+    else { selected.add(idx); }
+    paintCell(idx);
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(refreshTopbar);
+    } else {
+      refreshTopbar();
+    }
   }
 
   function idxFromClientXY(x,y){
