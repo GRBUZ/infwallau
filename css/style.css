@@ -256,7 +256,7 @@ main{display:flex;justify-content:center;padding:16px}
 .masthead-inner{
   max-width: 1100px;
   margin: 0 auto;
-  padding: 16px 18px;           /* hauteur similaire à ta capture */
+  padding: 10px 14px;           /* hauteur similaire à ta capture */
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: center;
@@ -283,8 +283,8 @@ main{display:flex;justify-content:center;padding:16px}
   position: relative;
   display: flex;
   justify-content: center;
-  gap: 16px;
-  top: -22px;                  /* fait chevaucher ~50% la bande */
+  gap: 12px;
+  top: -16px;                  /* fait chevaucher ~50% la bande */
   z-index: 2;                  /* au-dessus de la bande */
 }
 
@@ -379,7 +379,7 @@ main{display:flex;justify-content:center;padding:16px}
 /* (Option) évite que les boutons chevauchent trop la grille */
 /*main{ padding-top: 20px; }*/  /* ajuste 12–28px selon ton recouvrement */
 main{
-  padding-top: 120px; /* ajuste selon la hauteur totale de ton header+boutons */
+  padding-top: 100px; /* ajuste selon la hauteur totale de ton header+boutons */
 }
 
 
