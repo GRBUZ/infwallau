@@ -126,34 +126,34 @@
     }
   }
 
-  input.addEventListener('change', async () => {
-    const file = input.files && input.files[0];
-    if (!file) return;
+  //input.addEventListener('change', async () => {
+    //const file = input.files && input.files[0];
+    //if (!file) return;
 
     // Nouveau cycle: reset les sorties et marque "uploading"
-    clearOutputs();
-    markError(false);
-    markUploading(true);
-    setStatus('Uploading… please wait');
+    //clearOutputs();
+    //markError(false);
+    //markUploading(true);
+    //setStatus('Uploading… please wait');
 
-    try {
+    //try {
       // Upload via unified manager (validates size/type and throws on failure)
-      const res = await window.UploadManager.uploadGeneric(file);
+      //const res = await window.UploadManager.uploadGeneric(file);
       // Expecting { ok:true, url, path, ... }
-      setUploaded(res.url || '', res.path || '', file.name);
+      //setUploaded(res.url || '', res.path || '', file.name);
 
       // Succès: clear flags
-      markUploading(false);
-      markError(false);
-    } catch (err) {
-      console.error('[upload-addon] Upload failed:', err);
+      //markUploading(false);
+      //markError(false);
+    //} catch (err) {
+      //console.error('[upload-addon] Upload failed:', err);
       // Echec: vider les sorties, poser le flag d'erreur
-      clearOutputs();
-      setStatus('Upload failed: ' + (err?.message || err));
-      markUploading(false);
-      markError(true);
-    }
-  });
+      //clearOutputs();
+      //setStatus('Upload failed: ' + (err?.message || err));
+      //markUploading(false);
+      //markError(true);
+    //}
+  //});
 
   if (copyBtn) {
     copyBtn.addEventListener('click', async () => {
