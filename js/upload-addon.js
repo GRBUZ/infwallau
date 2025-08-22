@@ -1,121 +1,111 @@
-// upload-addon.js — handles profile photo upload to assets/images via Netlify Function (JWT-secured via apiCall)
-/* Global assumptions:
-   - window.apiCall(endpoint, options) exists (from app.js) and attaches Authorization automatically.
-   - On 401, apiCall clears auth via clearAuth(). If apiCall is missing, we fall back with a secure fetch.
-*/
+// upload-addon.js — Simple UI helper to upload a profile image using CoreManager + UploadManager
+// - Select file from #avatar
+// - Upload via UploadManager.uploadGeneric
+// - Show uploaded URL into #uploadedUrl
+// - Optional: copy button #copyUrl
+// - Optional: preview <img id="avatarPreview">
+// - Optional: auto-link to a region if data-region-id is present on #avatar or #uploadedUrl
 (function(){
-  const input = document.getElementById('avatar');
-  const out   = document.getElementById('uploadedUrl');
-  const btn   = document.getElementById('copyUrl');
+  'use strict';
 
+  if (!window.CoreManager) {
+    console.error('[upload-addon] CoreManager required. Load js/core-manager.js first.');
+    return;
+  }
+  if (!window.UploadManager) {
+    console.error('[upload-addon] UploadManager required. Load js/upload-manager.js first.');
+    return;
+  }
+
+  const input   = document.getElementById('avatar');
+  const out     = document.getElementById('uploadedUrl');
+  const copyBtn = document.getElementById('copyUrl');
+  const preview = document.getElementById('avatarPreview'); // optional <img> for preview
+
+  // Not a hard error if absent; just no-op
   if (!input || !out) return;
 
-  // Align token storage with app.js
-  function getAuthToken(){
-    try { return localStorage.getItem('authToken'); } catch { return null; }
+  function setStatus(msg){
+    try { out.value = msg; } catch {}
   }
 
-  // Unified JSON caller: prefers app.js apiCall, else secure fetch with Authorization
-  async function callJson(endpoint, options = {}){
-    if (typeof window.apiCall === 'function') {
-      return window.apiCall(endpoint, options);
+  function setUploaded(url, path, fileName){
+    if (out) {
+      out.value = url || path || '';
+      if (path) out.dataset.path = path;
+      if (fileName) out.dataset.filename = fileName;
     }
-    const token = getAuthToken();
-    const config = {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-        ...(options.headers || {})
-      }
-    };
-    try{
-      const res = await fetch('/.netlify/functions' + endpoint, config);
-      const json = await res.json().catch(()=>null);
-      if (res.status === 401 && typeof window.clearAuth === 'function') {
-        window.clearAuth();
-        return null;
-      }
-      return json;
-    }catch(e){
-      console.error('[upload-addon] API error:', e);
-      return null;
+    if (preview && url) {
+      try {
+        preview.src = url;
+        preview.classList.remove('hidden');
+      } catch {}
     }
   }
 
-  function toBase64(file){
-    return new Promise((resolve, reject)=>{
-      const fr = new FileReader();
-      fr.onerror = () => reject(new Error('Read failed'));
-      fr.onload  = () => resolve(fr.result);
-      fr.readAsDataURL(file);
-    });
+  function getRegionId(){
+    // If you want to auto-link the image to a region after upload,
+    // add data-region-id="r_..." on #avatar or #uploadedUrl
+    const fromOut  = (out && out.dataset && out.dataset.regionId) || '';
+    const fromIn   = (input && input.dataset && input.dataset.regionId) || '';
+    return (fromOut || fromIn || '').trim();
   }
 
-  input.addEventListener('change', async ()=>{
+  async function maybeLinkToRegion(regionId, imageUrlOrPath){
+    if (!regionId || !imageUrlOrPath) return;
+    try {
+      const r = await window.UploadManager.linkImageToRegion(regionId, imageUrlOrPath);
+      if (!r || !r.ok) {
+        console.warn('[upload-addon] link-image failed', r);
+      }
+    } catch (e) {
+      console.warn('[upload-addon] link-image threw', e);
+    }
+  }
+
+  input.addEventListener('change', async () => {
     const file = input.files && input.files[0];
     if (!file) return;
-    out.value = 'Uploading… please wait';
-    try{
-      if (file.size > 1.5 * 1024 * 1024) {
-        throw new Error('File too large. Please keep under ~1.5 MB.');
+
+    setStatus('Uploading… please wait');
+
+    try {
+      // Upload via unified manager (validates size/type and throws on failure)
+      const res = await window.UploadManager.uploadGeneric(file);
+      // Expecting { ok:true, url, path, ... }
+      setUploaded(res.url || '', res.path || '', file.name);
+
+      // Auto-link to region if requested
+      const regionId = getRegionId();
+      if (regionId) {
+        // Prefer URL if provided, else fall back to path (link-image handles raw URL conversion server-side)
+        await maybeLinkToRegion(regionId, res.url || res.path || '');
       }
-      const dataUrl = await toBase64(file); // "data:image/png;base64,xxxx"
-      const m = /^data:([^;]+);base64,(.+)$/i.exec(dataUrl);
-      if (!m) throw new Error('Unsupported image format.');
-      const contentType = m[1];
-      const b64 = m[2];
-
-      // SECURED: use apiCall (or secure fallback) instead of direct fetch
-      const res = await callJson('/upload', {
-        method:'POST',
-        body: JSON.stringify({ filename: file.name, contentType, data: b64 })
-      });
-
-      if (!res || !res.ok) {
-        const msg = (res && (res.message || res.error)) || 'Unknown error';
-        throw new Error(msg);
-      }
-
-      // Populate output fields
-      out.value = res.url || '';
-      out.dataset.path = res.path || '';
-      // Optionally expose filename for later linking convenience
-      out.dataset.filename = file.name;
-    }catch(err){
+    } catch (err) {
       console.error('[upload-addon] Upload failed:', err);
-      out.value = 'Upload failed: ' + (err?.message || err);
+      setStatus('Upload failed: ' + (err?.message || err));
     }
   });
 
-  if (btn && out){
-    btn.addEventListener('click', ()=>{
-      if (!out.value) return;
-      out.select();
-      try { document.execCommand('copy'); } catch {}
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async () => {
+      if (!out || !out.value) return;
+      const text = out.value;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          out.select();
+          document.execCommand('copy');
+        }
+      } catch {
+        // ignore
+      }
     });
   }
 
-  // Optional helper to link an image to a region after finalize (secured)
-  // Call like: window.linkImageToRegion(regionId, out.dataset.path || out.value)
-  window.linkImageToRegion = async function(regionId, imageUrlOrPath){
-    if (!regionId || !imageUrlOrPath) {
-      console.warn('[upload-addon] linkImageToRegion: missing regionId or imageUrl');
-      return null;
-    }
-    const resp = await callJson('/link-image', {
-      method: 'POST',
-      body: JSON.stringify({ regionId, imageUrl: imageUrlOrPath })
-    });
-    if (!resp || !resp.ok) {
-      console.warn('[upload-addon] link-image failed:', resp);
-    } else {
-      console.log('[upload-addon] image linked', resp.imageUrl || imageUrlOrPath);
-    }
-    // Optional: refresh UI immediately if available
-    if (typeof window.refreshStatus === 'function') {
-      try { await window.refreshStatus(); } catch {}
-    }
-    return resp;
-  };
+  // Back-compat: expose linkImageToRegion globally if other code expects it
+  if (!window.linkImageToRegion) {
+    window.linkImageToRegion = window.UploadManager.linkImageToRegion.bind(window.UploadManager);
+  }
 })();

@@ -1,216 +1,204 @@
-/* iw_finalize_upload_patch.js — UID unify + DOM-selection + JWT via apiCall/apiCallMultipart (aucun fetch direct sur endpoints sensibles) */
+// iw_finalize_upload_patch.js — Finalize flow patched to use CoreManager + UploadManager (+ LockManager)
+// Responsibilities:
+// - Re-reserve selection just before finalize
+// - Call /finalize
+// - Upload image for the returned regionId
+// - Keep UI state in sync (sold/locks/regions), unlock on escape/blur
 (function(){
-  const grid        = document.getElementById('grid');
-  const modal       = document.getElementById('modal');
-  const form        = document.getElementById('form');
-  const confirmBtn  = document.getElementById('confirm');
-  const cancelBtn   = document.getElementById('cancel');
-  const nameInput   = document.getElementById('name');
-  const linkInput   = document.getElementById('link');
-  const emailInput  = document.getElementById('email');
-  const fileInput   = document.getElementById('image') || document.getElementById('avatar') || (form && form.querySelector('input[type="file"]'));
+  'use strict';
 
-  if (!grid || !form || !confirmBtn) { console.warn('[IW patch] required elements not found'); return; }
+  // Hard deps
+  if (!window.CoreManager) {
+    console.error('[IW patch] CoreManager required. Load js/core-manager.js before this file.');
+    return;
+  }
+  if (!window.UploadManager) {
+    console.error('[IW patch] UploadManager required. Load js/upload-manager.js before this file.');
+    return;
+  }
+  // LockManager strongly recommended
+  if (!window.LockManager) {
+    console.warn('[IW patch] LockManager not found. Reserve/unlock/merge will be degraded.');
+  }
 
-  // === UID unify (reuse existing window.uid if present; persist in localStorage) ===
-  function makeUid(){ try{ return crypto.randomUUID(); }catch(_){ return Date.now().toString(36)+Math.random().toString(36).slice(2); } }
-  (function ensureUid(){
-    try{
-      const k='iw_uid';
-      let v = (typeof window.uid !== 'undefined' && window.uid) ? String(window.uid) : (localStorage.getItem(k) || '');
-      if (!v) { v = makeUid(); }
-      localStorage.setItem(k, v);
-      window.uid = v; // <- single source of truth for ALL scripts
-    }catch(_){
-      window.uid = window.uid || makeUid();
+  const { uid, apiCall } = window.CoreManager;
+
+  // DOM handles (we tolerate multiple possible IDs to be resilient)
+  const modal        = document.getElementById('modal');
+  const confirmBtn   = document.getElementById('confirm') || document.querySelector('[data-confirm]');
+  const form         = document.getElementById('form') || document.querySelector('form[data-finalize]');
+  const nameInput    = document.getElementById('name') || document.querySelector('input[name="name"]');
+  const linkInput    = document.getElementById('link') || document.querySelector('input[name="link"]');
+  const fileInput    = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
+
+  // Local helpers
+  function normalizeUrl(u){
+    u = String(u || '').trim();
+    if (!u) return '';
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    try {
+      const url = new URL(u);
+      url.hash = ''; // drop fragment
+      return url.toString();
+    } catch {
+      return '';
     }
-  })();
-  const uid = window.uid;
+  }
 
   function getSelectedIndices(){
-    return Array.from(document.querySelectorAll('.cell.sel')).map(el => +el.dataset.idx);
+    // 1) If app.js exposed a helper
+    if (typeof window.getSelectedIndices === 'function') {
+      try { const arr = window.getSelectedIndices(); if (Array.isArray(arr)) return arr; } catch {}
+    }
+    // 2) If a global Set "selected" exists
+    if (window.selected && window.selected instanceof Set) {
+      return Array.from(window.selected);
+    }
+    // 3) Infer from DOM
+    const out = [];
+    document.querySelectorAll('.cell.sel').forEach(el=>{
+      const idx = parseInt(el.dataset.idx, 10);
+      if (Number.isInteger(idx)) out.push(idx);
+    });
+    return out;
   }
-  function normalizeUrl(u){ u=String(u||'').trim(); if(!u) return ''; if(!/^https?:\/\//i.test(u)) u='https://'+u; return u; }
 
-  // Fallbacks si absents (status peut rester public)
-  if (typeof window.renderRegions !== 'function') {
-    window.renderRegions = function(){
-      const gridEl = document.getElementById('grid'); if (!gridEl) return;
-      gridEl.querySelectorAll('.region-overlay').forEach(n=>n.remove());
-      const first = gridEl.querySelector('.cell'); const size = first ? first.offsetWidth : 10;
-      const regionLink = {};
-      for (const [idx, s] of Object.entries(window.sold||{})) if (s && s.regionId && !regionLink[s.regionId] && s.linkUrl) regionLink[s.regionId]=s.linkUrl;
-      for (const [rid, reg] of Object.entries(window.regions||{})) {
-        if (!reg || !reg.rect || !reg.imageUrl) continue;
-        const {x,y,w,h} = reg.rect;
-        const tl = gridEl.querySelector(`.cell[data-idx="${y*100+x}"]`); if (!tl) continue;
-        const a=document.createElement('a'); a.className='region-overlay';
-        if (regionLink[rid]) { a.href=regionLink[rid]; a.target='_blank'; a.rel='noopener nofollow'; }
-        Object.assign(a.style,{position:'absolute',left:tl.offsetLeft+'px',top:tl.offsetTop+'px',width:(w*size)+'px',height:(h*size)+'px',backgroundImage:`url("${reg.imageUrl}")`,backgroundSize:'cover',backgroundPosition:'center',backgroundRepeat:'no-repeat',zIndex:999});
-        gridEl.appendChild(a);
+  async function refreshStatus(){
+    try {
+      const d = await apiCall('/status?ts=' + Date.now());
+      if (!d || !d.ok) return;
+      window.sold = d.sold || {};
+      if (window.LockManager) {
+        const merged = window.LockManager.merge(d.locks || {});
+        window.locks = merged;
+      } else {
+        window.locks = d.locks || {};
       }
-      gridEl.style.position='relative'; gridEl.style.zIndex=2;
-    };
-  }
-  if (typeof window.refreshStatus !== 'function') {
-    window.refreshStatus = async function(){
-      try{
-        const r=await fetch('/.netlify/functions/status?ts='+Date.now());
-        const d=await r.json();
-        window.sold=d.sold||{}; window.locks=d.locks||{}; window.regions=d.regions||{}; window.renderRegions?.();
-      }catch(e){ console.warn('[IW patch] refreshStatus failed', e); }
-    };
-  }
-
-  // Appel JSON sécurisé via app.js
-  async function callJson(endpoint, options = {}){
-    if (typeof window.apiCall !== 'function') {
-      console.error('[IW patch] apiCall indisponible: appel annulé pour', endpoint);
-      return null;
+      window.regions = d.regions || {};
+      if (typeof window.renderRegions === 'function') window.renderRegions();
+    } catch (e) {
+      console.warn('[IW patch] refreshStatus failed', e);
     }
-    return window.apiCall(endpoint, options);
   }
 
-  // Upload multipart sécurisé via app.js
-  async function callMultipart(endpoint, formData, options = {}){
-    if (typeof window.apiCallMultipart !== 'function') {
-      console.error('[IW patch] apiCallMultipart indisponible: upload annulé');
-      return null;
-    }
-    return window.apiCallMultipart(endpoint, formData, options);
-  }
-
+  // Unlock helpers
   async function unlockSelection(){
     try{
-      const blocks=getSelectedIndices(); if(!blocks.length) return;
-      await apiCall('/unlock',{
-        method:'POST',
-        body:JSON.stringify({ blocks })
-      });
+      const blocks = getSelectedIndices();
+      if (!blocks.length) return;
+      if (window.LockManager) {
+        await window.LockManager.unlock(blocks);
+      } else {
+        await apiCall('/unlock', { method:'POST', body: JSON.stringify({ blocks }) });
+      }
     }catch(_){}
   }
 
-  // Déverrouillage en arrière-plan (keepalive) — via apiCall uniquement
   async function unlockKeepalive(){
     try{
-      if (typeof window.apiCall !== 'function') return;
-      const blocks=getSelectedIndices(); if(!blocks.length) return;
-      await window.apiCall('/unlock', {
-        method:'POST',
-        body:JSON.stringify({ blocks }),
-        headers:{ 'Content-Type':'application/json' },
-        keepalive:true
-      });
+      const blocks = getSelectedIndices();
+      if (!blocks.length) return;
+      if (window.LockManager) {
+        await window.LockManager.unlock(blocks);
+      } else {
+        await apiCall('/unlock', {
+          method:'POST',
+          body: JSON.stringify({ blocks }),
+          headers: { 'Content-Type': 'application/json' },
+          keepalive: true
+        });
+      }
     }catch(_){}
   }
 
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape') unlockSelection(); },{passive:true});
-  document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='hidden'){
-      unlockKeepalive();
-    }
+  // Global listeners to avoid "lost locks"
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') unlockSelection(); }, { passive:true });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') unlockKeepalive();
   });
 
+  // Finalize flow
   async function doConfirm(){
-  const name=(nameInput&&nameInput.value||'').trim();
-  const linkUrl=normalizeUrl(linkInput&&linkInput.value);
-  const blocks=getSelectedIndices();
-  if(!blocks.length){ alert('Please select at least one block.'); return; }
-  if(!name||!linkUrl){ alert('Name and Profile URL are required.'); return; }
+    const name = (nameInput && nameInput.value || '').trim();
+    const linkUrl = normalizeUrl(linkInput && linkInput.value);
+    const blocks = getSelectedIndices();
 
-  confirmBtn.disabled = true;
+    if (!blocks.length){ alert('Please select at least one block.'); return; }
+    if (!name || !linkUrl){ alert('Name and Profile URL are required.'); return; }
 
-  // Re-reserve juste avant finalize
-  try{
-    const jr = await apiCall('/reserve',{
+    if (confirmBtn) confirmBtn.disabled = true;
+
+    // Re-reserve just before finalize (defensive)
+    try {
+      if (window.LockManager) {
+        const jr = await window.LockManager.lock(blocks, 180000);
+        if (!jr || !jr.ok) {
+          await refreshStatus();
+          alert((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
+          if (confirmBtn) confirmBtn.disabled = false;
+          return;
+        }
+      } else {
+        const jr = await apiCall('/reserve', { method:'POST', body: JSON.stringify({ blocks, ttl: 180000 }) });
+        if (!jr || !jr.ok) {
+          await refreshStatus();
+          alert((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
+          if (confirmBtn) confirmBtn.disabled = false;
+          return;
+        }
+      }
+    } catch {
+      // Non fatal; server will re-check on finalize
+    }
+
+    // Finalize
+    const out = await apiCall('/finalize', {
       method:'POST',
-      body:JSON.stringify({ blocks, ttl:180000 })
+      body: JSON.stringify({ name, linkUrl, blocks })
     });
-    if(!jr || !jr.ok){
-      await window.refreshStatus().catch(()=>{});
-      alert((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
-      confirmBtn.disabled=false; return;
-    }
-  }catch(_){}
 
-  // Finalize
-  const out = await apiCall('/finalize',{
-    method:'POST',
-    body:JSON.stringify({ name, linkUrl, blocks })
-  });
-  if(!out || !out.ok){ alert((out && out.error) || 'Finalize failed'); confirmBtn.disabled=false; return; }
-
-  // Upload en base64 avec authentification JWT
-  try{
-    const file=fileInput&&fileInput.files&&fileInput.files[0];
-    console.log('[DEBUG] file:', file);
-    console.log('[DEBUG] out.regionId:', out.regionId);
-    
-    if(file){
-      console.log('[DEBUG] file details:', {
-        name: file.name, 
-        type: file.type, 
-        size: file.size
-      });
-      
-      if(!file.type.startsWith('image/')) throw new Error('Please upload an image file.');
-      if(file.size>5*1024*1024) throw new Error('Max 5 MB.');
-      
-      console.log('[DEBUG] Converting to base64...');
-      
-      // Convertir en base64
-      const reader = new FileReader();
-      const base64 = await new Promise((resolve, reject) => {
-        reader.onload = () => resolve(reader.result.split(',')[1]); // Retirer le préfixe data:
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      
-      console.log('[DEBUG] Base64 conversion done, length:', base64.length);
-      console.log('[DEBUG] Calling upload with JSON...');
-      
-      const up = await apiCall('/upload', {
-        method: 'POST',
-        body: JSON.stringify({
-          regionId: out.regionId,
-          filename: file.name,
-          contentBase64: base64
-        })
-      });
-      
-      console.log('[DEBUG] Upload response:', up);
-      
-      if(!up || !up.ok) throw new Error(up.error || 'UPLOAD_FAILED');
-      console.log('[IW patch] image linked:', up.imageUrl);
-    } else {
-      console.log('[DEBUG] No file selected');
+    if (!out || !out.ok) {
+      alert((out && out.error) || 'Finalize failed');
+      if (confirmBtn) confirmBtn.disabled = false;
+      return;
     }
-  }catch(e){ 
-    console.error('[IW patch] upload failed:', e);
-    console.error('[DEBUG] Error details:', {
-      message: e.message,
-      stack: e.stack
-    });
+
+    // Upload (optional) with UploadManager
+    try {
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      if (file) {
+        if (!out.regionId) {
+          console.warn('[IW patch] finalize returned no regionId, skipping upload');
+        } else {
+          const uploadResult = await window.UploadManager.uploadForRegion(file, out.regionId);
+          console.log('[IW patch] image linked:', uploadResult?.imageUrl || '(no url returned)');
+        }
+      }
+    } catch (e) {
+      console.error('[IW patch] upload failed:', e);
+    }
+
+    // After finalize: refresh + unlock selection
+    try { 
+      await unlockSelection(); 
+    } catch {}
+
+    await refreshStatus();
+
+    // Close modal if exists
+    try {
+      if (modal && !modal.classList.contains('hidden')) {
+        modal.classList.add('hidden');
+      }
+    } catch {}
+
+    if (confirmBtn) confirmBtn.disabled = false;
   }
 
-  await window.refreshStatus().catch(()=>{});
-  modal?.classList?.add('hidden');
-  confirmBtn.disabled=false;
-}
+  // Wire up UI
+  if (confirmBtn) confirmBtn.addEventListener('click', (e)=>{ e.preventDefault(); doConfirm(); });
+  if (form) form.addEventListener('submit', (e)=>{ e.preventDefault(); doConfirm(); });
 
-  // Force-rebind Confirm
-  const newBtn = confirmBtn.cloneNode(true);
-  confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
-  newBtn.id = 'confirm';
-  newBtn.addEventListener('click', (e)=>{ e.preventDefault(); doConfirm(); });
-
-  if (cancelBtn){
-    const nc = cancelBtn.cloneNode(true);
-    cancelBtn.parentNode.replaceChild(nc, cancelBtn);
-    nc.id='cancel';
-    nc.addEventListener('click', async (e)=>{ e.preventDefault(); await unlockSelection(); modal?.classList?.add('hidden'); });
-  }
-
-  window.refreshStatus().catch(()=>{});
-  console.log('[IW patch] UID unify active. uid=', uid);
+  // Expose for debugging if needed
+  window.__iwPatch = { doConfirm, refreshStatus, unlockSelection, uid };
 })();
