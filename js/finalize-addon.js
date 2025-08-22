@@ -206,11 +206,13 @@
     }
 
     // Finalize
+    const imageUrlInput = document.querySelector('#imageUrl, [name="imageUrl"]');
+    const imageUrl = (imageUrlInput && imageUrlInput.value || '').trim();
     let out = null;
     try {
       out = await apiCall('/finalize', {
         method:'POST',
-        body: JSON.stringify({ name, linkUrl, blocks })
+        body: JSON.stringify({ name, linkUrl, blocks, imageUrl }) // ← Ajoutez imageUrl
       });
     } catch (e) {
       // CoreManager.apiCall notifie déjà, on ajoute un contexte si besoin
