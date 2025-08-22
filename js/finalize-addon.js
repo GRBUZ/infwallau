@@ -172,20 +172,16 @@
     if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
 
     // NOUVELLE VALIDATION : Vérifier que l'image est uploadée
-    const imageUrl = document.querySelector('#imageUrl, [name="imageUrl"]')?.value?.trim() || '';
-    const fileInput = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
-    const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+    // VALIDATION IMAGE SIMPLIFIÉE
+    const imageUrl = document.querySelector('#uploadedUrl')?.value?.trim() || 
+                   document.querySelector('#imageUrl, [name="imageUrl"]')?.value?.trim() || '';
   
-    if (!imageUrl && !hasFile) {
-      uiWarn('Profile photo is required. Please upload an image.');
-      return;
-    }
+    console.log('DEBUG: imageUrl trouvée:', imageUrl); // Pour debugging
   
     if (!imageUrl) {
-      uiWarn('Image upload is required. Please wait for the upload to complete.');
+      uiWarn('Profile photo is required. Please upload an image first.');
       return;
     }
-
     btnBusy(true);
 
     // Re-reserve just before finalize (defensive)

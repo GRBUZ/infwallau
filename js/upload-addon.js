@@ -23,17 +23,23 @@
   const preview = document.getElementById('avatarPreview'); // optional <img> for preview
 
   function updateRequiredState() {
+    // Version simplifiée - juste pour les attributs visuels
     const hidden = getHiddenImageInput();
-    const hasImage = hidden && hidden.value && hidden.value.trim().length > 0;
+    const hasImage = (out && out.value && out.value.trim().length > 0) || 
+                   (hidden && hidden.value && hidden.value.trim().length > 0);
+  
+    console.log('DEBUG updateRequiredState:', { hasImage, outValue: out?.value, hiddenValue: hidden?.value });
   
     // Marquer visuellement si l'image est présente
-    if (input) {
-      input.setAttribute('data-required', 'true');
-      input.setAttribute('data-has-image', hasImage ? 'true' : 'false');
-    }
-    if (out) {
-      out.setAttribute('data-required', 'true'); 
-      out.setAttribute('data-has-image', hasImage ? 'true' : 'false');
+    try {
+      if (input) {
+        input.setAttribute('data-has-image', hasImage ? 'true' : 'false');
+      }
+      if (out) {
+        out.setAttribute('data-has-image', hasImage ? 'true' : 'false');
+      }
+    } catch(e) {
+      console.warn('Erreur updateRequiredState:', e);
     }
   }
   // Hidden/target input lu par le submit (ton handler lit #imageUrl)
@@ -172,5 +178,14 @@
   }
 
   //pour image obligatoire
-  document.addEventListener('DOMContentLoaded', updateRequiredState);
+  // Initialiser l'état requis au chargement (mais seulement si les éléments existent)
+  if (input && out) {
+    document.addEventListener('DOMContentLoaded', updateRequiredState);
+    // Aussi appeler immédiatement au cas où le DOM est déjà chargé
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', updateRequiredState);
+    } else {
+      updateRequiredState();
+    }
+  }
 })();
