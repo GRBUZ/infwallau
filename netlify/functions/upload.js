@@ -101,6 +101,27 @@ async function ghPutBinary(path, buffer, message){
   return put.json();
 }
 
+// Retry helper pour l'update de state.json sur conflit 409
+async function putStateWithRetry(updateFn, maxRetries = 2) {
+  let attempt = 0;
+  // On boucle jusqu'au succès ou dépassement des retries
+  // À chaque tentative: relire le dernier sha, appliquer updateFn(state), puis PUT
+  while (true) {
+    attempt++;
+    try {
+      const { json: state0, sha } = await ghGetJson(STATE_PATH);
+      const state = state0 || { sold:{}, locks:{}, regions:{} };
+      await updateFn(state);
+      return await ghPutJson(STATE_PATH, state, sha, `chore: set imageUrl`);
+    } catch (e) {
+      const msg = String(e && e.message || e || '');
+      const is409 = msg.includes('GH_PUT_JSON_FAILED:409');
+      if (!is409 || attempt > maxRetries) throw e;
+      // retry: reloop
+    }
+  }
+}
+
 // Helper pour parser multipart/form-data dans Function classique
 function parseMultipartFormData(body, boundary) {
   const parts = body.split(`--${boundary}`);
@@ -175,7 +196,8 @@ exports.handler = async (event) => {
       const body = JSON.parse(event.body || '{}');
       regionId = String(body.regionId || "").trim();
       filename = safeFilename(body.filename || "image.jpg");
-      const b64 = String(body.contentBase64 || "");
+      // Compat: accepte body.contentBase64 OU body.data (comme UploadManager.uploadGeneric)
+      const b64 = String(body.contentBase64 || body.data || "");
       if (!b64) return bad(400, "NO_FILE_BASE64");
       buffer   = Buffer.from(b64, "base64");
     }
@@ -190,14 +212,12 @@ exports.handler = async (event) => {
     // 2) URL RAW
     const imageUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${repoPath}`;
 
-    // 3) mise à jour state.json → regions[regionId].imageUrl
-    const { json: state0, sha } = await ghGetJson(STATE_PATH);
-    const state = state0 || { sold:{}, locks:{}, regions:{} };
-    (state.regions ||= {});
-    (state.regions[regionId] ||= { imageUrl:"", rect:{ x:0, y:0, w:1, h:1 } });
-    state.regions[regionId].imageUrl = imageUrl;
-
-    const putJson = await ghPutJson(STATE_PATH, state, sha, `chore: set imageUrl for ${regionId}`);
+    // 3) mise à jour state.json → regions[regionId].imageUrl (avec retry 409)
+    const putJson = await putStateWithRetry((state) => {
+      (state.regions ||= {});
+      (state.regions[regionId] ||= { imageUrl:"", rect:{ x:0, y:0, w:1, h:1 } });
+      state.regions[regionId].imageUrl = imageUrl;
+    }, 2);
     const jsonSha = putJson?.commit?.sha;
 
     return {
@@ -209,6 +229,7 @@ exports.handler = async (event) => {
         regionId,
         path: repoPath,
         imageUrl,
+        url: imageUrl, // compat client
         GH_REPO,
         GH_BRANCH,
         binSha,
