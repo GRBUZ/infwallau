@@ -287,7 +287,7 @@
     const email = (emailInput.value || '').trim(); // kept for future use if needed
 
     if(!linkUrl || !name){ return; }
-    if (!/^https?:\/\//i.test(linkUrl)) linkUrl = 'https://' + linkUrl;
+    if (!/^https?:\/\//i.test(linkUrl)) linkUrl = 'https://' + linkUrl;  
 
     //upload image sucess obligatoire
     // Ajoute ce bloc minimal pour bloquer la finalisation s'il n'y a pas d'image
@@ -296,9 +296,6 @@
       alert('Upload d’image manquant ou échoué. Merci d’uploader une image avant de confirmer.');
       return;
     }
-
-    if(!linkUrl || !name){ return; }
-    if (!/^https?:\/\//i.test(linkUrl)) linkUrl = 'https://' + linkUrl;
 
     confirmBtn.disabled = true;
     confirmBtn.textContent = 'Processing…';

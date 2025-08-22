@@ -22,6 +22,11 @@
   const copyBtn = document.getElementById('copyUrl');
   const preview = document.getElementById('avatarPreview'); // optional <img> for preview
 
+  // Hidden/target input lu par le submit (ton handler lit #imageUrl)
+  function getHiddenImageInput(){
+    return document.querySelector('#imageUrl, [name="imageUrl"]') || null;
+  }
+
   // Not a hard error if absent; just no-op
   if (!input || !out) return;
 
@@ -29,11 +34,45 @@
     try { out.value = msg; } catch {}
   }
 
+  function markUploading(on){
+    const val = on ? 'true' : 'false';
+    try { out.setAttribute('data-uploading', val); } catch {}
+    try { input.setAttribute('data-uploading', val); } catch {}
+    if (!on) {
+      try { out.removeAttribute('data-uploading'); input.removeAttribute('data-uploading'); } catch {}
+    }
+  }
+
+  function markError(on){
+    const val = on ? 'true' : 'false';
+    try { out.setAttribute('data-upload-error', val); } catch {}
+    try { input.setAttribute('data-upload-error', val); } catch {}
+    if (!on) {
+      try { out.removeAttribute('data-upload-error'); input.removeAttribute('data-upload-error'); } catch {}
+    }
+  }
+
+  function clearOutputs(){
+    // Vide les champs (évite d’utiliser une ancienne URL si l’upload échoue)
+    try { out.value = ''; delete out.dataset.path; delete out.dataset.filename; } catch {}
+    const hidden = getHiddenImageInput();
+    if (hidden) { try { hidden.value = ''; } catch {} }
+    if (preview) {
+      try { preview.src = ''; preview.classList.add('hidden'); } catch {}
+    }
+  }
+
   function setUploaded(url, path, fileName){
+    // Ecrit la valeur dans #uploadedUrl
     if (out) {
       out.value = url || path || '';
       if (path) out.dataset.path = path;
       if (fileName) out.dataset.filename = fileName;
+    }
+    // Ecrit la même valeur dans #imageUrl (ce que ton submit lit)
+    const hidden = getHiddenImageInput();
+    if (hidden) {
+      try { hidden.value = url || path || ''; } catch {}
     }
     if (preview && url) {
       try {
@@ -67,6 +106,10 @@
     const file = input.files && input.files[0];
     if (!file) return;
 
+    // Nouveau cycle: reset les sorties et marque "uploading"
+    clearOutputs();
+    markError(false);
+    markUploading(true);
     setStatus('Uploading… please wait');
 
     try {
@@ -81,9 +124,17 @@
         // Prefer URL if provided, else fall back to path (link-image handles raw URL conversion server-side)
         await maybeLinkToRegion(regionId, res.url || res.path || '');
       }
+
+      // Succès: clear flags
+      markUploading(false);
+      markError(false);
     } catch (err) {
       console.error('[upload-addon] Upload failed:', err);
+      // Echec: vider les sorties, poser le flag d'erreur
+      clearOutputs();
       setStatus('Upload failed: ' + (err?.message || err));
+      markUploading(false);
+      markError(true);
     }
   });
 
