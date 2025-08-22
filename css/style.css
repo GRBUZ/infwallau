@@ -421,31 +421,3 @@ main{ padding-top: 20px; }  /* ajuste 12–28px selon ton recouvrement */
   font-variant-numeric: tabular-nums;        /* chiffres alignés */
   font-feature-settings: "tnum";
 }
-
-/* === Fix Chrome: éviter le "flicker" / disparition du header sticky === */
-.masthead{
-  position: sticky;   /* on garde sticky (pas fixed) */
-  top: 0;
-  z-index: 1000;
-  background: transparent;      /* pas de bande blanche ajoutée */
-  transform: translateZ(0);      /* force une couche GPU */
-  will-change: transform;        /* hint pour Chrome */
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
-
-/* Stabilise le rendu de la bande violette pendant le scroll */
-.masthead-strip{
-  position: relative;
-  z-index: 1;
-  transform: translateZ(0);
-}
-
-/* On conserve le chevauchement sans modifier la mise en page globale */
-.masthead-actions{
-  position: relative;
-  top: -18px;          /* ton overlap existant */
-  z-index: 2;
-  /* Optionnel: si ça "saute" encore, remplace la ligne du dessus par: */
-  /* top: 0; transform: translateY(-18px); will-change: transform; */
-}
