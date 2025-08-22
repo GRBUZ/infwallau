@@ -322,6 +322,7 @@
       clearSelection();
       paintAll();
       closeModal();
+      refreshTopbar();
     }catch(err){
       alert('Finalize failed: '+(err?.message||err));
     }finally{
