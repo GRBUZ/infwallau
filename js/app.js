@@ -317,11 +317,16 @@
       locks = window.LockManager.getLocalLocks();
       currentLock = [];
       window.LockManager.heartbeat.stop();
-      refreshTopbar();
       await loadStatus();
       clearSelection();
       paintAll();
       closeModal();
+      // Important: forcer la topbar APRÈS tous les repaints déclenchés par loadStatus/paintAll
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(refreshTopbar);
+      } else {
+        setTimeout(refreshTopbar, 0);
+      }
     }catch(err){
       alert('Finalize failed: '+(err?.message||err));
     }finally{
