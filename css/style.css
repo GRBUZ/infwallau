@@ -284,7 +284,7 @@ main{display:flex;justify-content:center;padding:16px}
   display: flex;
   justify-content: center;
   gap: 12px;
-  top: -16px;                  /* fait chevaucher ~50% la bande */
+  top: -14px;                  /* fait chevaucher ~50% la bande */
   z-index: 2;                  /* au-dessus de la bande */
 }
 
