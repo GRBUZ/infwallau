@@ -377,9 +377,9 @@ main{display:flex;justify-content:center;padding:16px}
 
 
 /* (Option) évite que les boutons chevauchent trop la grille */
-/*main{
-  padding-top: 120px; 
-}*/
+main{
+  padding-top: 130px; 
+}
 
 
 /* Footer style assorti au header, mais plus léger */

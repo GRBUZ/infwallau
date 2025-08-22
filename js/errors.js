@@ -93,6 +93,10 @@
       case 'NOT_FOUND': return 'Resource not found.';
       case 'CONFLICT': return 'Conflict detected. Please refresh and try again.';
       case 'UPLOAD_FAILED': return 'Image upload failed. Please try a smaller file or a different format.';
+      case 'INVALID_FILE_TYPE': return 'Invalid file type. Allowed: JPG, PNG, GIF.';
+      case 'FILE_TOO_LARGE': return 'File too large. Max 1.5 MB.';
+      case 'NO_FILE': return 'No file selected.';
+      case 'FINALIZE_FAILED': return 'Could not finalize your purchase. Please try again.';
       case 'NETWORK_ERROR': return 'Network error. Check your internet connection.';
       case 'TIMEOUT': return 'Request timed out. Please try again.';
       case 'SERVER_ERROR': return 'Server error. Please try again later.';
@@ -107,7 +111,6 @@
     window.__errorsHandlersInstalled = true;
 
     window.addEventListener('error', (e)=>{
-      // Ignore passive resource errors; still log
       console.warn('[global error]', e.message || e);
     });
 
