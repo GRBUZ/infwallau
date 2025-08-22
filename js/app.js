@@ -289,6 +289,31 @@
     if(!linkUrl || !name){ return; }
     if (!/^https?:\/\//i.test(linkUrl)) linkUrl = 'https://' + linkUrl;
 
+    //upload image sucess obligatoire
+    // Récupère l’état/URL de l’upload depuis ce que tu utilises réellement
+    const isUploading = !!(window.UploadManager?.isUploading || window.myDropzone?.getUploadingFiles?.()?.length);
+    const hasUploadErrors = !!(window.UploadManager?.hasErrors || window.myDropzone?.getRejectedFiles?.()?.length || document.querySelector('.upload-error,[data-upload-error="true"]'));
+    const imageUrl =
+      window.UploadManager?.imageUrl ||
+      window.UploadManager?.getLastUrl?.() ||
+      document.getElementById('imageUrl')?.value ||
+      '';
+
+    // Si l’image est requise: empêcher la finalisation tant que l’upload n’est pas OK
+    if (isUploading) {
+      alert('Image upload in progress. Please wait until it completes.');
+      return;
+    }
+    if (hasUploadErrors) {
+      alert('Image upload failed. Please fix the upload errors before confirming.');
+      return;
+    }
+    if (!imageUrl) {
+      // Si ton UX permet d’acheter sans image, supprime ce guard. Sinon, garde-le.
+      alert('Please upload an image before confirming.');
+      return;
+    }
+
     confirmBtn.disabled = true;
     confirmBtn.textContent = 'Processing…';
     try{
@@ -321,12 +346,7 @@
       clearSelection();
       paintAll();
       closeModal();
-      // Important: forcer la topbar APRÈS tous les repaints déclenchés par loadStatus/paintAll
-      if (typeof requestAnimationFrame === 'function') {
-        requestAnimationFrame(refreshTopbar);
-      } else {
-        setTimeout(refreshTopbar, 0);
-      }
+      refreshTopbar();
     }catch(err){
       alert('Finalize failed: '+(err?.message||err));
     }finally{

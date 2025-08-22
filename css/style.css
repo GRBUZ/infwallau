@@ -369,7 +369,7 @@ main{display:flex;justify-content:center;padding:16px}
 }
 
 /* (Option) évite que les boutons chevauchent trop la grille */
-main{ padding-top: 20px; }  /* ajuste 12–28px selon ton recouvrement */
+main{ padding-top: 18px; }  /* ajuste 12–28px selon ton recouvrement */
 
 /* Footer style assorti au header, mais plus léger */
 .site-footer{
