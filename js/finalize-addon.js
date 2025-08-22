@@ -1,9 +1,10 @@
-// finalize-addon.js — Finalize flow patched to use CoreManager + UploadManager (+ LockManager)
+// finalize-addon.js — Finalize flow patched to use CoreManager + UploadManager (+ LockManager) with robust error handling
 // Responsibilities:
 // - Re-reserve selection just before finalize
 // - Call /finalize
-// - Upload image for the returned regionId
+// - Upload image for the returned regionId (optional)
 // - Keep UI state in sync (sold/locks/regions), unlock on escape/blur
+// - Emit 'finalize:success' event for other modules (e.g., upload-addon.js)
 (function(){
   'use strict';
 
@@ -20,6 +21,9 @@
   if (!window.LockManager) {
     console.warn('[IW patch] LockManager not found. Reserve/unlock/merge will be degraded.');
   }
+  if (!window.Errors) {
+    console.warn('[IW patch] errors.js not found; falling back to alerts/console for user feedback.');
+  }
 
   const { uid, apiCall } = window.CoreManager;
 
@@ -30,6 +34,46 @@
   const nameInput    = document.getElementById('name') || document.querySelector('input[name="name"]');
   const linkInput    = document.getElementById('link') || document.querySelector('input[name="link"]');
   const fileInput    = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
+
+  // UI helpers
+  function uiWarn(msg){
+    if (window.Errors && window.Errors.showToast) {
+      window.Errors.showToast(msg, window.Errors.LEVEL?.warn || 'warn', 4000);
+    } else {
+      alert(msg);
+    }
+  }
+  function uiInfo(msg){
+    if (window.Errors && window.Errors.showToast) {
+      window.Errors.showToast(msg, window.Errors.LEVEL?.info || 'info', 2500);
+    } else {
+      console.log('[Info]', msg);
+    }
+  }
+  function uiError(err, ctx){
+    if (window.Errors && window.Errors.notifyError) {
+      window.Errors.notifyError(err, ctx);
+    } else {
+      console.error(ctx ? `[${ctx}]` : '[Error]', err);
+      alert((err && err.message) || 'Something went wrong');
+    }
+  }
+  function btnBusy(busy){
+    if (!confirmBtn) return;
+    try {
+      if (busy) {
+        confirmBtn.dataset._origText = confirmBtn.dataset._origText || confirmBtn.textContent;
+        confirmBtn.textContent = 'Processing…';
+        confirmBtn.disabled = true;
+      } else {
+        if (confirmBtn.dataset._origText) {
+          confirmBtn.textContent = confirmBtn.dataset._origText;
+          delete confirmBtn.dataset._origText;
+        }
+        confirmBtn.disabled = false;
+      }
+    } catch {}
+  }
 
   // Local helpers
   function normalizeUrl(u){
@@ -77,6 +121,7 @@
       window.regions = d.regions || {};
       if (typeof window.renderRegions === 'function') window.renderRegions();
     } catch (e) {
+      // Silencieux pour éviter le spam; Errors.js notifie déjà sur l'échec API si nécessaire
       console.warn('[IW patch] refreshStatus failed', e);
     }
   }
@@ -123,10 +168,10 @@
     const linkUrl = normalizeUrl(linkInput && linkInput.value);
     const blocks = getSelectedIndices();
 
-    if (!blocks.length){ alert('Please select at least one block.'); return; }
-    if (!name || !linkUrl){ alert('Name and Profile URL are required.'); return; }
+    if (!blocks.length){ uiWarn('Please select at least one block.'); return; }
+    if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
 
-    if (confirmBtn) confirmBtn.disabled = true;
+    btnBusy(true);
 
     // Re-reserve just before finalize (defensive)
     try {
@@ -134,36 +179,61 @@
         const jr = await window.LockManager.lock(blocks, 180000);
         if (!jr || !jr.ok) {
           await refreshStatus();
-          alert((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
-          if (confirmBtn) confirmBtn.disabled = false;
+          uiWarn((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
+          btnBusy(false);
           return;
         }
       } else {
         const jr = await apiCall('/reserve', { method:'POST', body: JSON.stringify({ blocks, ttl: 180000 }) });
         if (!jr || !jr.ok) {
           await refreshStatus();
-          alert((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
-          if (confirmBtn) confirmBtn.disabled = false;
+          uiWarn((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
+          btnBusy(false);
           return;
         }
       }
-    } catch {
+    } catch (e) {
       // Non fatal; server will re-check on finalize
+      console.warn('[IW patch] pre-finalize reserve warning:', e);
     }
 
     // Finalize
-    const out = await apiCall('/finalize', {
-      method:'POST',
-      body: JSON.stringify({ name, linkUrl, blocks })
-    });
-
-    if (!out || !out.ok) {
-      alert((out && out.error) || 'Finalize failed');
-      if (confirmBtn) confirmBtn.disabled = false;
+    let out = null;
+    try {
+      out = await apiCall('/finalize', {
+        method:'POST',
+        body: JSON.stringify({ name, linkUrl, blocks })
+      });
+    } catch (e) {
+      // CoreManager.apiCall notifie déjà, on ajoute un contexte si besoin
+      uiError(e, 'Finalize');
+      btnBusy(false);
       return;
     }
 
-    // Upload (optional) with UploadManager
+    if (!out || !out.ok) {
+      const message = (out && (out.error || out.message)) || 'Finalize failed';
+      const err = window.Errors ? window.Errors.create('FINALIZE_FAILED', message, { status: out?.status || 0, retriable: false, details: out }) : new Error(message);
+      uiError(err, 'Finalize');
+      btnBusy(false);
+      return;
+    }
+
+    // Save regionId for other modules and emit event
+    try {
+      const regionId = out.regionId || '';
+      if (fileInput && regionId) {
+        fileInput.dataset.regionId = regionId;
+      }
+      // Emit event for listeners (e.g., upload-addon auto-upload)
+      document.dispatchEvent(new CustomEvent('finalize:success', {
+        detail: { regionId, blocks, name, linkUrl }
+      }));
+    } catch (e) {
+      console.warn('[IW patch] finalize:success dispatch failed', e);
+    }
+
+    // Optional inline upload with UploadManager (kept for backward-compat; upload-addon may also handle it via event)
     try {
       const file = fileInput && fileInput.files && fileInput.files[0];
       if (file) {
@@ -171,16 +241,19 @@
           console.warn('[IW patch] finalize returned no regionId, skipping upload');
         } else {
           const uploadResult = await window.UploadManager.uploadForRegion(file, out.regionId);
-          console.log('[IW patch] image linked:', uploadResult?.imageUrl || '(no url returned)');
+          const url = uploadResult?.imageUrl || uploadResult?.url || '';
+          if (url) uiInfo('Image uploaded.');
+          console.log('[IW patch] image linked:', url || '(no url returned)');
         }
       }
     } catch (e) {
-      console.error('[IW patch] upload failed:', e);
+      // UploadManager renvoie déjà une erreur normalisée UPLOAD_FAILED
+      uiError(e, 'Upload');
     }
 
     // After finalize: refresh + unlock selection
-    try { 
-      await unlockSelection(); 
+    try {
+      await unlockSelection();
     } catch {}
 
     await refreshStatus();
@@ -192,7 +265,7 @@
       }
     } catch {}
 
-    if (confirmBtn) confirmBtn.disabled = false;
+    btnBusy(false);
   }
 
   // Wire up UI
