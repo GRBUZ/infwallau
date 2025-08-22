@@ -290,29 +290,15 @@
     if (!/^https?:\/\//i.test(linkUrl)) linkUrl = 'https://' + linkUrl;
 
     //upload image sucess obligatoire
-    // Récupère l’état/URL de l’upload depuis ce que tu utilises réellement
-    const isUploading = !!(window.UploadManager?.isUploading || window.myDropzone?.getUploadingFiles?.()?.length);
-    const hasUploadErrors = !!(window.UploadManager?.hasErrors || window.myDropzone?.getRejectedFiles?.()?.length || document.querySelector('.upload-error,[data-upload-error="true"]'));
-    const imageUrl =
-      window.UploadManager?.imageUrl ||
-      window.UploadManager?.getLastUrl?.() ||
-      document.getElementById('imageUrl')?.value ||
-      '';
-
-    // Si l’image est requise: empêcher la finalisation tant que l’upload n’est pas OK
-    if (isUploading) {
-      alert('Image upload in progress. Please wait until it completes.');
-      return;
-    }
-    if (hasUploadErrors) {
-      alert('Image upload failed. Please fix the upload errors before confirming.');
-      return;
-    }
+    // Ajoute ce bloc minimal pour bloquer la finalisation s'il n'y a pas d'image
+    const imageUrl = document.querySelector('#imageUrl, [name="imageUrl"]')?.value?.trim() || '';
     if (!imageUrl) {
-      // Si ton UX permet d’acheter sans image, supprime ce guard. Sinon, garde-le.
-      alert('Please upload an image before confirming.');
+      alert('Upload d’image manquant ou échoué. Merci d’uploader une image avant de confirmer.');
       return;
     }
+
+    if(!linkUrl || !name){ return; }
+    if (!/^https?:\/\//i.test(linkUrl)) linkUrl = 'https://' + linkUrl;
 
     confirmBtn.disabled = true;
     confirmBtn.textContent = 'Processing…';
@@ -328,10 +314,10 @@
         confirmBtn.disabled=false; confirmBtn.textContent='Confirm';
         return;
       }
-
+      
       const out = await apiCall('/finalize', {
         method: 'POST',
-        body: JSON.stringify({ name, linkUrl, blocks })
+        body: JSON.stringify({ name, linkUrl, blocks, imageUrl }) // <-- on passe l'image
       });
       if (!out || !out.ok) {
         throw new Error(out?.error || 'Finalize failed');
