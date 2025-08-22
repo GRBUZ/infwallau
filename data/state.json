@@ -2418,6 +2418,12 @@
       "ts": 1755879545207,
       "regionId": "r_men1cg3b_zaqt"
     },
+    "712": {
+      "name": "tata",
+      "linkUrl": "https://test.com/",
+      "ts": 1755890734280,
+      "regionId": "r_men809mw_hkpy"
+    },
     "719": {
       "name": "tata",
       "linkUrl": "https://test.com/",
@@ -4231,12 +4237,7 @@
       "regionId": "r_memor6t3_3n8p"
     }
   },
-  "locks": {
-    "712": {
-      "uid": "65a12b40-681e-48f5-8b1b-5cd948dc3b69",
-      "until": 1755890912376
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
@@ -4578,6 +4579,15 @@
         "y": 2,
         "w": 3,
         "h": 2
+      }
+    },
+    "r_men809mw_hkpy": {
+      "imageUrl": "",
+      "rect": {
+        "x": 12,
+        "y": 7,
+        "w": 1,
+        "h": 1
       }
     }
   }
