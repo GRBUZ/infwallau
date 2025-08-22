@@ -1800,6 +1800,30 @@
       "ts": 1755876889785,
       "regionId": "r_memzrj5l_fq30"
     },
+    "608": {
+      "name": "bouzzy",
+      "linkUrl": "https://totosss2.com/",
+      "ts": 1755879545207,
+      "regionId": "r_men1cg3b_zaqt"
+    },
+    "609": {
+      "name": "bouzzy",
+      "linkUrl": "https://totosss2.com/",
+      "ts": 1755879545207,
+      "regionId": "r_men1cg3b_zaqt"
+    },
+    "610": {
+      "name": "bouzzy",
+      "linkUrl": "https://totosss2.com/",
+      "ts": 1755879545207,
+      "regionId": "r_men1cg3b_zaqt"
+    },
+    "611": {
+      "name": "bouzzy",
+      "linkUrl": "https://totosss2.com/",
+      "ts": 1755879545207,
+      "regionId": "r_men1cg3b_zaqt"
+    },
     "612": {
       "name": "bouzzy",
       "linkUrl": "https://toto.com/",
@@ -2010,6 +2034,30 @@
       "ts": 1755876889785,
       "regionId": "r_memzrj5l_fq30"
     },
+    "708": {
+      "name": "bouzzy",
+      "linkUrl": "https://totosss2.com/",
+      "ts": 1755879545207,
+      "regionId": "r_men1cg3b_zaqt"
+    },
+    "709": {
+      "name": "bouzzy",
+      "linkUrl": "https://totosss2.com/",
+      "ts": 1755879545207,
+      "regionId": "r_men1cg3b_zaqt"
+    },
+    "710": {
+      "name": "bouzzy",
+      "linkUrl": "https://totosss2.com/",
+      "ts": 1755879545207,
+      "regionId": "r_men1cg3b_zaqt"
+    },
+    "711": {
+      "name": "bouzzy",
+      "linkUrl": "https://totosss2.com/",
+      "ts": 1755879545207,
+      "regionId": "r_men1cg3b_zaqt"
+    },
     "753": {
       "name": "bouzzy",
       "linkUrl": "https://toto2.com/",
@@ -2189,6 +2237,30 @@
       "linkUrl": "https://test.com/",
       "ts": 1755876889785,
       "regionId": "r_memzrj5l_fq30"
+    },
+    "808": {
+      "name": "bouzzy",
+      "linkUrl": "https://totosss2.com/",
+      "ts": 1755879545207,
+      "regionId": "r_men1cg3b_zaqt"
+    },
+    "809": {
+      "name": "bouzzy",
+      "linkUrl": "https://totosss2.com/",
+      "ts": 1755879545207,
+      "regionId": "r_men1cg3b_zaqt"
+    },
+    "810": {
+      "name": "bouzzy",
+      "linkUrl": "https://totosss2.com/",
+      "ts": 1755879545207,
+      "regionId": "r_men1cg3b_zaqt"
+    },
+    "811": {
+      "name": "bouzzy",
+      "linkUrl": "https://totosss2.com/",
+      "ts": 1755879545207,
+      "regionId": "r_men1cg3b_zaqt"
     },
     "822": {
       "name": "tata",
@@ -3727,56 +3799,7 @@
       "regionId": "r_memor6t3_3n8p"
     }
   },
-  "locks": {
-    "608": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755879724355
-    },
-    "609": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755879724355
-    },
-    "610": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755879724355
-    },
-    "611": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755879724355
-    },
-    "708": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755879724355
-    },
-    "709": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755879724355
-    },
-    "710": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755879724355
-    },
-    "711": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755879724355
-    },
-    "808": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755879724355
-    },
-    "809": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755879724355
-    },
-    "810": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755879724355
-    },
-    "811": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755879724355
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
@@ -4037,6 +4060,15 @@
         "y": 2,
         "w": 4,
         "h": 5
+      }
+    },
+    "r_men1cg3b_zaqt": {
+      "imageUrl": "",
+      "rect": {
+        "x": 8,
+        "y": 6,
+        "w": 4,
+        "h": 3
       }
     }
   }
