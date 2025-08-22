@@ -1,4 +1,4 @@
-// iw_finalize_upload_patch.js — Finalize flow patched to use CoreManager + UploadManager (+ LockManager)
+// finalize-addon.js — Finalize flow patched to use CoreManager + UploadManager (+ LockManager)
 // Responsibilities:
 // - Re-reserve selection just before finalize
 // - Call /finalize
