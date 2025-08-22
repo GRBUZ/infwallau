@@ -42,6 +42,12 @@
       "ts": 1755796800495,
       "regionId": "r_melo2xv2_3p4w"
     },
+    "7": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1755864438576,
+      "regionId": "r_memscnb4_76dx"
+    },
     "23": {
       "name": "tztatat",
       "linkUrl": "https://tata.insta.com/",
@@ -3175,12 +3181,7 @@
       "regionId": "r_memor6t3_3n8p"
     }
   },
-  "locks": {
-    "7": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755864617947
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
@@ -3360,6 +3361,15 @@
         "y": 0,
         "w": 4,
         "h": 4
+      }
+    },
+    "r_memscnb4_76dx": {
+      "imageUrl": "",
+      "rect": {
+        "x": 7,
+        "y": 0,
+        "w": 1,
+        "h": 1
       }
     }
   }
