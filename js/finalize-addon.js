@@ -33,8 +33,8 @@
   const form         = document.getElementById('form') || document.querySelector('form[data-finalize]');
   const nameInput    = document.getElementById('name') || document.querySelector('input[name="name"]');
   const linkInput    = document.getElementById('link') || document.querySelector('input[name="link"]');
-  const fileInput = document.getElementById('avatar');
-  //const fileInput    = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
+  //const fileInput = document.getElementById('avatar');
+  const fileInput    = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
 
   // UI helpers
   function uiWarn(msg){
