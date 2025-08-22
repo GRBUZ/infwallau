@@ -172,11 +172,9 @@
     if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
 
     // NOUVELLE VALIDATION : Vérifier que l'image est uploadée
-    // VALIDATION IMAGE SIMPLIFIÉE
-    const imageUrl = document.querySelector('#uploadedUrl')?.value?.trim() || 
-                   document.querySelector('#imageUrl, [name="imageUrl"]')?.value?.trim() || '';
-  
-    console.log('DEBUG: imageUrl trouvée:', imageUrl); // Pour debugging
+    // VALIDATION SIMPLE ET RAPIDE
+    const uploadedUrl = document.getElementById('uploadedUrl');
+    const imageUrl = uploadedUrl ? uploadedUrl.value.trim() : '';
   
     if (!imageUrl) {
       uiWarn('Profile photo is required. Please upload an image first.');
