@@ -173,15 +173,10 @@
     if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
 
     // NOUVELLE VALIDATION : Vérifier que l'image est uploadée
-    // VALIDATION AVEC LES BONS IDs
-    const uploadedUrl = document.getElementById('uploadedUrl');
-    const imageUrl = uploadedUrl ? uploadedUrl.value.trim() : '';
-  
-    console.log('DEBUG: uploadedUrl element:', uploadedUrl);
-    console.log('DEBUG: imageUrl value:', imageUrl);
-  
-    if (!imageUrl) {
-      uiWarn('Profile photo is required. Please upload an image first.');
+    // Vérifier juste qu'un fichier est sélectionné
+    const fileInput = document.getElementById('image');
+    if (!fileInput || !fileInput.files || !fileInput.files.length) {
+      uiWarn('Profile photo is required. Please select an image file.');
       return;
     }
     btnBusy(true);
