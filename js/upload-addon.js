@@ -63,6 +63,7 @@
     }
   }
 
+  /*
   input.addEventListener('change', async () => {
     const file = input.files && input.files[0];
     if (!file) return;
@@ -70,22 +71,20 @@
     setStatus('Uploading… please wait');
 
     try {
-      // Upload via unified manager (validates size/type and throws on failure)
+      
       const res = await window.UploadManager.uploadGeneric(file);
-      // Expecting { ok:true, url, path, ... }
       setUploaded(res.url || '', res.path || '', file.name);
 
-      // Auto-link to region if requested
       const regionId = getRegionId();
       if (regionId) {
-        // Prefer URL if provided, else fall back to path (link-image handles raw URL conversion server-side)
+        
         await maybeLinkToRegion(regionId, res.url || res.path || '');
       }
     } catch (err) {
       console.error('[upload-addon] Upload failed:', err);
       setStatus('Upload failed: ' + (err?.message || err));
     }
-  });
+  });*/
 
   if (copyBtn) {
     copyBtn.addEventListener('click', async () => {
@@ -99,7 +98,6 @@
           document.execCommand('copy');
         }
       } catch {
-        // ignore
       }
     });
   }
