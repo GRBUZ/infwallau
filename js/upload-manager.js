@@ -106,6 +106,8 @@
 
         const { base64Data } = await this.toBase64(file);
 
+        console.log('[DEBUG] base64Data length:', base64Data?.length, 'first 50 chars:', base64Data?.substring(0, 50));
+
         // Vérif taille effective du payload base64 (~ *3/4)
         const approxBytes = Math.floor((base64Data.length * 3) / 4);
         if (approxBytes > this.MAX_SIZE) throwTooLarge();
