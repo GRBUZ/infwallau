@@ -4237,7 +4237,32 @@
       "regionId": "r_memor6t3_3n8p"
     }
   },
-  "locks": {},
+  "locks": {
+    "1053": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755969790672
+    },
+    "1054": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755969790672
+    },
+    "1055": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755969790672
+    },
+    "1153": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755969790672
+    },
+    "1154": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755969790672
+    },
+    "1155": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755969790672
+    }
+  },
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
