@@ -4975,44 +4975,7 @@
       "regionId": "r_meol46fx_n6j4"
     }
   },
-  "locks": {
-    "160": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755976181911
-    },
-    "161": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755976181911
-    },
-    "162": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755976181911
-    },
-    "260": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755976181911
-    },
-    "261": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755976181911
-    },
-    "262": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755976181911
-    },
-    "360": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755976181911
-    },
-    "361": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755976181911
-    },
-    "362": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755976181911
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
