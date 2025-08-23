@@ -174,11 +174,11 @@
 
     // NOUVELLE VALIDATION : Vérifier que l'image est uploadée
     // Vérifier juste qu'un fichier est sélectionné
-    const fileInput = document.getElementById('image');
-    if (!fileInput || !fileInput.files || !fileInput.files.length) {
-      uiWarn('Profile photo is required. Please select an image file.');
-      return;
-    }
+    //const fileInput = document.getElementById('image');
+    //if (!fileInput || !fileInput.files || !fileInput.files.length) {
+      //uiWarn('Profile photo is required. Please select an image file.');
+      //return;
+    //}
     btnBusy(true);
 
     // Re-reserve just before finalize (defensive)
