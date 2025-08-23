@@ -5503,7 +5503,120 @@
       "regionId": "r_meonwphw_d7ld"
     }
   },
-  "locks": {},
+  "locks": {
+    "1060": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1061": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1062": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1063": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1064": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1065": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1066": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1160": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1161": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1162": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1163": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1164": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1165": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1166": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1260": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1261": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1262": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1263": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1264": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1265": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1266": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1360": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1361": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1362": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1363": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1364": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1365": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    },
+    "1366": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755981509289
+    }
+  },
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
