@@ -200,34 +200,10 @@
     // Finalize
     let out = null;
     try {
-      //debut modif upload
-      // 1. Vérifier qu'on a une image AVANT de finalize
-      const file = fileInput && fileInput.files && fileInput.files[0];
-      if (!file) {
-        throw new Error('Profile photo is required. Please select an image file.');
-      }
-
-      // 2. Finalize pour créer la région
       out = await apiCall('/finalize', {
         method:'POST',
         body: JSON.stringify({ name, linkUrl, blocks })
       });
-
-      const regionId = out.regionId;
-
-      // 3. Upload l'image
-      const uploadResult = await window.UploadManager.uploadForRegion(file, regionId);
-
-      // 4. Lier l'image à la région (c'est ça qui manquait !)
-      await apiCall('/link-image', {
-        method: 'POST',
-        body: JSON.stringify({ 
-        regionId, 
-        imageUrl: uploadResult.imageUrl 
-      })
-    });
-      //fin modif upload
-
     } catch (e) {
       // CoreManager.apiCall notifie déjà, on ajoute un contexte si besoin
       uiError(e, 'Finalize');
