@@ -115,7 +115,8 @@
         const payload = {
           filename: file.name,
           contentType: sniffedType,
-          data: base64Data,
+          //data: base64Data,
+          contentBase64: base64Data,  // ← Correction
           ...options
         };
 
