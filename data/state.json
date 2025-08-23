@@ -4237,7 +4237,104 @@
       "regionId": "r_memor6t3_3n8p"
     }
   },
-  "locks": {},
+  "locks": {
+    "635": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "636": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "637": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "638": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "735": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "736": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "737": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "738": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "835": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "836": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "837": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "838": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "935": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "936": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "937": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "938": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "1035": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "1036": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "1037": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "1038": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "1135": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "1136": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "1137": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    },
+    "1138": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1755966593302
+    }
+  },
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
