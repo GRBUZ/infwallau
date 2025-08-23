@@ -4237,72 +4237,7 @@
       "regionId": "r_memor6t3_3n8p"
     }
   },
-  "locks": {
-    "1839": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    },
-    "1840": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    },
-    "1841": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    },
-    "1842": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    },
-    "1939": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    },
-    "1940": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    },
-    "1941": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    },
-    "1942": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    },
-    "2039": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    },
-    "2040": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    },
-    "2041": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    },
-    "2042": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    },
-    "2139": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    },
-    "2140": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    },
-    "2141": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    },
-    "2142": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1755970785137
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
