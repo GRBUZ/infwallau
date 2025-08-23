@@ -100,24 +100,6 @@ exports.handler = async (event) => {
     // Validation complète via _validation.js avec renommage
     const { name: validatedName, linkUrl: validatedLinkUrl, blocks: validatedBlocks } = await guardFinalizeInput(event);
     
-    //pour image obligatoire
-    // NOUVELLE VALIDATION : Vérifier que l'imageUrl est présente
-    const body = JSON.parse(event.body || '{}');
-    const imageUrl = (body.imageUrl || '').trim();
-    
-    if (!imageUrl) {
-      return bad(400, "IMAGE_REQUIRED", { 
-        message: "Profile image is required for finalization" 
-      });
-    }
-    
-    // Validation optionnelle : vérifier que c'est une URL valide d'image
-    if (!imageUrl.match(/^https:\/\/.*\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i)) {
-      return bad(400, "INVALID_IMAGE_URL", { 
-        message: "Invalid image URL format" 
-      });
-    }
-    
     // Load state.json
     const { json: state0, sha } = await ghGetJson(STATE_PATH);
     const state = state0 || { sold:{}, locks:{}, regions:{} };

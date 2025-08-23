@@ -33,7 +33,6 @@
   const form         = document.getElementById('form') || document.querySelector('form[data-finalize]');
   const nameInput    = document.getElementById('name') || document.querySelector('input[name="name"]');
   const linkInput    = document.getElementById('link') || document.querySelector('input[name="link"]');
-  //const fileInput = document.getElementById('avatar');
   const fileInput    = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
 
   // UI helpers
@@ -172,13 +171,6 @@
     if (!blocks.length){ uiWarn('Please select at least one block.'); return; }
     if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
 
-    // NOUVELLE VALIDATION : Vérifier que l'image est uploadée
-    // Vérifier juste qu'un fichier est sélectionné
-    //const fileInput = document.getElementById('image');
-    //if (!fileInput || !fileInput.files || !fileInput.files.length) {
-      //uiWarn('Profile photo is required. Please select an image file.');
-      //return;
-    //}
     btnBusy(true);
 
     // Re-reserve just before finalize (defensive)
@@ -207,13 +199,35 @@
 
     // Finalize
     let out = null;
-    // Vérifiez que l'image a bien été uploadée
-    
     try {
+      //debut modif upload
+      // 1. Vérifier qu'on a une image AVANT de finalize
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      if (!file) {
+        throw new Error('Profile photo is required. Please select an image file.');
+      }
+
+      // 2. Finalize pour créer la région
       out = await apiCall('/finalize', {
         method:'POST',
         body: JSON.stringify({ name, linkUrl, blocks })
       });
+
+      const regionId = out.regionId;
+
+      // 3. Upload l'image
+      const uploadResult = await window.UploadManager.uploadForRegion(file, regionId);
+
+      // 4. Lier l'image à la région (c'est ça qui manquait !)
+      await apiCall('/link-image', {
+        method: 'POST',
+        body: JSON.stringify({ 
+        regionId, 
+        imageUrl: uploadResult.imageUrl 
+      })
+    });
+      //fin modif upload
+
     } catch (e) {
       // CoreManager.apiCall notifie déjà, on ajoute un contexte si besoin
       uiError(e, 'Finalize');
