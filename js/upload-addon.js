@@ -63,7 +63,7 @@
     }
   }
 
-  /*
+  
   input.addEventListener('change', async () => {
     const file = input.files && input.files[0];
     if (!file) return;
@@ -84,7 +84,7 @@
       console.error('[upload-addon] Upload failed:', err);
       setStatus('Upload failed: ' + (err?.message || err));
     }
-  });*/
+  });
 
   if (copyBtn) {
     copyBtn.addEventListener('click', async () => {

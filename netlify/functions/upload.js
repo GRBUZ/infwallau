@@ -180,7 +180,7 @@ exports.handler = async (event) => {
       buffer   = Buffer.from(b64, "base64");
     }
 
-    if (!regionId) return bad(400, "MISSING_REGION_ID");
+    //if (!regionId) return bad(400, "MISSING_REGION_ID");
 
     // 1) commit du binaire
     const repoPath = `assets/images/${regionId}/${filename}`;
@@ -191,14 +191,19 @@ exports.handler = async (event) => {
     const imageUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${repoPath}`;
 
     // 3) mise à jour state.json → regions[regionId].imageUrl
-    const { json: state0, sha } = await ghGetJson(STATE_PATH);
-    const state = state0 || { sold:{}, locks:{}, regions:{} };
-    (state.regions ||= {});
-    (state.regions[regionId] ||= { imageUrl:"", rect:{ x:0, y:0, w:1, h:1 } });
-    state.regions[regionId].imageUrl = imageUrl;
+    
+    // 3) mise à jour state.json seulement si regionId existe
+let jsonSha = null;
+if (regionId) {
+  const { json: state0, sha } = await ghGetJson(STATE_PATH);
+  const state = state0 || { sold:{}, locks:{}, regions:{} };
+  (state.regions ||= {});
+  (state.regions[regionId] ||= { imageUrl:"", rect:{ x:0, y:0, w:1, h:1 } });
+  state.regions[regionId].imageUrl = imageUrl;
 
-    const putJson = await ghPutJson(STATE_PATH, state, sha, `chore: set imageUrl for ${regionId}`);
-    const jsonSha = putJson?.commit?.sha;
+  const putJson = await ghPutJson(STATE_PATH, state, sha, `chore: set imageUrl for ${regionId}`);
+  jsonSha = putJson?.commit?.sha;
+}
 
     return {
       statusCode: 200,
