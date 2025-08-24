@@ -77,58 +77,29 @@ async function ghPutBinary(path, buffer, message){
     "Content-Type": "application/json"
   };
 
-  // Fonction helper pour faire l'upload
-  const doUpload = async (retryCount = 0) => {
-    try {
-      // 1) probe existant
-      let sha = null;
-      const probe = await fetch(`${baseURL}?ref=${GH_BRANCH}`, { headers });
-      if (probe.ok) {
-        const j = await probe.json();
-        sha = j.sha || null;
-      } else if (probe.status !== 404) {
-        throw new Error(`GH_GET_PROBE_FAILED:${probe.status}`);
-      }
+  // 1) probe: existe-t-il déjà ? (pour récupérer le sha)
+  let sha = null;
+  const probe = await fetch(`${baseURL}?ref=${GH_BRANCH}`, { headers });
+  if (probe.ok) {
+    const j = await probe.json();
+    sha = j.sha || null;
+  } else if (probe.status !== 404) {
+    // autre erreur (ex: 409 si branche), on lève
+    throw new Error(`GH_GET_PROBE_FAILED:${probe.status}`);
+  }
 
-      // 2) PUT avec ou sans sha
-      const body = {
-        message: message || `feat: upload ${path}`,
-        content: Buffer.from(buffer).toString("base64"),
-        branch: GH_BRANCH
-      };
-      if (sha) body.sha = sha;
-
-      const put = await fetch(baseURL, { method: "PUT", headers, body: JSON.stringify(body) });
-      
-      if (!put.ok) {
-        const errorBody = await put.text().catch(() => 'No response body');
-        
-        // Si 422 et qu'on peut retry
-        if (put.status === 422 && retryCount < 2) {
-          console.warn(`[upload.js] Retry ${retryCount + 1}/2 after 422 error:`, errorBody);
-          await new Promise(resolve => setTimeout(resolve, 1000 + (retryCount * 500))); // Délai progressif
-          return doUpload(retryCount + 1);
-        }
-        
-        throw new Error(`GH_PUT_BIN_FAILED:${put.status} - ${errorBody}`);
-      }
-      
-      return put.json();
-    } catch (error) {
-      // Retry sur certaines erreurs réseau
-      if (retryCount < 2 && (error.message.includes('fetch') || error.message.includes('network'))) {
-        console.warn(`[upload.js] Network retry ${retryCount + 1}/2:`, error.message);
-        await new Promise(resolve => setTimeout(resolve, 1000 + (retryCount * 500)));
-        return doUpload(retryCount + 1);
-      }
-      throw error;
-    }
+  // 2) PUT avec ou sans sha (update si sha présent, sinon create)
+  const body = {
+    message: message || `feat: upload ${path}`,
+    content: Buffer.from(buffer).toString("base64"),
+    branch: GH_BRANCH
   };
+  if (sha) body.sha = sha;
 
-  return doUpload();
+  const put = await fetch(baseURL, { method: "PUT", headers, body: JSON.stringify(body) });
+  if (!put.ok) throw new Error(`GH_PUT_BIN_FAILED:${put.status}`);
+  return put.json();
 }
-
-
 
 // Helper pour parser multipart/form-data dans Function classique
 function parseMultipartFormData(body, boundary) {
@@ -212,7 +183,10 @@ exports.handler = async (event) => {
     //if (!regionId) return bad(400, "MISSING_REGION_ID");
 
     // 1) commit du binaire
-    const repoPath = `assets/images/${regionId}/${filename}`;
+    //const repoPath = `assets/images/${regionId}/${filename}`;
+    const repoPath = regionId 
+      ? `assets/images/${regionId}/${filename}`
+      : `assets/images/${filename}`;
     const putBin   = await ghPutBinary(repoPath, buffer, `feat: upload ${filename} for ${regionId}`);
     const binSha   = putBin?.commit?.sha;
 
