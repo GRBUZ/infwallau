@@ -2352,6 +2352,24 @@
       "ts": 1755974132043,
       "regionId": "r_meolnrrf_69jg"
     },
+    "492": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756061203941,
+      "regionId": "r_meq1i0v8_sfcf"
+    },
+    "493": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756061203941,
+      "regionId": "r_meq1i0v8_sfcf"
+    },
+    "494": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756061203941,
+      "regionId": "r_meq1i0v8_sfcf"
+    },
     "495": {
       "name": "tztatat",
       "linkUrl": "https://test.com/",
@@ -2712,6 +2730,24 @@
       "ts": 1755974132043,
       "regionId": "r_meolnrrf_69jg"
     },
+    "592": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756061203941,
+      "regionId": "r_meq1i0v8_sfcf"
+    },
+    "593": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756061203941,
+      "regionId": "r_meq1i0v8_sfcf"
+    },
+    "594": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756061203941,
+      "regionId": "r_meq1i0v8_sfcf"
+    },
     "595": {
       "name": "tztatat",
       "linkUrl": "https://test.com/",
@@ -3053,6 +3089,24 @@
       "linkUrl": "https://toto.com/",
       "ts": 1755974132043,
       "regionId": "r_meolnrrf_69jg"
+    },
+    "692": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756061203941,
+      "regionId": "r_meq1i0v8_sfcf"
+    },
+    "693": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756061203941,
+      "regionId": "r_meq1i0v8_sfcf"
+    },
+    "694": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756061203941,
+      "regionId": "r_meq1i0v8_sfcf"
     },
     "695": {
       "name": "tztatat",
@@ -6541,44 +6595,7 @@
       "regionId": "r_mepybula_82zd"
     }
   },
-  "locks": {
-    "492": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756061383308
-    },
-    "493": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756061383308
-    },
-    "494": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756061383308
-    },
-    "592": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756061383308
-    },
-    "593": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756061383308
-    },
-    "594": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756061383308
-    },
-    "692": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756061383308
-    },
-    "693": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756061383308
-    },
-    "694": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756061383308
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
@@ -7118,6 +7135,15 @@
         "y": 0,
         "w": 4,
         "h": 4
+      }
+    },
+    "r_meq1i0v8_sfcf": {
+      "imageUrl": "",
+      "rect": {
+        "x": 92,
+        "y": 4,
+        "w": 3,
+        "h": 3
       }
     }
   }
