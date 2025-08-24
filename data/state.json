@@ -6541,7 +6541,44 @@
       "regionId": "r_mepybula_82zd"
     }
   },
-  "locks": {},
+  "locks": {
+    "492": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756061345932
+    },
+    "493": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756061345932
+    },
+    "494": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756061345932
+    },
+    "592": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756061345932
+    },
+    "593": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756061345932
+    },
+    "594": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756061345932
+    },
+    "692": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756061345932
+    },
+    "693": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756061345932
+    },
+    "694": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756061345932
+    }
+  },
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
