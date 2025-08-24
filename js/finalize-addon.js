@@ -163,7 +163,7 @@
   });
 
   // Finalize flow
-async function doConfirm(){
+  async function doConfirm(){
     const name = (nameInput && nameInput.value || '').trim();
     const linkUrl = normalizeUrl(linkInput && linkInput.value);
     const blocks = getSelectedIndices();
@@ -171,26 +171,20 @@ async function doConfirm(){
     if (!blocks.length){ uiWarn('Please select at least one block.'); return; }
     if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
 
-    btnBusy(true);
-
-    // ✅ VALIDATION D'IMAGE EN PREMIER (si fichier présent)
+        // ✅ JUSTE AVANT btnBusy(true), ajoutez :
     const file = fileInput && fileInput.files && fileInput.files[0];
-    let preUploadResult = null;
-    
     if (file) {
-      try {
-        // Validation et upload générique AVANT la finalisation
-        preUploadResult = await window.UploadManager.uploadGeneric(file);
-        uiInfo('Image validated and pre-uploaded successfully.');
-        console.log('[IW patch] Image pre-validated:', preUploadResult?.imageUrl);
-      } catch (e) {
-        // Si l'image est invalide, STOP immédiatement
-        uiError(e, 'Upload');
-        console.error('[IW patch] Image validation failed, aborting finalization');
-        btnBusy(false);
-        return; // ARRÊT ICI, pas de finalisation
+      if (!file.type.startsWith('image/')) {
+        uiWarn('Please select a valid image file.');
+        return;
+      }
+      const ext = file.name.toLowerCase().split('.').pop();
+      if (!['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+        uiWarn('Invalid image format.');
+        return;
       }
     }
+    btnBusy(true);
 
     // Re-reserve just before finalize (defensive)
     try {
@@ -216,7 +210,7 @@ async function doConfirm(){
       console.warn('[IW patch] pre-finalize reserve warning:', e);
     }
 
-    // Finalize (seulement si l'image est valide)
+    // Finalize
     let out = null;
     try {
       out = await apiCall('/finalize', {
@@ -252,23 +246,32 @@ async function doConfirm(){
       console.warn('[IW patch] finalize:success dispatch failed', e);
     }
 
-   // ✅ LIAISON DE L'IMAGE AU REGIONID (si fichier présent et pré-upload réussi)
-    if (file && preUploadResult && out.regionId) {
-      try {
-        // Re-upload avec le regionId pour lier l'image à la région
+   // Upload obligatoire si fichier présent
+    try {
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      if (file) {
+        if (!out.regionId) {
+          throw new Error('Finalize returned no regionId, cannot upload image');
+        }
+        
         const uploadResult = await window.UploadManager.uploadForRegion(file, out.regionId);
         const url = uploadResult?.imageUrl || uploadResult?.url || '';
-        if (url) {
-          uiInfo('Image linked to region successfully.');
-          console.log('[IW patch] image linked to region:', url);
-        } else {
-          console.warn('[IW patch] Image upload succeeded but no URL returned, using pre-upload');
+        if (!url) {
+          throw new Error('Upload succeeded but no image URL returned');
         }
-      } catch (e) {
-        // Non critique : l'image générique existe déjà
-        console.warn('[IW patch] Failed to link image to region (but pre-upload exists):', e);
-        uiInfo('Image uploaded (generic location).');
+        
+        uiInfo('Image uploaded successfully.');
+        console.log('[IW patch] image linked:', url);
       }
+    } catch (e) {
+      // IMPORTANT: Si upload échoue, ANNULER la finalisation
+      uiError(e, 'Upload');
+      
+      // TODO: Appeler un endpoint /cancel-finalize pour annuler la vente
+      console.error('[IW patch] Upload failed, blocks sold but no image!');
+      
+      btnBusy(false);
+      return; // Stopper ici au lieu de continuer
     }
 
     // After finalize: refresh + unlock selection
