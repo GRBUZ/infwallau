@@ -234,7 +234,7 @@
     }
 
     // Optional inline upload with UploadManager (kept for backward-compat; upload-addon may also handle it via event)
-    try {
+    /*try {
       const file = fileInput && fileInput.files && fileInput.files[0];
       if (file) {
         if (!out.regionId) {
@@ -247,8 +247,34 @@
         }
       }
     } catch (e) {
-      // UploadManager renvoie déjà une erreur normalisée UPLOAD_FAILED
       uiError(e, 'Upload');
+    }*/
+   // Upload obligatoire si fichier présent
+    try {
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      if (file) {
+        if (!out.regionId) {
+          throw new Error('Finalize returned no regionId, cannot upload image');
+        }
+        
+        const uploadResult = await window.UploadManager.uploadForRegion(file, out.regionId);
+        const url = uploadResult?.imageUrl || uploadResult?.url || '';
+        if (!url) {
+          throw new Error('Upload succeeded but no image URL returned');
+        }
+        
+        uiInfo('Image uploaded successfully.');
+        console.log('[IW patch] image linked:', url);
+      }
+    } catch (e) {
+      // IMPORTANT: Si upload échoue, ANNULER la finalisation
+      uiError(e, 'Upload');
+      
+      // TODO: Appeler un endpoint /cancel-finalize pour annuler la vente
+      console.error('[IW patch] Upload failed, blocks sold but no image!');
+      
+      btnBusy(false);
+      return; // Stopper ici au lieu de continuer
     }
 
     // After finalize: refresh + unlock selection
