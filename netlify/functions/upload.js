@@ -170,6 +170,12 @@ exports.handler = async (event) => {
       filename = safeFilename(file.name);
       // Le contenu est en base64 dans event.body pour les binaires
       buffer   = Buffer.from(file.data, 'binary');
+      // ✅ VALIDATION SUPPLÉMENTAIRE POUR MULTIPART
+      if (!isValidImageBuffer(buffer)) {
+        return bad(400, "INVALID_IMAGE_CONTENT", {
+          message: "File content is not a valid image"
+        });
+      }
     } else {
       // JSON format
       const body = JSON.parse(event.body || '{}');
@@ -177,16 +183,43 @@ exports.handler = async (event) => {
       filename = safeFilename(body.filename || "image.jpg");
       const b64 = String(body.contentBase64 || "");
       if (!b64) return bad(400, "NO_FILE_BASE64");
-      buffer   = Buffer.from(b64, "base64");
+      // ✅ VALIDATION POUR JSON FORMAT
+      
+      // Validation du type MIME
+      const contentType = String(body.contentType || "");
+      if (!contentType || !contentType.startsWith('image/')) {
+        return bad(400, "INVALID_FILE_TYPE", { 
+          message: "Only image files are allowed",
+          received: contentType 
+        });
+      }
+
+      // Validation de l'extension
+      const ext = filename.toLowerCase().split('.').pop();
+      const allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+      if (!allowedExts.includes(ext)) {
+        return bad(400, "INVALID_FILE_EXTENSION", {
+          message: "Invalid file extension", 
+          allowed: allowedExts,
+          received: ext
+        });
+      }
+
+      buffer = Buffer.from(b64, "base64");
+      
+      // Validation du contenu base64 (signature image)
+      if (!isValidImageBuffer(buffer)) {
+        return bad(400, "INVALID_IMAGE_CONTENT", {
+          message: "File content is not a valid image"
+        });
+      }
     }
 
-    //if (!regionId) return bad(400, "MISSING_REGION_ID");
+    // ✅ AUSSI, corrigez le repoPath pour éviter le double slash :
+    const repoPath = regionId 
+      ? `assets/images/${regionId}/${filename}`
+      : `assets/images/${filename}`;
 
-    // 1) commit du binaire
-    const repoPath = `assets/images/${regionId}/${filename}`;
-    //const repoPath = regionId 
-      //? `assets/images/${regionId}/${filename}`
-      //: `assets/images/${filename}`;
     const putBin   = await ghPutBinary(repoPath, buffer, `feat: upload ${filename} for ${regionId}`);
     const binSha   = putBin?.commit?.sha;
 
@@ -196,17 +229,17 @@ exports.handler = async (event) => {
     // 3) mise à jour state.json → regions[regionId].imageUrl
     
     // 3) mise à jour state.json seulement si regionId existe
-let jsonSha = null;
-if (regionId) {
-  const { json: state0, sha } = await ghGetJson(STATE_PATH);
-  const state = state0 || { sold:{}, locks:{}, regions:{} };
-  (state.regions ||= {});
-  (state.regions[regionId] ||= { imageUrl:"", rect:{ x:0, y:0, w:1, h:1 } });
-  state.regions[regionId].imageUrl = imageUrl;
+      let jsonSha = null;
+      if (regionId) {
+        const { json: state0, sha } = await ghGetJson(STATE_PATH);
+        const state = state0 || { sold:{}, locks:{}, regions:{} };
+        (state.regions ||= {});
+        (state.regions[regionId] ||= { imageUrl:"", rect:{ x:0, y:0, w:1, h:1 } });
+        state.regions[regionId].imageUrl = imageUrl;
 
-  const putJson = await ghPutJson(STATE_PATH, state, sha, `chore: set imageUrl for ${regionId}`);
-  jsonSha = putJson?.commit?.sha;
-}
+        const putJson = await ghPutJson(STATE_PATH, state, sha, `chore: set imageUrl for ${regionId}`);
+        jsonSha = putJson?.commit?.sha;
+      }
 
     return {
       statusCode: 200,
@@ -228,3 +261,27 @@ if (regionId) {
     return bad(500, "SERVER_ERROR", { message: String(e?.message || e), signature:"upload.v2" });
   }
 };
+
+// ✅ AJOUTEZ CETTE FONCTION À LA FIN DU FICHIER
+function isValidImageBuffer(buffer) {
+  const signatures = {
+    png: [0x89, 0x50, 0x4E, 0x47],
+    jpg: [0xFF, 0xD8, 0xFF],
+    gif: [0x47, 0x49, 0x46],
+    webp: [0x52, 0x49, 0x46, 0x46]
+  };
+  
+  for (const [type, sig] of Object.entries(signatures)) {
+    if (buffer.length >= sig.length) {
+      const match = sig.every((byte, i) => buffer[i] === byte);
+      if (match) {
+        if (type === 'webp') {
+          const webpCheck = buffer.slice(8, 12).toString() === 'WEBP';
+          return webpCheck;
+        }
+        return true;
+      }
+    }
+  }
+  return false;
+}
