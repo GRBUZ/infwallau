@@ -6541,7 +6541,56 @@
       "regionId": "r_mepybula_82zd"
     }
   },
-  "locks": {},
+  "locks": {
+    "491": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756060762043
+    },
+    "492": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756060762043
+    },
+    "493": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756060762043
+    },
+    "494": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756060762043
+    },
+    "591": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756060762043
+    },
+    "592": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756060762043
+    },
+    "593": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756060762043
+    },
+    "594": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756060762043
+    },
+    "691": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756060762043
+    },
+    "692": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756060762043
+    },
+    "693": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756060762043
+    },
+    "694": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756060762043
+    }
+  },
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
