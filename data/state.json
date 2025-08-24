@@ -6133,7 +6133,40 @@
       "regionId": "r_mepybula_82zd"
     }
   },
-  "locks": {},
+  "locks": {
+    "46": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756058058818
+    },
+    "47": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756058058818
+    },
+    "48": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756058058818
+    },
+    "49": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756058058818
+    },
+    "146": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756058058818
+    },
+    "147": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756058058818
+    },
+    "148": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756058058818
+    },
+    "149": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756058058818
+    }
+  },
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
