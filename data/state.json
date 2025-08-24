@@ -5394,6 +5394,30 @@
       "ts": 1755804116466,
       "regionId": "r_melsfqwi_b2oo"
     },
+    "2071": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756057190075,
+      "regionId": "r_mepz3zqy_rp87"
+    },
+    "2072": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756057190075,
+      "regionId": "r_mepz3zqy_rp87"
+    },
+    "2073": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756057190075,
+      "regionId": "r_mepz3zqy_rp87"
+    },
+    "2074": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756057190075,
+      "regionId": "r_mepz3zqy_rp87"
+    },
     "2100": {
       "name": "tata",
       "linkUrl": "https://tata.insta.com/",
@@ -5490,6 +5514,30 @@
       "ts": 1755973218533,
       "regionId": "r_meol46fx_n6j4"
     },
+    "2171": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756057190075,
+      "regionId": "r_mepz3zqy_rp87"
+    },
+    "2172": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756057190075,
+      "regionId": "r_mepz3zqy_rp87"
+    },
+    "2173": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756057190075,
+      "regionId": "r_mepz3zqy_rp87"
+    },
+    "2174": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756057190075,
+      "regionId": "r_mepz3zqy_rp87"
+    },
     "2259": {
       "name": "bouzzy",
       "linkUrl": "https://toto.com/",
@@ -5507,6 +5555,30 @@
       "linkUrl": "https://toto.com/",
       "ts": 1755981689314,
       "regionId": "r_meoq5qzm_7t9z"
+    },
+    "2271": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756057190075,
+      "regionId": "r_mepz3zqy_rp87"
+    },
+    "2272": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756057190075,
+      "regionId": "r_mepz3zqy_rp87"
+    },
+    "2273": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756057190075,
+      "regionId": "r_mepz3zqy_rp87"
+    },
+    "2274": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756057190075,
+      "regionId": "r_mepz3zqy_rp87"
     },
     "2359": {
       "name": "bouzzy",
@@ -5881,56 +5953,7 @@
       "regionId": "r_mepybula_82zd"
     }
   },
-  "locks": {
-    "2071": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756057369421
-    },
-    "2072": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756057369421
-    },
-    "2073": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756057369421
-    },
-    "2074": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756057369421
-    },
-    "2171": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756057369421
-    },
-    "2172": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756057369421
-    },
-    "2173": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756057369421
-    },
-    "2174": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756057369421
-    },
-    "2271": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756057369421
-    },
-    "2272": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756057369421
-    },
-    "2273": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756057369421
-    },
-    "2274": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756057369421
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
@@ -6407,6 +6430,15 @@
         "y": 0,
         "w": 5,
         "h": 2
+      }
+    },
+    "r_mepz3zqy_rp87": {
+      "imageUrl": "",
+      "rect": {
+        "x": 71,
+        "y": 20,
+        "w": 4,
+        "h": 3
       }
     }
   }
