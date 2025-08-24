@@ -183,10 +183,10 @@ exports.handler = async (event) => {
     //if (!regionId) return bad(400, "MISSING_REGION_ID");
 
     // 1) commit du binaire
-    //const repoPath = `assets/images/${regionId}/${filename}`;
-    const repoPath = regionId 
-      ? `assets/images/${regionId}/${filename}`
-      : `assets/images/${filename}`;
+    const repoPath = `assets/images/${regionId}/${filename}`;
+    //const repoPath = regionId 
+      //? `assets/images/${regionId}/${filename}`
+      //: `assets/images/${filename}`;
     const putBin   = await ghPutBinary(repoPath, buffer, `feat: upload ${filename} for ${regionId}`);
     const binSha   = putBin?.commit?.sha;
 

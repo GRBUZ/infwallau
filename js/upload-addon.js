@@ -64,7 +64,7 @@
   }
 
   
-  input.addEventListener('change', async () => {
+  /*input.addEventListener('change', async () => {
     const file = input.files && input.files[0];
     if (!file) return;
 
@@ -84,6 +84,22 @@
       console.error('[upload-addon] Upload failed:', err);
       setStatus('Upload failed: ' + (err?.message || err));
     }
+  });*/
+  input.addEventListener('change', async () => {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  // Juste afficher l'aperçu, PAS d'upload
+  if (preview && file) {
+    try {
+      const url = URL.createObjectURL(file);
+      preview.src = url;
+      preview.classList.remove('hidden');
+      setStatus('Image ready. Click Confirm to upload.');
+    } catch {}
+  }
+  
+  // PAS D'UPLOAD ICI ! Ça se fera dans finalize-addon.js
   });
 
   if (copyBtn) {
