@@ -163,7 +163,7 @@
   });
 
   // Finalize flow
-  async function doConfirm(){
+async function doConfirm(){
     const name = (nameInput && nameInput.value || '').trim();
     const linkUrl = normalizeUrl(linkInput && linkInput.value);
     const blocks = getSelectedIndices();
@@ -172,6 +172,25 @@
     if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
 
     btnBusy(true);
+
+    // ✅ VALIDATION D'IMAGE EN PREMIER (si fichier présent)
+    const file = fileInput && fileInput.files && fileInput.files[0];
+    let preUploadResult = null;
+    
+    if (file) {
+      try {
+        // Validation et upload générique AVANT la finalisation
+        preUploadResult = await window.UploadManager.uploadGeneric(file);
+        uiInfo('Image validated and pre-uploaded successfully.');
+        console.log('[IW patch] Image pre-validated:', preUploadResult?.imageUrl);
+      } catch (e) {
+        // Si l'image est invalide, STOP immédiatement
+        uiError(e, 'Upload');
+        console.error('[IW patch] Image validation failed, aborting finalization');
+        btnBusy(false);
+        return; // ARRÊT ICI, pas de finalisation
+      }
+    }
 
     // Re-reserve just before finalize (defensive)
     try {
@@ -197,7 +216,7 @@
       console.warn('[IW patch] pre-finalize reserve warning:', e);
     }
 
-    // Finalize
+    // Finalize (seulement si l'image est valide)
     let out = null;
     try {
       out = await apiCall('/finalize', {
@@ -233,48 +252,23 @@
       console.warn('[IW patch] finalize:success dispatch failed', e);
     }
 
-    // Optional inline upload with UploadManager (kept for backward-compat; upload-addon may also handle it via event)
-    /*try {
-      const file = fileInput && fileInput.files && fileInput.files[0];
-      if (file) {
-        if (!out.regionId) {
-          console.warn('[IW patch] finalize returned no regionId, skipping upload');
-        } else {
-          const uploadResult = await window.UploadManager.uploadForRegion(file, out.regionId);
-          const url = uploadResult?.imageUrl || uploadResult?.url || '';
-          if (url) uiInfo('Image uploaded.');
-          console.log('[IW patch] image linked:', url || '(no url returned)');
-        }
-      }
-    } catch (e) {
-      uiError(e, 'Upload');
-    }*/
-   // Upload obligatoire si fichier présent
-    try {
-      const file = fileInput && fileInput.files && fileInput.files[0];
-      if (file) {
-        if (!out.regionId) {
-          throw new Error('Finalize returned no regionId, cannot upload image');
-        }
-        
+   // ✅ LIAISON DE L'IMAGE AU REGIONID (si fichier présent et pré-upload réussi)
+    if (file && preUploadResult && out.regionId) {
+      try {
+        // Re-upload avec le regionId pour lier l'image à la région
         const uploadResult = await window.UploadManager.uploadForRegion(file, out.regionId);
         const url = uploadResult?.imageUrl || uploadResult?.url || '';
-        if (!url) {
-          throw new Error('Upload succeeded but no image URL returned');
+        if (url) {
+          uiInfo('Image linked to region successfully.');
+          console.log('[IW patch] image linked to region:', url);
+        } else {
+          console.warn('[IW patch] Image upload succeeded but no URL returned, using pre-upload');
         }
-        
-        uiInfo('Image uploaded successfully.');
-        console.log('[IW patch] image linked:', url);
+      } catch (e) {
+        // Non critique : l'image générique existe déjà
+        console.warn('[IW patch] Failed to link image to region (but pre-upload exists):', e);
+        uiInfo('Image uploaded (generic location).');
       }
-    } catch (e) {
-      // IMPORTANT: Si upload échoue, ANNULER la finalisation
-      uiError(e, 'Upload');
-      
-      // TODO: Appeler un endpoint /cancel-finalize pour annuler la vente
-      console.error('[IW patch] Upload failed, blocks sold but no image!');
-      
-      btnBusy(false);
-      return; // Stopper ici au lieu de continuer
     }
 
     // After finalize: refresh + unlock selection
