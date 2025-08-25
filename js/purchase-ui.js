@@ -258,10 +258,28 @@
         this.updateUI(to);
       });
 
-      this.flow.on('reserved', (purchase) => {
+      /*this.flow.on('reserved', (purchase) => {
         console.log('[PurchaseUI] Blocks reserved:', purchase);
         this.showModal();
         this.updateStats(purchase.blocks);
+      });*/
+      this.flow.on('reserved', (purchase) => {
+        console.log('[PurchaseUI] Blocks reserved:', purchase);
+        
+        // ✅ CORRIGER L'ÉTAT UI
+        this.currentStep = 'form';
+        
+        // ✅ OUVRIR LE MODAL
+        if (this.modal) {
+          this.modal.classList.remove('hidden');
+          console.log('[PurchaseUI] Modal opened successfully');
+        }
+        
+        // ✅ AFFICHER LES STATS
+        this.updateStats(purchase.blocks);
+        
+        // ✅ CACHER LE PROGRESS
+        this.hideProgress();
       });
 
       this.flow.on('imageValidated', ({ file, tempPath }) => {
@@ -504,10 +522,21 @@
     }
 
     updateUI(flowState) {
+      console.log('[PurchaseUI] updateUI called with state:', flowState);
+      
       // Mettre à jour l'UI selon l'état du flux
       switch (flowState) {
         case 'reserving':
           this.showProgress('Réservation...');
+          break;
+        case 'reserved':
+          // ✅ AJOUTÉ : Gérer l'état reserved
+          this.currentStep = 'form';
+          this.hideProgress();
+          if (this.modal) {
+            this.modal.classList.remove('hidden');
+            console.log('[PurchaseUI] Modal opened from updateUI');
+          }
           break;
         case 'validating':
           this.showProgress('Validation...');
