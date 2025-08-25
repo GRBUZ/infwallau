@@ -5,19 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Influencers Wall</title>
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/purchase-ui.css" />
+  <!-- Fonts existants -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
-
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
 </head>
 <body>
  <header class="masthead">
-  <!-- 1) Titre tout en haut -->
-   <h1 class="masthead-title">Influencers Wall</h1>
-
+  <h1 class="masthead-title">Influencers Wall</h1>
+  
   <!-- 2) Bande violette -->
   <div class="masthead-strip">
     <div class="masthead-inner">
@@ -36,20 +36,19 @@
       </div>
     </div>
   </div>
+  
 
-  <!-- 3) Boutons flottants qui chevauchent la bande -->
   <div class="masthead-actions">
-    <button id="buyBtn" class="pill pill-primary">Buy Pixels</button>
+    <button id="buyBtn" class="pill pill-primary" disabled>Buy Pixels</button>
     <a id="contactBtn" href="#contact" class="pill pill-secondary">Contact me</a>
   </div>
 </header>
-
 
   <main>
     <div id="grid" class="grid" aria-label="pixel grid"></div>
   </main>
 
-  <!-- Modal (with Profile Photo upload + URL field) -->
+  <!-- Modal d'achat améliorée -->
   <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="backdrop" data-close></div>
     <div class="panel">
@@ -70,10 +69,10 @@
         </label>
 
         <div class="hr"></div>
-        <label>Profile Photo
-          <input id="avatar" type="file" accept="image/*" required />
-          <input id="uploadedUrl" type="hidden" name="imageUrl" />
-          <small class="hint">Max ~1.5 MB.</small>
+
+        <label>Profile Photo (Required)
+          <input id="image" type="file" accept="image/jpeg,image/png,image/gif" required />
+          <small class="hint">JPG, PNG or GIF - Max 1.5 MB</small>
         </label>
 
         <div class="footer">
@@ -84,71 +83,68 @@
     </div>
   </div>
 
-<footer class="site-footer">
-  <div class="footer-inner">
-    <nav class="footer-links">
-      <a href="/terms.html" target="_blank" rel="noopener noreferrer">Terms of Use</a>
-    </nav>
-    <div class="footer-copy">© 2025 Influencers Wall. All rights reserved.</div>
-  </div>
-</footer>
-
-
-  <!-- Contact Modal (paste this just before your closing </body> tag, after your existing purchase modal) -->
-<div id="contactModal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="backdrop" data-close></div>
-  <div class="panel">
-    <div class="header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-      <h2 style="margin:0;">Contact</h2>
-      <button class="close" title="Close" data-close>&times;</button>
-    </div>
-
-    <!-- Netlify Forms: ensure this form exists in HTML at build time -->
-    <form name="contact" method="POST" action="/contact-success.html"
-          data-netlify="true" netlify-honeypot="bot-field" class="body">
-      <input type="hidden" name="form-name" value="contact" />
-      <p hidden><label>Don’t fill this out: <input name="bot-field" /></label></p>
-
-      <label>Your name
-        <input name="name" placeholder="Your name" required />
-      </label>
-      <label>Your email
-        <input name="email" type="email" placeholder="you@example.com" required />
-      </label>
-      <label>Message
-        <textarea name="message" placeholder="How can we help?" rows="5" required></textarea>
-      </label>
-
-      <div class="footer">
-        <button type="button" class="btn" data-close>Cancel</button>
-        <button type="submit" class="btn primary">Send</button>
+  <!-- Modal de contact (inchangée) -->
+  <div id="contactModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="backdrop" data-close></div>
+    <div class="panel">
+      <div class="header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <h2 style="margin:0;">Contact</h2>
+        <button class="close" title="Close" data-close>&times;</button>
       </div>
-    </form>
-  </div>
-</div>
 
-<!-- Add this script tag somewhere after your other scripts -->
- <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+      <form name="contact" method="POST" action="/contact-success.html"
+            data-netlify="true" netlify-honeypot="bot-field" class="body">
+        <input type="hidden" name="form-name" value="contact" />
+        <p hidden><label>Don't fill this out: <input name="bot-field" /></label></p>
+
+        <label>Your name
+          <input name="name" placeholder="Your name" required />
+        </label>
+        <label>Your email
+          <input name="email" type="email" placeholder="you@example.com" required />
+        </label>
+        <label>Message
+          <textarea name="message" placeholder="How can we help?" rows="5" required></textarea>
+        </label>
+
+        <div class="footer">
+          <button type="button" class="btn" data-close>Cancel</button>
+          <button type="submit" class="btn primary">Send</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <nav class="footer-links">
+        <a href="/terms.html" target="_blank" rel="noopener noreferrer">Terms of Use</a>
+      </nav>
+      <div class="footer-copy">© 2025 Influencers Wall. All rights reserved.</div>
+    </div>
+  </footer>
+
+  <!-- Scripts dans le bon ordre -->
   <script src="js/errors.js"></script> 
   <script src="js/core-manager.js"></script>
   <script src="js/auth-utils.js"></script>
-  <script src="js/locks.js"></script> <!-- NOUVEAU -->
-  <script src="js/upload-manager.js"></script>
+  <script src="js/locks.js"></script>
+  <script src="js/purchase-flow.js"></script>
+  <script src="js/purchase-ui.js"></script>
   <script src="js/app.js"></script>
-  <script src="js/upload-addon.js"></script>
-  <script src="js/finalize-addon.js"></script>
   <script src="js/contact-modal.js"></script>
+  
   <script>
-  // Initialisation de l'authentification au chargement de la page
-  document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    console.log('[AUTH] Initialisation du token...');
-    await AuthUtils.getOrCreateToken();
-    console.log('[AUTH] Token prêt');
-  } catch (e) {
-    console.error('[AUTH] Échec initialisation token:', e);
-  }
-  });
+    // Initialisation de l'authentification
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        console.log('[AUTH] Initialisation du token...');
+        await AuthUtils.getOrCreateToken();
+        console.log('[AUTH] Token prêt');
+      } catch (e) {
+        console.error('[AUTH] Échec initialisation token:', e);
+      }
+    });
   </script>
 </body>
 </html>
