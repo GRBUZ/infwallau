@@ -1,4 +1,4 @@
-// purchase-flow.js — Version avec timeout et debugging renforcé
+// purchase-flow.js — Gestionnaire unifié du flux d'achat avec validation précoce (VERSION CORRIGÉE)
 (function() {
   'use strict';
 
@@ -13,10 +13,11 @@
 
   const { apiCall } = window.CoreManager;
 
-  // États du flux d'achat
+  // ✅ États du flux d'achat AVEC RESERVED
   const STATES = {
     IDLE: 'idle',
     RESERVING: 'reserving', 
+    RESERVED: 'reserved',     // ✅ AJOUTÉ
     VALIDATING: 'validating',
     UPLOADING: 'uploading',
     FINALIZING: 'finalizing',
@@ -50,7 +51,7 @@
       });
     }
 
-    // ✅ ÉTAPE 1: Réserver les blocks AVEC TIMEOUT
+    // ✅ ÉTAPE 1: Réserver les blocks AVEC ÉTAT CORRECT
     async reserve(blocks, userData = {}) {
       if (this.state !== STATES.IDLE) {
         throw window.Errors.create('INVALID_STATE', 'Purchase already in progress');
@@ -91,7 +92,10 @@
         };
 
         console.log('[PurchaseFlow] Reservation successful:', this.currentPurchase);
-        this.setState(STATES.IDLE); // ✅ Retour à idle après réservation
+        
+        // ✅ CORRECTION : Rester en état "reserved"
+        this.setState(STATES.RESERVED);
+        
         this.emit('reserved', this.currentPurchase);
         return this.currentPurchase;
 
@@ -108,9 +112,10 @@
       }
     }
 
-    // ✅ ÉTAPE 2: Valider l'image AVANT upload AVEC TIMEOUT
+    // ✅ ÉTAPE 2: Valider l'image AVANT upload AVEC ÉTAT CORRECT
     async validateImage(file) {
-      if (!this.currentPurchase) {
+      // ✅ CORRECTION : Accepter l'état "reserved"
+      if (!this.currentPurchase || this.state !== STATES.RESERVED) {
         throw window.Errors.create('NO_ACTIVE_PURCHASE', 'No active purchase to validate image for');
       }
 
@@ -349,6 +354,7 @@
       return this.currentPurchase;
     }
 
+    // ✅ CORRECTION : isActive inclut RESERVED
     isActive() {
       return this.state !== STATES.IDLE && this.state !== STATES.SUCCESS && this.state !== STATES.ERROR;
     }
