@@ -1363,7 +1363,44 @@
       "regionId": "r_merb3sib_urxn"
     }
   },
-  "locks": {},
+  "locks": {
+    "1153": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756138908390
+    },
+    "1154": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756138908390
+    },
+    "1155": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756138908390
+    },
+    "1253": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756138908390
+    },
+    "1254": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756138908390
+    },
+    "1255": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756138908390
+    },
+    "1353": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756138908390
+    },
+    "1354": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756138908390
+    },
+    "1355": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756138908390
+    }
+  },
   "regions": {
     "r_mer9ycmd_dk19": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mer9ycmd_dk19/test2_1756135870351_sn7zp7.jpg",
