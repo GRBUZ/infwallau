@@ -163,7 +163,7 @@
   });
 
   // Finalize flow
-  async function doConfirm(){
+async function doConfirm(){
   const name = (nameInput && nameInput.value || '').trim();
   const linkUrl = normalizeUrl(linkInput && linkInput.value);
   const blocks = getSelectedIndices();
@@ -219,21 +219,38 @@
     return;
   }
 
-  // Set regionId FIRST before any events (fixes race condition)
-  if (fileInput && out.regionId) {
-    fileInput.dataset.regionId = out.regionId;
+  // Set regionId FIRST before event emission (fixes race condition)
+  const regionId = out.regionId || '';
+  if (fileInput && regionId) {
+    fileInput.dataset.regionId = regionId;
   }
 
-  // Emit event for other modules (upload-addon will handle the upload)
+  // Emit event for listeners 
   try {
     document.dispatchEvent(new CustomEvent('finalize:success', {
-      detail: { regionId: out.regionId, blocks, name, linkUrl }
+      detail: { regionId, blocks, name, linkUrl }
     }));
   } catch (e) {
     console.warn('[IW patch] finalize:success dispatch failed', e);
   }
 
-  // REMOVED: Inline upload logic - let upload-addon handle it to avoid double uploads
+  // Upload with UploadManager (restored original logic)
+  try {
+    const file = fileInput && fileInput.files && fileInput.files[0];
+    if (file) {
+      if (!out.regionId) {
+        console.warn('[IW patch] finalize returned no regionId, skipping upload');
+      } else {
+        const uploadResult = await window.UploadManager.uploadForRegion(file, out.regionId);
+        const url = uploadResult?.imageUrl || uploadResult?.url || '';
+        if (url) uiInfo('Image uploaded.');
+        console.log('[IW patch] image linked:', url || '(no url returned)');
+      }
+    }
+  } catch (e) {
+    // UploadManager renvoie déjà une erreur normalisée UPLOAD_FAILED
+    uiError(e, 'Upload');
+  }
 
   // After finalize: refresh + unlock selection
   try {
