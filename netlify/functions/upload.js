@@ -69,6 +69,7 @@ async function ghPutJson(path, jsonData, sha, message){
 }
 
 // Version "upsert" pour les binaires
+// Version "upsert" pour les binaires avec retry sur conflit
 async function ghPutBinary(path, buffer, message){
   const baseURL = `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`;
   const headers = {
@@ -77,28 +78,41 @@ async function ghPutBinary(path, buffer, message){
     "Content-Type": "application/json"
   };
 
-  // 1) probe: existe-t-il déjà ? (pour récupérer le sha)
-  let sha = null;
-  const probe = await fetch(`${baseURL}?ref=${GH_BRANCH}`, { headers });
-  if (probe.ok) {
-    const j = await probe.json();
-    sha = j.sha || null;
-  } else if (probe.status !== 404) {
-    // autre erreur (ex: 409 si branche), on lève
-    throw new Error(`GH_GET_PROBE_FAILED:${probe.status}`);
+  // Fonction pour tenter l'upload
+  async function attemptUpload(retryCount = 0) {
+    // 1) probe: existe-t-il déjà ? (pour récupérer le sha)
+    let sha = null;
+    const probe = await fetch(`${baseURL}?ref=${GH_BRANCH}`, { headers });
+    if (probe.ok) {
+      const j = await probe.json();
+      sha = j.sha || null;
+    } else if (probe.status !== 404) {
+      // autre erreur (ex: 409 si branche), on lève
+      throw new Error(`GH_GET_PROBE_FAILED:${probe.status}`);
+    }
+
+    // 2) PUT avec ou sans sha (update si sha présent, sinon create)
+    const body = {
+      message: message || `feat: upload ${path}`,
+      content: Buffer.from(buffer).toString("base64"),
+      branch: GH_BRANCH
+    };
+    if (sha) body.sha = sha;
+
+    const put = await fetch(baseURL, { method: "PUT", headers, body: JSON.stringify(body) });
+    
+    // 3) Gestion du conflit 409
+    if (put.status === 409 && retryCount === 0) {
+      console.warn(`Upload: Binary conflict detected for ${path}, retrying once...`);
+      await new Promise(resolve => setTimeout(resolve, 200)); // petit délai
+      return attemptUpload(1); // retry une seule fois
+    }
+    
+    if (!put.ok) throw new Error(`GH_PUT_BIN_FAILED:${put.status}`);
+    return put.json();
   }
 
-  // 2) PUT avec ou sans sha (update si sha présent, sinon create)
-  const body = {
-    message: message || `feat: upload ${path}`,
-    content: Buffer.from(buffer).toString("base64"),
-    branch: GH_BRANCH
-  };
-  if (sha) body.sha = sha;
-
-  const put = await fetch(baseURL, { method: "PUT", headers, body: JSON.stringify(body) });
-  if (!put.ok) throw new Error(`GH_PUT_BIN_FAILED:${put.status}`);
-  return put.json();
+  return attemptUpload();
 }
 
 // Helper pour parser multipart/form-data dans Function classique
