@@ -1,53 +1,88 @@
 {
-  "sold": {},
-  "locks": {
+  "sold": {
     "50": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756136047124
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756135868773,
+      "regionId": "r_mer9ycmd_dk19"
     },
     "51": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756136047124
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756135868773,
+      "regionId": "r_mer9ycmd_dk19"
     },
     "52": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756136047124
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756135868773,
+      "regionId": "r_mer9ycmd_dk19"
     },
     "53": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756136047124
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756135868773,
+      "regionId": "r_mer9ycmd_dk19"
     },
     "150": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756136047124
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756135868773,
+      "regionId": "r_mer9ycmd_dk19"
     },
     "151": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756136047124
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756135868773,
+      "regionId": "r_mer9ycmd_dk19"
     },
     "152": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756136047124
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756135868773,
+      "regionId": "r_mer9ycmd_dk19"
     },
     "153": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756136047124
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756135868773,
+      "regionId": "r_mer9ycmd_dk19"
     },
     "250": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756136047124
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756135868773,
+      "regionId": "r_mer9ycmd_dk19"
     },
     "251": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756136047124
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756135868773,
+      "regionId": "r_mer9ycmd_dk19"
     },
     "252": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756136047124
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756135868773,
+      "regionId": "r_mer9ycmd_dk19"
     },
     "253": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756136047124
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756135868773,
+      "regionId": "r_mer9ycmd_dk19"
+    }
+  },
+  "locks": {},
+  "regions": {
+    "r_mer9ycmd_dk19": {
+      "imageUrl": "",
+      "rect": {
+        "x": 50,
+        "y": 0,
+        "w": 4,
+        "h": 3
+      }
     }
   }
 }
