@@ -1,4 +1,4 @@
-// purchase-flow.js — Gestionnaire unifié du flux d'achat avec validation précoce
+// purchase-flow.js — Version avec timeout et debugging renforcé
 (function() {
   'use strict';
 
@@ -50,21 +50,36 @@
       });
     }
 
-    // ÉTAPE 1: Réserver les blocks
+    // ✅ ÉTAPE 1: Réserver les blocks AVEC TIMEOUT
     async reserve(blocks, userData = {}) {
       if (this.state !== STATES.IDLE) {
         throw window.Errors.create('INVALID_STATE', 'Purchase already in progress');
       }
 
+      console.log('[PurchaseFlow] Starting reservation for blocks:', blocks);
       this.setState(STATES.RESERVING);
       
       try {
-        const response = await apiCall('/reserve', {
+        // ✅ TIMEOUT pour éviter les blocages
+        const reservePromise = apiCall('/reserve', {
           method: 'POST',
           body: JSON.stringify({ blocks, ttl: 300000 }) // 5 minutes
         });
 
-        if (!response?.ok) {
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('RESERVE_TIMEOUT')), 10000); // 10s timeout
+        });
+
+        console.log('[PurchaseFlow] Calling /reserve API...');
+        const response = await Promise.race([reservePromise, timeoutPromise]);
+        
+        console.log('[PurchaseFlow] Reserve response:', response);
+
+        if (!response) {
+          throw window.Errors.create('RESERVE_FAILED', 'No response from server');
+        }
+
+        if (!response.ok) {
           throw window.Errors.create('RESERVE_FAILED', response?.error || 'Failed to reserve blocks');
         }
 
@@ -75,38 +90,61 @@
           reservedAt: Date.now()
         };
 
+        console.log('[PurchaseFlow] Reservation successful:', this.currentPurchase);
+        this.setState(STATES.IDLE); // ✅ Retour à idle après réservation
         this.emit('reserved', this.currentPurchase);
         return this.currentPurchase;
 
       } catch (error) {
+        console.error('[PurchaseFlow] Reservation failed:', error);
         this.setState(STATES.ERROR);
+        
+        // ✅ Messages d'erreur spécifiques
+        if (error.message === 'RESERVE_TIMEOUT') {
+          throw window.Errors.create('RESERVE_TIMEOUT', 'Réservation trop lente. Vérifiez votre connexion.');
+        }
+        
         throw error;
       }
     }
 
-    // ÉTAPE 2: Valider l'image AVANT upload
+    // ✅ ÉTAPE 2: Valider l'image AVANT upload AVEC TIMEOUT
     async validateImage(file) {
       if (!this.currentPurchase) {
         throw window.Errors.create('NO_ACTIVE_PURCHASE', 'No active purchase to validate image for');
       }
 
+      console.log('[PurchaseFlow] Starting image validation:', file);
       this.setState(STATES.VALIDATING);
       
       try {
         // Validation côté client d'abord
         await this.validateImageClient(file);
         
-        // Validation côté serveur (upload test)
-        const tempPath = await this.uploadToTemp(file);
+        // ✅ Upload vers dossier temporaire AVEC TIMEOUT
+        const uploadPromise = this.uploadToTemp(file);
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('UPLOAD_TIMEOUT')), 30000); // 30s timeout
+        });
+
+        console.log('[PurchaseFlow] Uploading to temp...');
+        const tempPath = await Promise.race([uploadPromise, timeoutPromise]);
         
         this.currentPurchase.tempImagePath = tempPath;
         this.currentPurchase.imageFile = file;
         
+        console.log('[PurchaseFlow] Image validation successful:', tempPath);
         this.emit('imageValidated', { file, tempPath });
         return tempPath;
 
       } catch (error) {
+        console.error('[PurchaseFlow] Image validation failed:', error);
         this.setState(STATES.ERROR);
+        
+        if (error.message === 'UPLOAD_TIMEOUT') {
+          throw window.Errors.create('UPLOAD_TIMEOUT', 'Upload trop lent. Vérifiez votre connexion.');
+        }
+        
         throw error;
       }
     }
@@ -170,7 +208,7 @@
       return null;
     }
 
-    // Upload vers dossier temporaire
+    // ✅ Upload vers dossier temporaire AVEC DEBUGGING
     async uploadToTemp(file) {
       this.setState(STATES.UPLOADING);
       
@@ -179,10 +217,16 @@
       formData.append('tempId', this.currentPurchase.tempId);
       formData.append('action', 'validate');
 
-      const response = await apiCall('/upload-temp', {
-        method: 'POST',
-        body: formData
+      console.log('[PurchaseFlow] FormData prepared:', {
+        fileName: file.name,
+        fileSize: file.size,
+        tempId: this.currentPurchase.tempId
       });
+
+      // ✅ Utiliser CoreManager avec headers appropriés
+      const response = await window.CoreManager.apiCallMultipart('/upload-temp', formData);
+      
+      console.log('[PurchaseFlow] Upload temp response:', response);
 
       if (!response?.ok) {
         throw window.Errors.create('UPLOAD_FAILED', response?.error || 'Failed to upload image');
@@ -191,16 +235,17 @@
       return response.tempPath;
     }
 
-    // ÉTAPE 3: Finaliser l'achat (atomique)
+    // ✅ ÉTAPE 3: Finaliser l'achat (atomique) AVEC TIMEOUT
     async finalize(userData) {
       if (!this.currentPurchase?.tempImagePath) {
         throw window.Errors.create('NO_VALIDATED_IMAGE', 'No validated image found');
       }
 
+      console.log('[PurchaseFlow] Starting finalization:', userData);
       this.setState(STATES.FINALIZING);
 
       try {
-        const response = await apiCall('/finalize-v2', {
+        const finalizePromise = apiCall('/finalize-v2', {
           method: 'POST',
           body: JSON.stringify({
             ...userData,
@@ -209,6 +254,15 @@
             tempId: this.currentPurchase.tempId
           })
         });
+
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('FINALIZE_TIMEOUT')), 45000); // 45s timeout
+        });
+
+        console.log('[PurchaseFlow] Calling /finalize-v2...');
+        const response = await Promise.race([finalizePromise, timeoutPromise]);
+
+        console.log('[PurchaseFlow] Finalize response:', response);
 
         if (!response?.ok) {
           throw window.Errors.create('FINALIZE_FAILED', response?.error || 'Failed to finalize purchase');
@@ -222,13 +276,20 @@
           userData
         };
 
+        console.log('[PurchaseFlow] Purchase completed successfully:', result);
         this.emit('success', result);
         this.currentPurchase = null; // Clear
         
         return result;
 
       } catch (error) {
+        console.error('[PurchaseFlow] Finalization failed:', error);
         this.setState(STATES.ERROR);
+        
+        if (error.message === 'FINALIZE_TIMEOUT') {
+          throw window.Errors.create('FINALIZE_TIMEOUT', 'Finalisation trop lente. Votre achat peut avoir réussi, rechargez la page.');
+        }
+        
         throw error;
       }
     }
@@ -236,6 +297,8 @@
     // Nettoyage/annulation
     async cleanup() {
       if (!this.currentPurchase) return;
+
+      console.log('[PurchaseFlow] Cleaning up purchase:', this.currentPurchase);
 
       try {
         // Libérer les locks
@@ -255,7 +318,9 @@
             keepalive: true
           });
         }
-      } catch {}
+      } catch (error) {
+        console.warn('[PurchaseFlow] Cleanup failed:', error);
+      }
 
       this.currentPurchase = null;
       this.setState(STATES.IDLE);
@@ -263,6 +328,7 @@
 
     // Annulation manuelle
     async cancel() {
+      console.log('[PurchaseFlow] Manual cancellation');
       await this.cleanup();
       this.emit('cancelled');
     }
@@ -271,6 +337,7 @@
     setState(newState) {
       const oldState = this.state;
       this.state = newState;
+      console.log(`[PurchaseFlow] State change: ${oldState} → ${newState}`);
       this.emit('stateChanged', { from: oldState, to: newState });
     }
 
