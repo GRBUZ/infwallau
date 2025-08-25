@@ -120,18 +120,28 @@ exports.handler = async (event) => {
     }
 
     // Commit only if something changed
+    // Commit only if something changed
     const newContent = JSON.stringify(st, null, 2);
     let newSha;
+    let finalLocked = locked;
+    let finalLocks = st.locks;
+
     try {
       newSha = await ghPutFile(PATH_JSON, newContent, sha, `reserve ${locked.length} blocks by ${uid}`);
     } catch (e) {
       // Retry once on conflict (sha changed)
       if (String(e).includes('GITHUB_PUT_FAILED 409')) {
+        console.warn('Reserve: Conflict detected, retrying once...');
         got = await ghGetFile(PATH_JSON);
-        sha = got.sha; st = parseState(got.content); st.locks = pruneLocks(st.locks);
+        sha = got.sha; 
+        st = parseState(got.content); 
+        st.locks = pruneLocks(st.locks);
+        
         // recompute with fresh state (single pass)
         const locked2 = [];
-        const now2 = Date.now(); const until2 = now2 + TTL_MS;
+        const now2 = Date.now(); 
+        const until2 = now2 + TTL_MS;
+        
         for (const b of blocks) {
           const key = String(b);
           if (st.sold[key]) continue;
@@ -140,13 +150,19 @@ exports.handler = async (event) => {
           st.locks[key] = { uid, until: until2 };
           locked2.push(b);
         }
+        
         const content2 = JSON.stringify(st, null, 2);
-        newSha = await ghPutFile(PATH_JSON, content2, got.sha, `reserve(retry) ${locked2.length} by ${uid}`);
-        return jres(200, { ok:true, locked: locked2, conflicts, locks: st.locks, ttlSeconds: Math.round(TTL_MS/1000) });
+        newSha = await ghPutFile(PATH_JSON, content2, sha, `reserve(retry) ${locked2.length} by ${uid}`);
+        
+        // Mettre à jour les variables pour la réponse finale
+        finalLocked = locked2;
+        finalLocks = st.locks;
+      } else {
+        throw e;
       }
-      throw e;
     }
-    return jres(200, { ok:true, locked, conflicts, locks: st.locks, ttlSeconds: Math.round(TTL_MS/1000) });
+
+    return jres(200, { ok:true, locked: finalLocked, conflicts, locks: finalLocks, ttlSeconds: Math.round(TTL_MS/1000) });
   } catch (e) {
     return jres(500, { ok:false, error:'RESERVE_FAILED', message: String(e) });
   }
