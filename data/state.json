@@ -1,5 +1,17 @@
 {
   "sold": {
+    "34": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137823983,
+      "regionId": "r_merb48uw_xzrm"
+    },
+    "35": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137823983,
+      "regionId": "r_merb48uw_xzrm"
+    },
     "50": {
       "name": "bouzzy",
       "linkUrl": "https://toto.com/",
@@ -144,6 +156,18 @@
       "ts": 1756137187700,
       "regionId": "r_meraqmb7_lpxg"
     },
+    "134": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137823983,
+      "regionId": "r_merb48uw_xzrm"
+    },
+    "135": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137823983,
+      "regionId": "r_merb48uw_xzrm"
+    },
     "150": {
       "name": "bouzzy",
       "linkUrl": "https://toto.com/",
@@ -287,6 +311,18 @@
       "linkUrl": "https://tata.insta.com/",
       "ts": 1756137187700,
       "regionId": "r_meraqmb7_lpxg"
+    },
+    "234": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137823983,
+      "regionId": "r_merb48uw_xzrm"
+    },
+    "235": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137823983,
+      "regionId": "r_merb48uw_xzrm"
     },
     "250": {
       "name": "bouzzy",
@@ -859,32 +895,7 @@
       "regionId": "r_merb3sib_urxn"
     }
   },
-  "locks": {
-    "34": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756138003443
-    },
-    "35": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756138003443
-    },
-    "134": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756138003443
-    },
-    "135": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756138003443
-    },
-    "234": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756138003443
-    },
-    "235": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756138003443
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mer9ycmd_dk19": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mer9ycmd_dk19/test2_1756135870351_sn7zp7.jpg",
@@ -956,6 +967,15 @@
         "y": 6,
         "w": 3,
         "h": 4
+      }
+    },
+    "r_merb48uw_xzrm": {
+      "imageUrl": "",
+      "rect": {
+        "x": 34,
+        "y": 0,
+        "w": 2,
+        "h": 3
       }
     }
   }
