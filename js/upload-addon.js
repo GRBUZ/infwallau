@@ -103,7 +103,39 @@
       }
     });
   }
+  // Ajoutez cette section dans upload-addon.js après les déclarations de variables
 
+// Listen for finalize success to auto-upload
+document.addEventListener('finalize:success', async (e) => {
+  const { regionId } = e.detail || {};
+  const file = input && input.files && input.files[0];
+  
+  if (!file || !regionId) {
+    console.log('[upload-addon] finalize:success but no file or regionId', { file: !!file, regionId });
+    return;
+  }
+
+  console.log('[upload-addon] Auto-uploading after finalize success');
+  setStatus('Uploading image...');
+
+  try {
+    // Upload directly to the region
+    const res = await window.UploadManager.uploadForRegion(file, regionId);
+    setUploaded(res.imageUrl || res.url || '', res.path || '', file.name);
+    
+    if (window.Errors && window.Errors.showToast) {
+      window.Errors.showToast('Image uploaded successfully!', window.Errors.LEVEL?.success || 'success', 2500);
+    }
+    console.log('[upload-addon] Auto-upload successful:', res);
+  } catch (err) {
+    console.error('[upload-addon] Auto-upload failed:', err);
+    setStatus('Upload failed: ' + (err?.message || err));
+    
+    if (window.Errors && window.Errors.notifyError) {
+      window.Errors.notifyError(err, 'Auto-upload');
+    }
+  }
+});
   // Back-compat: expose linkImageToRegion globally if other code expects it
   if (!window.linkImageToRegion) {
     window.linkImageToRegion = window.UploadManager.linkImageToRegion.bind(window.UploadManager);
