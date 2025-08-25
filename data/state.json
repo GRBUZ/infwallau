@@ -859,7 +859,32 @@
       "regionId": "r_merb3sib_urxn"
     }
   },
-  "locks": {},
+  "locks": {
+    "34": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756137993573
+    },
+    "35": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756137993573
+    },
+    "134": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756137993573
+    },
+    "135": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756137993573
+    },
+    "234": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756137993573
+    },
+    "235": {
+      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
+      "until": 1756137993573
+    }
+  },
   "regions": {
     "r_mer9ycmd_dk19": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mer9ycmd_dk19/test2_1756135870351_sn7zp7.jpg",
