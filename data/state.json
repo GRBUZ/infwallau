@@ -732,6 +732,24 @@
       "ts": 1756137187700,
       "regionId": "r_meraqmb7_lpxg"
     },
+    "685": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137802259,
+      "regionId": "r_merb3sib_urxn"
+    },
+    "686": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137802259,
+      "regionId": "r_merb3sib_urxn"
+    },
+    "687": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137802259,
+      "regionId": "r_merb3sib_urxn"
+    },
     "691": {
       "name": "bouzzy",
       "linkUrl": "https://toto.com/",
@@ -785,58 +803,63 @@
       "linkUrl": "https://tata.insta.com/",
       "ts": 1756137187700,
       "regionId": "r_meraqmb7_lpxg"
-    }
-  },
-  "locks": {
-    "685": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756137981407
-    },
-    "686": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756137981407
-    },
-    "687": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756137981407
     },
     "785": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756137981407
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137802259,
+      "regionId": "r_merb3sib_urxn"
     },
     "786": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756137981407
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137802259,
+      "regionId": "r_merb3sib_urxn"
     },
     "787": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756137981407
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137802259,
+      "regionId": "r_merb3sib_urxn"
     },
     "885": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756137981407
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137802259,
+      "regionId": "r_merb3sib_urxn"
     },
     "886": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756137981407
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137802259,
+      "regionId": "r_merb3sib_urxn"
     },
     "887": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756137981407
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137802259,
+      "regionId": "r_merb3sib_urxn"
     },
     "985": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756137981407
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137802259,
+      "regionId": "r_merb3sib_urxn"
     },
     "986": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756137981407
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137802259,
+      "regionId": "r_merb3sib_urxn"
     },
     "987": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756137981407
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1756137802259,
+      "regionId": "r_merb3sib_urxn"
     }
   },
+  "locks": {},
   "regions": {
     "r_mer9ycmd_dk19": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mer9ycmd_dk19/test2_1756135870351_sn7zp7.jpg",
@@ -899,6 +922,15 @@
         "y": 3,
         "w": 3,
         "h": 3
+      }
+    },
+    "r_merb3sib_urxn": {
+      "imageUrl": "",
+      "rect": {
+        "x": 85,
+        "y": 6,
+        "w": 3,
+        "h": 4
       }
     }
   }
