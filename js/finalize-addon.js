@@ -164,109 +164,93 @@
 
   // Finalize flow
   async function doConfirm(){
-    const name = (nameInput && nameInput.value || '').trim();
-    const linkUrl = normalizeUrl(linkInput && linkInput.value);
-    const blocks = getSelectedIndices();
+  const name = (nameInput && nameInput.value || '').trim();
+  const linkUrl = normalizeUrl(linkInput && linkInput.value);
+  const blocks = getSelectedIndices();
 
-    if (!blocks.length){ uiWarn('Please select at least one block.'); return; }
-    if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
+  if (!blocks.length){ uiWarn('Please select at least one block.'); return; }
+  if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
 
-    btnBusy(true);
+  btnBusy(true);
 
-    // Re-reserve just before finalize (defensive)
-    try {
-      if (window.LockManager) {
-        const jr = await window.LockManager.lock(blocks, 180000);
-        if (!jr || !jr.ok) {
-          await refreshStatus();
-          uiWarn((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
-          btnBusy(false);
-          return;
-        }
-      } else {
-        const jr = await apiCall('/reserve', { method:'POST', body: JSON.stringify({ blocks, ttl: 180000 }) });
-        if (!jr || !jr.ok) {
-          await refreshStatus();
-          uiWarn((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
-          btnBusy(false);
-          return;
-        }
+  // Re-reserve just before finalize (defensive)
+  try {
+    if (window.LockManager) {
+      const jr = await window.LockManager.lock(blocks, 180000);
+      if (!jr || !jr.ok) {
+        await refreshStatus();
+        uiWarn((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
+        btnBusy(false);
+        return;
       }
-    } catch (e) {
-      // Non fatal; server will re-check on finalize
-      console.warn('[IW patch] pre-finalize reserve warning:', e);
-    }
-
-    // Finalize
-    let out = null;
-    try {
-      out = await apiCall('/finalize', {
-        method:'POST',
-        body: JSON.stringify({ name, linkUrl, blocks })
-      });
-    } catch (e) {
-      // CoreManager.apiCall notifie déjà, on ajoute un contexte si besoin
-      uiError(e, 'Finalize');
-      btnBusy(false);
-      return;
-    }
-
-    if (!out || !out.ok) {
-      const message = (out && (out.error || out.message)) || 'Finalize failed';
-      const err = window.Errors ? window.Errors.create('FINALIZE_FAILED', message, { status: out?.status || 0, retriable: false, details: out }) : new Error(message);
-      uiError(err, 'Finalize');
-      btnBusy(false);
-      return;
-    }
-
-    // Save regionId for other modules and emit event
-    try {
-      const regionId = out.regionId || '';
-      if (fileInput && regionId) {
-        fileInput.dataset.regionId = regionId;
+    } else {
+      const jr = await apiCall('/reserve', { method:'POST', body: JSON.stringify({ blocks, ttl: 180000 }) });
+      if (!jr || !jr.ok) {
+        await refreshStatus();
+        uiWarn((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
+        btnBusy(false);
+        return;
       }
-      // Emit event for listeners (e.g., upload-addon auto-upload)
-      document.dispatchEvent(new CustomEvent('finalize:success', {
-        detail: { regionId, blocks, name, linkUrl }
-      }));
-    } catch (e) {
-      console.warn('[IW patch] finalize:success dispatch failed', e);
     }
-
-    // Optional inline upload with UploadManager (kept for backward-compat; upload-addon may also handle it via event)
-    try {
-      const file = fileInput && fileInput.files && fileInput.files[0];
-      if (file) {
-        if (!out.regionId) {
-          console.warn('[IW patch] finalize returned no regionId, skipping upload');
-        } else {
-          const uploadResult = await window.UploadManager.uploadForRegion(file, out.regionId);
-          const url = uploadResult?.imageUrl || uploadResult?.url || '';
-          if (url) uiInfo('Image uploaded.');
-          console.log('[IW patch] image linked:', url || '(no url returned)');
-        }
-      }
-    } catch (e) {
-      // UploadManager renvoie déjà une erreur normalisée UPLOAD_FAILED
-      uiError(e, 'Upload');
-    }
-
-    // After finalize: refresh + unlock selection
-    try {
-      await unlockSelection();
-    } catch {}
-
-    await refreshStatus();
-
-    // Close modal if exists
-    try {
-      if (modal && !modal.classList.contains('hidden')) {
-        modal.classList.add('hidden');
-      }
-    } catch {}
-
-    btnBusy(false);
+  } catch (e) {
+    // Non fatal; server will re-check on finalize
+    console.warn('[IW patch] pre-finalize reserve warning:', e);
   }
+
+  // Finalize
+  let out = null;
+  try {
+    out = await apiCall('/finalize', {
+      method:'POST',
+      body: JSON.stringify({ name, linkUrl, blocks })
+    });
+  } catch (e) {
+    // CoreManager.apiCall notifie déjà, on ajoute un contexte si besoin
+    uiError(e, 'Finalize');
+    btnBusy(false);
+    return;
+  }
+
+  if (!out || !out.ok) {
+    const message = (out && (out.error || out.message)) || 'Finalize failed';
+    const err = window.Errors ? window.Errors.create('FINALIZE_FAILED', message, { status: out?.status || 0, retriable: false, details: out }) : new Error(message);
+    uiError(err, 'Finalize');
+    btnBusy(false);
+    return;
+  }
+
+  // Set regionId FIRST before any events (fixes race condition)
+  if (fileInput && out.regionId) {
+    fileInput.dataset.regionId = out.regionId;
+  }
+
+  // Emit event for other modules (upload-addon will handle the upload)
+  try {
+    document.dispatchEvent(new CustomEvent('finalize:success', {
+      detail: { regionId: out.regionId, blocks, name, linkUrl }
+    }));
+  } catch (e) {
+    console.warn('[IW patch] finalize:success dispatch failed', e);
+  }
+
+  // REMOVED: Inline upload logic - let upload-addon handle it to avoid double uploads
+
+  // After finalize: refresh + unlock selection
+  try {
+    await unlockSelection();
+  } catch {}
+
+  await refreshStatus();
+
+  // Close modal if exists
+  try {
+    if (modal && !modal.classList.contains('hidden')) {
+      modal.classList.add('hidden');
+    }
+  } catch {}
+
+  btnBusy(false);
+}
 
   // Wire up UI
   if (confirmBtn) confirmBtn.addEventListener('click', (e)=>{ e.preventDefault(); doConfirm(); });
