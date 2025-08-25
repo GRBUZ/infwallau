@@ -235,22 +235,30 @@ async function doConfirm(){
   }
 
   // Upload with UploadManager (restored original logic)
-  try {
-    const file = fileInput && fileInput.files && fileInput.files[0];
-    if (file) {
-      if (!out.regionId) {
-        console.warn('[IW patch] finalize returned no regionId, skipping upload');
-      } else {
-        const uploadResult = await window.UploadManager.uploadForRegion(file, out.regionId);
-        const url = uploadResult?.imageUrl || uploadResult?.url || '';
-        if (url) uiInfo('Image uploaded.');
-        console.log('[IW patch] image linked:', url || '(no url returned)');
-      }
+// Upload with UploadManager - STOP on upload failure
+try {
+  const file = fileInput && fileInput.files && fileInput.files[0];
+  if (file) {
+    if (!out.regionId) {
+      console.warn('[IW patch] finalize returned no regionId, skipping upload');
+      uiWarn('No region ID available for upload. Please try again.');
+      btnBusy(false);
+      return;
+    } else {
+      const uploadResult = await window.UploadManager.uploadForRegion(file, out.regionId);
+      const url = uploadResult?.imageUrl || uploadResult?.url || '';
+      if (url) uiInfo('Image uploaded.');
+      console.log('[IW patch] image linked:', url || '(no url returned)');
     }
-  } catch (e) {
-    // UploadManager renvoie déjà une erreur normalisée UPLOAD_FAILED
-    uiError(e, 'Upload');
   }
+} catch (e) {
+  // UploadManager renvoie déjà une erreur normalisée UPLOAD_FAILED
+  uiError(e, 'Upload');
+  
+  // STOP the finalization process on upload error
+  btnBusy(false);
+  return;
+}
 
   // After finalize: refresh + unlock selection
   try {
