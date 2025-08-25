@@ -6595,72 +6595,7 @@
       "regionId": "r_mepybula_82zd"
     }
   },
-  "locks": {
-    "2125": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    },
-    "2126": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    },
-    "2127": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    },
-    "2128": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    },
-    "2225": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    },
-    "2226": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    },
-    "2227": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    },
-    "2228": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    },
-    "2325": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    },
-    "2326": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    },
-    "2327": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    },
-    "2328": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    },
-    "2425": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    },
-    "2426": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    },
-    "2427": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    },
-    "2428": {
-      "uid": "c27f40ce-b5a2-450d-aec6-edea7dcd45f1",
-      "until": 1756121259217
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mell9xks_owr6": {
       "imageUrl": "",
