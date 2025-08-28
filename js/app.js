@@ -1,8 +1,8 @@
-// app.js — client UI using CoreManager (uid + api calls) and LockManager (locks + heartbeat)
+// app.js — UI + FlowManager (finalize + upload intégrés) — utilise CoreManager (apiCall) et LockManager
 (function(){
   'use strict';
 
-  // Hard requirements
+  // ==== Pré-requis =====
   if (!window.CoreManager) {
     console.error('[app.js] CoreManager is required. Please load js/core-manager.js before this file.');
     return;
@@ -14,11 +14,10 @@
 
   const { uid, apiCall } = window.CoreManager;
 
-  // Grid constants
-  const N = 100;                 // 100 x 100 grid
+  // ==== Grille / DOM ====
+  const N = 100; // 100x100
   const TOTAL_PIXELS = 1_000_000;
 
-  // DOM
   const grid = document.getElementById('grid');
   const buyBtn = document.getElementById('buyBtn');
   const priceLine = document.getElementById('priceLine');
@@ -31,34 +30,32 @@
   const emailInput = document.getElementById('email');
   const confirmBtn = document.getElementById('confirm');
   const modalStats = document.getElementById('modalStats');
+  const fileInput = document.getElementById('image') || document.getElementById('avatar'); // tolérant aux deux ids
 
-  // State
+  // ==== État ====
   let sold = {};
-  let locks = {};               // local cached view (synced from LockManager)
+  let locks = {};
   let selected = new Set();
-  let currentLock = [];         // blocks locked when opening the modal
+  let currentLock = [];          // indices actuellement lockés lors de l’ouverture de la modale
+  let currentRegionId = null;    // si le backend renvoie un regionId au lock, on le stocke ici
 
-  // Helpers
+  // ==== Helpers ====
   function formatInt(n){ return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
   function formatMoney(n){ const [i,d]=Number(n).toFixed(2).split('.'); return '$'+i.replace(/\B(?=(\d{3})+(?!\d))/g,' ') + '.' + d; }
   function idxToRowCol(idx){ return [Math.floor(idx/N), idx%N]; }
   function rowColToIdx(r,c){ return r*N + c; }
+  function normalizeUrl(u){ u=String(u||'').trim(); if(!u) return ''; if(!/^https?:\/\//i.test(u)) u='https://'+u; return u; }
 
-  // Build grid
+  // ==== Build grid ====
   (function build(){
-    const frag = document.createDocumentFragment();
-    for (let i=0;i<N*N;i++){
-      const d = document.createElement('div');
-      d.className = 'cell';
-      d.dataset.idx = i;
-      frag.appendChild(d);
-    }
+    const frag=document.createDocumentFragment();
+    for(let i=0;i<N*N;i++){ const d=document.createElement('div'); d.className='cell'; d.dataset.idx=i; frag.appendChild(d); }
     grid.appendChild(frag);
     const cs = getComputedStyle(grid);
     if (cs.position === 'static') grid.style.position = 'relative';
   })();
 
-  // Invalid selection overlay
+  // ---- Invalid selection overlay ----
   const invalidEl = document.createElement('div');
   invalidEl.id = 'invalidRect';
   Object.assign(invalidEl.style, { position:'absolute', border:'2px solid #ef4444', background:'rgba(239,68,68,0.08)', pointerEvents:'none', display:'none', zIndex:'999' });
@@ -94,7 +91,6 @@
     const d = grid.children[idx];
     const s = sold[idx];
     const l = locks[idx];
-
     const reserved = l && l.until > Date.now() && !s;
     const reservedByOther = reserved && l.uid !== uid;
 
@@ -102,7 +98,7 @@
     d.classList.toggle('pending', !!reservedByOther);
     d.classList.toggle('sel', selected.has(idx));
 
-    // Per-cell background is handled by regions overlay below; keep cell bg clean
+    // fond par overlay (regions) → pas de background par cellule
     d.style.backgroundImage = '';
     d.style.backgroundSize = '';
     d.style.backgroundPosition = '';
@@ -115,10 +111,7 @@
       d.title=''; if (d.firstChild) d.firstChild.remove();
     }
   }
-  function paintAll(){
-    for(let i=0;i<N*N;i++) paintCell(i);
-    refreshTopbar();
-  }
+  function paintAll(){ for(let i=0;i<N*N;i++) paintCell(i); refreshTopbar(); }
 
   function refreshTopbar(){
     const blocksSold=Object.keys(sold).length, pixelsSold=blocksSold*100;
@@ -140,6 +133,7 @@
     refreshTopbar();
   }
 
+  // ==== Sélection / drag ====
   let isDragging=false, dragStartIdx=-1, movedDuringDrag=false, lastDragIdx=-1, suppressNextClick=false;
   let blockedDuringDrag = false;
 
@@ -161,17 +155,12 @@
     refreshTopbar();
   }
 
-  // Optimisé: ne repeint que la cellule cliquée (plus topbar), pas tout le grid
   function toggleCell(idx){
     if (isBlockedCell(idx)) return;
-    if (selected.has(idx)) { selected.delete(idx); }
-    else { selected.add(idx); }
+    if (selected.has(idx)) { selected.delete(idx); } else { selected.add(idx); }
     paintCell(idx);
-    if (typeof requestAnimationFrame === 'function') {
-      requestAnimationFrame(refreshTopbar);
-    } else {
-      refreshTopbar();
-    }
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(refreshTopbar);
+    else refreshTopbar();
   }
 
   function idxFromClientXY(x,y){
@@ -182,79 +171,142 @@
     return gy*N + gx;
   }
 
-  grid.addEventListener('mousedown',(e)=>{
-    const idx=idxFromClientXY(e.clientX,e.clientY); if(idx<0) return;
-    isDragging=true; dragStartIdx=idx; lastDragIdx=idx; movedDuringDrag=false; suppressNextClick=false;
-    selectRect(idx, idx); e.preventDefault();
-  });
-  window.addEventListener('mousemove',(e)=>{
-    if(!isDragging) return;
-    const idx=idxFromClientXY(e.clientX,e.clientY); if(idx<0) return;
-    if(idx!==lastDragIdx){ movedDuringDrag=true; lastDragIdx=idx; }
-    selectRect(dragStartIdx, idx);
-  });
-  window.addEventListener('mouseup',()=>{
-    if (isDragging){ suppressNextClick=movedDuringDrag; }
-    isDragging=false; dragStartIdx=-1; movedDuringDrag=false; lastDragIdx=-1;
-  });
-  grid.addEventListener('click',(e)=>{
-    if(suppressNextClick){ suppressNextClick=false; return; }
-    if(isDragging) return;
-    const idx=idxFromClientXY(e.clientX,e.clientY); if(idx<0) return;
-    toggleCell(idx);
-  });
+  grid.addEventListener('mousedown',(e)=>{ const idx=idxFromClientXY(e.clientX,e.clientY); if(idx<0) return;
+    isDragging=true; dragStartIdx=idx; lastDragIdx=idx; movedDuringDrag=false; suppressNextClick=false; selectRect(idx, idx); e.preventDefault(); });
+  window.addEventListener('mousemove',(e)=>{ if(!isDragging) return; const idx=idxFromClientXY(e.clientX,e.clientY); if(idx<0) return;
+    if(idx!==lastDragIdx){ movedDuringDrag=true; lastDragIdx=idx; } selectRect(dragStartIdx, idx); });
+  window.addEventListener('mouseup',()=>{ if (isDragging){ suppressNextClick=movedDuringDrag; }
+    isDragging=false; dragStartIdx=-1; movedDuringDrag=false; lastDragIdx=-1; });
+  grid.addEventListener('click',(e)=>{ if(suppressNextClick){ suppressNextClick=false; return; } if(isDragging) return;
+    const idx=idxFromClientXY(e.clientX,e.clientY); if(idx<0) return; toggleCell(idx); });
 
   function openModal(){
     modal.classList.remove('hidden');
-
-    // Stats
     const blocksSold=Object.keys(sold).length, pixelsSold=blocksSold*100;
     const currentPrice = 1 + Math.floor(pixelsSold / 1000) * 0.01;
     const selectedPixels = selected.size * 100;
     const total = selectedPixels * currentPrice;
     modalStats.textContent = `${formatInt(selectedPixels)} px — ${formatMoney(total)}`;
 
-    // Heartbeat for the current lock
-    if (currentLock.length) {
-      window.LockManager.heartbeat.start(currentLock);
-    }
+    if (currentLock.length) window.LockManager.heartbeat.start(currentLock);
   }
-  function closeModal(){
-    modal.classList.add('hidden');
-    window.LockManager.heartbeat.stop();
-  }
+  function closeModal(){ modal.classList.add('hidden'); window.LockManager.heartbeat.stop(); }
 
-  // Modal close buttons
-  document.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', async () => {
+  // ==== Fermer modale (boutons + ESC) avec unlock ====
+  async function unifiedClose(){
     const toRelease = (currentLock && currentLock.length) ? currentLock.slice() : Array.from(selected);
-    currentLock = [];
+    currentLock = []; currentRegionId = null;
     window.LockManager.heartbeat.stop();
     if (toRelease.length) {
       try { await window.LockManager.unlock(toRelease); } catch {}
       locks = window.LockManager.getLocalLocks();
     }
-    closeModal();
-    clearSelection();
+    closeModal(); clearSelection();
     setTimeout(async () => { await loadStatus(); paintAll(); }, 150);
-  }));
+  }
+  document.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', unifiedClose));
+  window.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && !modal.classList.contains('hidden')) unifiedClose(); });
 
-  // ESC to close modal and unlock
-  window.addEventListener('keydown', async (e)=>{
-    if(e.key==='Escape' && !modal.classList.contains('hidden')){
-      const toRelease = (currentLock && currentLock.length) ? currentLock.slice() : Array.from(selected);
-      currentLock = [];
-      window.LockManager.heartbeat.stop();
-      if (toRelease.length) {
-        try { await window.LockManager.unlock(toRelease); } catch {}
-        locks = window.LockManager.getLocalLocks();
+  // ==== FlowManager (upload + finalize orchestrés) ====
+  const FlowManager = (function(){
+    async function validateImage(file){
+      if (!file) return { ok:true, skip:true };
+      // Si UploadManager existe, on lui délègue (sinon checks simples)
+      if (window.UploadManager && typeof window.UploadManager.validate === 'function') {
+        const vr = await window.UploadManager.validate(file);
+        if (!vr || !vr.ok) return { ok:false, error: vr?.error || 'Invalid image' };
+        return { ok:true, skip:false };
       }
-      closeModal();
-      clearSelection();
-      setTimeout(async () => { await loadStatus(); paintAll(); }, 150);
+      if (!file.type || !/^image\//i.test(file.type)) return { ok:false, error:'Please upload an image file.' };
+      if (file.size > 5*1024*1024) return { ok:false, error:'Max 5 MB.' };
+      return { ok:true, skip:false };
     }
-  });
 
-  // Buy flow
+    async function uploadImage(regionId, file){
+      if (!regionId || !file) return { ok:true, skip:true };
+      const fd = new FormData();
+      fd.append('file', file, file.name);
+      fd.append('regionId', regionId);
+      const res = await apiCall('/upload', { method:'POST', body: fd, raw:true }); // apiCall gère auth; raw => ne force pas JSON
+      if (!res || !res.ok) return { ok:false, error: res?.error || 'UPLOAD_FAILED' };
+      return { ok:true, imageUrl: res.imageUrl, regionId: res.regionId };
+    }
+
+    /*async function linkImage(regionId, imageUrl){
+      if (!regionId || !imageUrl) return { ok:true, skip:true };
+      const res = await apiCall('/link-image', {
+        method:'POST',
+        headers:{ 'content-type':'application/json' },
+        body: JSON.stringify({ regionId, imageUrl })
+      });
+      if (!res || !res.ok) return { ok:false, error: res?.error || 'LINK_IMAGE_FAILED' };
+      return { ok:true };
+    }*/
+   // Déprécié : /link-image n'est plus utilisé car /upload écrit déjà imageUrl dans state.json
+  async function linkImage(regionId, imageUrl){
+  if (!regionId || !imageUrl) return { ok:true, skip:true };
+  // No-op pour compat ascendante : on log et on renvoie ok=true
+  console.debug('[linkImage] noop: image déjà liée via /upload', { regionId, imageUrl });
+  return { ok:true, noop:true };
+  }
+
+
+    return {
+      // Le cœur : essaie upload AVANT finalize si regionId dispo; sinon finalize d’abord puis upload + link-image.
+      async run({ name, linkUrl, blocks, file, preRegionId }){
+        // 1) Validation basique
+        const vImg = await validateImage(file);
+        if (!vImg.ok) return { ok:false, error: vImg.error };
+
+        // 2) Option A — regionId dispo (backend reserve moderne)
+        if (preRegionId) {
+          // upload d’abord
+          if (!vImg.skip){
+            const up = await uploadImage(preRegionId, file);
+            if (!up.ok) return { ok:false, error: up.error };
+          }
+          // finalize
+          const fin = await apiCall('/finalize', {
+            method:'POST',
+            headers:{ 'content-type':'application/json' },
+            body: JSON.stringify({ name, linkUrl, blocks, regionId: preRegionId })
+          });
+          if (!fin || !fin.ok) return { ok:false, error: fin?.error || 'FINALIZE_FAILED' };
+          return { ok:true, regionId: preRegionId };
+        }
+
+        // 3) Option B — pas de regionId au lock: finalize d’abord
+        const fin = await apiCall('/finalize', {
+          method:'POST',
+          headers:{ 'content-type':'application/json' },
+          body: JSON.stringify({ name, linkUrl, blocks })
+        });
+        if (!fin || !fin.ok) return { ok:false, error: fin?.error || 'FINALIZE_FAILED' };
+
+        const regionId = fin.regionId || null;
+
+        // si pas d’image ou pas de regionId → terminé
+        if (!regionId || vImg.skip) return { ok:true, regionId };
+
+        // upload après finalize (fallback)
+        const up = await uploadImage(regionId, file);
+        if (!up.ok) {
+          // On n’échoue pas la vente, mais on remonte l’erreur d’upload pour info
+          return { ok:true, regionId, uploadError: up.error };
+        }
+
+        // link-image si nécessaire (notre /upload met normalement déjà imageUrl dans state.json)
+        if (!up.imageUrl){
+          const lk = await linkImage(regionId, up.imageUrl);
+          if (!lk.ok) return { ok:true, regionId, uploadError: lk.error };
+        }
+
+        return { ok:true, regionId };
+      }
+    };
+  })();
+
+  // ==== Buy flow ====
   buyBtn.addEventListener('click', async ()=>{
     if(!selected.size) return;
     const want = Array.from(selected);
@@ -270,6 +322,7 @@
       }
 
       currentLock = (lr.locked || []).slice();
+      currentRegionId = lr.regionId || null; // SI ton backend renvoie regionId à reserve()
       clearSelection();
       for(const i of currentLock){ selected.add(i); grid.children[i].classList.add('sel'); }
       openModal();
@@ -279,22 +332,23 @@
     }
   });
 
-  // Finalize form
+  // ==== Finalize + Upload (submit) ====
   form.addEventListener('submit', async (e)=>{
     e.preventDefault();
-    let linkUrl = (linkInput.value || '').trim();
     const name  = (nameInput.value || '').trim();
-    const email = (emailInput.value || '').trim(); // kept for future use if needed
+    let linkUrl = normalizeUrl(linkInput.value);
+    if(!name || !linkUrl){ return; }
 
-    if(!linkUrl || !name){ return; }
-    if (!/^https?:\/\//i.test(linkUrl)) linkUrl = 'https://' + linkUrl;
+    // quelle image ?
+    const file = (fileInput && fileInput.files && fileInput.files[0]) ? fileInput.files[0] : null;
 
     confirmBtn.disabled = true;
     confirmBtn.textContent = 'Processing…';
+
     try{
       const blocks = currentLock.length ? currentLock.slice() : Array.from(selected);
 
-      // Re-lock just before finalize (defensive)
+      // Re-lock juste avant (défensif, même uid)
       const lr = await window.LockManager.lock(blocks, 180000);
       locks = window.LockManager.getLocalLocks();
       if (!lr || !lr.ok) {
@@ -303,19 +357,28 @@
         confirmBtn.disabled=false; confirmBtn.textContent='Confirm';
         return;
       }
+      // Si reserve réactualise un regionId, prends-le
+      if (lr.regionId) currentRegionId = lr.regionId;
 
-      const out = await apiCall('/finalize', {
-        method: 'POST',
-        body: JSON.stringify({ name, linkUrl, blocks })
+      // Orchestration
+      const out = await FlowManager.run({
+        name, linkUrl, blocks, file, preRegionId: currentRegionId
       });
-      if (!out || !out.ok) {
-        throw new Error(out?.error || 'Finalize failed');
+
+      if (!out.ok){
+        alert(out.error || 'Unexpected error');
+        return;
+      }
+      if (out.uploadError){
+        // La vente est OK, mais on informe que l’upload n’a pas accroché
+        console.warn('[upload] post-finalize issue:', out.uploadError);
+        alert('Your pixels are confirmed, but image upload failed. You can retry the upload from the form.');
       }
 
-      // Refresh sold/regions, release locks
+      // Release + refresh
       try { await window.LockManager.unlock(blocks); } catch {}
       locks = window.LockManager.getLocalLocks();
-      currentLock = [];
+      currentLock = []; currentRegionId = null;
       window.LockManager.heartbeat.stop();
 
       await loadStatus();
@@ -340,7 +403,7 @@
     return { r0,c0,r1,c1 };
   }
 
-  // Poll status and merge locks via LockManager
+  // ==== Poll status (via CoreManager.apiCall) + merge locks via LockManager ====
   async function loadStatus(){
     try{
       const s = await apiCall('/status');
@@ -361,14 +424,14 @@
     }
   }
 
-  // Initial boot + polling
+  // ==== Boot + polling ====
   (async function init(){
     await loadStatus();
     paintAll();
     setInterval(async ()=>{ await loadStatus(); }, 2500);
   })();
 
-  // Regions overlay (unchanged)
+  // ==== Regions overlay (inchangé) ====
   window.regions = window.regions || {};
   function renderRegions() {
     const gridEl = document.getElementById('grid');
@@ -410,6 +473,6 @@
   }
   window.renderRegions = renderRegions;
 
-  // Expose small debug helper if needed
+  // ==== Debug helper ====
   window.__debugGetLocks = () => ({ fromManager: window.LockManager.getLocalLocks(), localVar: locks, uid });
 })();

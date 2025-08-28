@@ -80,6 +80,46 @@
       return sniffed;
     }
 
+    //ajout pour s'adapter a app.js patch
+    // Alias attendu par l'app.js (renvoie { ok: true } si valide)
+    async validate(file) {
+      await this.validateFile(file);
+      return { ok: true };
+    }
+
+    // Petit utilitaire pour construire un FormData propre
+    toFormData(file, extra = {}) {
+      const fd = new FormData();
+      fd.append('file', file, file.name);
+      for (const [k, v] of Object.entries(extra || {})) {
+        if (v !== undefined && v !== null) fd.append(k, v);
+      }
+      return fd;
+    }
+
+    // Variante multipart pour l'upload lié à une région (optionnel)
+    async uploadMultipartForRegion(file, regionId) {
+      if (!regionId) throw new Error('Missing regionId');
+      await this.validateFile(file);
+
+      const fd = this.toFormData(file, { regionId });
+
+      // NOTE: apiCall(..., { raw:true }) pour laisser le FormData tel quel
+      const res = await window.CoreManager.apiCall('/upload', {
+        method: 'POST',
+        body: fd,
+        raw: true
+      });
+
+      if (!res || !res.ok) {
+        const msg = (res && (res.message || res.error)) || 'Upload failed';
+        throw new Error(msg);
+      }
+      return res;
+    }
+
+    //fin ajout
+
     // Conversion base64 commune
     async toBase64(file) {
       return new Promise((resolve, reject) => {

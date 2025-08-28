@@ -13,10 +13,10 @@
   // State local des locks
   let localLocks = Object.create(null);    // { "idx": { uid, until } }
   const othersLastSeen = Object.create(null);
-  const OTHERS_GRACE_MS = 3000;           // Grâce temporaire pour "trous" réseau
+  const OTHERS_GRACE_MS = 5000;           // Grâce temporaire pour "trous" réseau
   let hbTimer = null;
   let hbBlocks = [];                       // blocks courants pour le heartbeat
-  const HB_INTERVAL_MS = 4000;
+  const HB_INTERVAL_MS = 2000;
 
   // Petit event emitter
   const listeners = new Set();
