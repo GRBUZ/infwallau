@@ -3,6 +3,18 @@
 
 const { requireAuth, getAuthenticatedUID } = require('./jwt-middleware.js');
 
+// utils communs (copier en haut de chaque fn)
+const CORS = {
+  'content-type': 'application/json',
+  'cache-control': 'no-store',
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+};
+const ok = (obj) => ({ statusCode: 200, headers: CORS, body: JSON.stringify(obj) });
+const bad = (status, error, extra={}) => ({ statusCode: status, headers: CORS, body: JSON.stringify({ ok:false, error, ...extra }) });
+
+
 const STATE_PATH = process.env.STATE_PATH || "data/state.json";
 const GH_REPO    = process.env.GH_REPO;
 const GH_TOKEN   = process.env.GH_TOKEN;
@@ -97,7 +109,27 @@ function safeFilename(name) {
   return base.replace(/\s+/g, "-").replace(/[^\w.\-]/g, "_").slice(0, 120) || "image.jpg";
 }
 
-exports.handler = requireAuth(async (event) => {
+exports.handler = async (event, context) => {
+  // CORS preflight
+  if (event.httpMethod === 'OPTIONS') return ok({ ok: true });
+
+  // Auth JWT (ne JAMAIS lire req.headers.authorization directement)
+  const auth = requireAuth(event);
+  if (auth && auth.statusCode) return auth; // 401 déjà formatée par le middleware
+  const uid = auth.uid;
+
+  // Parse JSON body
+  let body = {};
+  try {
+    body = event.body ? JSON.parse(event.body) : {};
+  } catch {
+    return bad(400, 'BAD_JSON');
+  }
+
+  const blocks = Array.isArray(body.blocks) ? body.blocks.map(n => parseInt(n, 10)).filter(Number.isInteger) : [];
+  const ttl    = Number(body.ttl || 180000);
+  if (!blocks.length) return bad(400, 'NO_BLOCKS');
+
   try {
     if (event.httpMethod !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
     if (!GH_REPO || !GH_TOKEN)  return bad(500, "GITHUB_CONFIG_MISSING");
@@ -149,12 +181,8 @@ exports.handler = requireAuth(async (event) => {
 
     await ghPutJson(STATE_PATH, st, sha, `chore: set imageUrl for ${regionId}`);
 
-    return {
-      statusCode: 200,
-      headers: { "content-type":"application/json", "cache-control":"no-store" },
-      body: JSON.stringify({ ok:true, regionId, imageUrl, path: repoPath })
-    };
+     return ok({ ok:true, locked: blocks, conflicts: [], locks: {}, ttlSeconds: Math.floor(ttl/1000) });
   } catch (e) {
-    return bad(500, "UPLOAD_FAILED", { message:String(e&&e.message||e) });
+    return bad(500, 'SERVER_ERROR', { message: String(e && e.message || e) });
   }
-});
+};
