@@ -1,82 +1,118 @@
-// netlify/functions/auth-middleware.js — middleware JWT
-const crypto = require('crypto');
+// jwt-middleware.js — robuste aux différents formats de Netlify Functions
+// - Supporte Request (v2 ESM): req.headers.get('authorization')
+// - Supporte event (v1 CJS):   event.headers.authorization
+// - Supporte req "express-like": req.headers.authorization
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-in-production';
+const jwt = require('jsonwebtoken');
 
-function base64UrlDecode(str) {
-  str += '==='.slice(0, (4 - str.length % 4) % 4);
-  return Buffer.from(str.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString();
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NETLIFY_JWT_SECRET || 'dev-secret';
+
+// --- helpers ---
+function getAuthHeader(input) {
+  // 1) Netlify v2 / WHATWG Request
+  if (input && input.headers && typeof input.headers.get === 'function') {
+    return (
+      input.headers.get('authorization') ||
+      input.headers.get('Authorization') ||
+      ''
+    );
+  }
+  // 2) Netlify v1 "event"
+  if (input && input.headers && typeof input.headers === 'object') {
+    const h = input.headers;
+    return h.authorization || h.Authorization || '';
+  }
+  // 3) Express-like req
+  if (input && input.headers) {
+    const h = input.headers;
+    if (typeof h.get === 'function') {
+      // certains frameworks exposent aussi get()
+      return h.get('authorization') || h.get('Authorization') || '';
+    }
+    return h.authorization || h.Authorization || '';
+  }
+  return '';
 }
 
-function verifyJWT(token) {
+function parseBearer(headerValue) {
+  if (!headerValue) return '';
+  const parts = String(headerValue).split(' ');
+  if (parts.length >= 2 && /^Bearer$/i.test(parts[0])) {
+    return parts.slice(1).join(' ');
+  }
+  // si jamais on envoie "token" brut
+  return headerValue.trim();
+}
+
+// --- coeur d'authent ---
+function authenticate(input) {
+  const raw = getAuthHeader(input);
+  const token = parseBearer(raw);
+  if (!token) {
+    const e = new Error('Missing Authorization header');
+    e.statusCode = 401;
+    throw e;
+  }
+
+  let decoded;
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) throw new Error('Invalid token format');
-    
-    const [headerB64, payloadB64, signatureB64] = parts;
-    const data = `${headerB64}.${payloadB64}`;
-    
-    // Vérifier la signature
-    const expectedSignature = crypto.createHmac('sha256', JWT_SECRET)
-      .update(data)
-      .digest('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-    
-    if (signatureB64 !== expectedSignature) {
-      throw new Error('Invalid signature');
-    }
-    
-    // Décoder le payload
-    const payload = JSON.parse(base64UrlDecode(payloadB64));
-    
-    // Vérifier l'expiration
-    const now = Math.floor(Date.now() / 1000);
-    if (payload.exp && payload.exp < now) {
-      throw new Error('Token expired');
-    }
-    
-    return { valid: true, payload };
-  } catch (e) {
-    return { valid: false, error: e.message };
+    decoded = jwt.verify(token, JWT_SECRET);
+  } catch (err) {
+    const e = new Error('Invalid token');
+    e.statusCode = 401;
+    throw e;
   }
+
+  // normalise l’UID qu’on expose aux handlers
+  const uid =
+    decoded.uid ||
+    decoded.sub ||
+    decoded.user_id ||
+    decoded.userId ||
+    decoded.id;
+
+  if (!uid) {
+    const e = new Error('Token has no uid');
+    e.statusCode = 401;
+    throw e;
+  }
+  return { uid, decoded };
 }
 
-function authenticate(event) {
-  const authHeader = event.headers.authorization || event.headers.Authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return { authenticated: false, error: 'NO_TOKEN' };
-  }
-  
-  const token = authHeader.slice(7);
-  const result = verifyJWT(token);
-  
-  if (!result.valid) {
-    return { authenticated: false, error: result.error };
-  }
-  
-  return { 
-    authenticated: true, 
-    uid: result.payload.uid,
-    payload: result.payload 
+// --- API exportée (compatible avec ton code existant) ---
+
+/**
+ * requireAuth(reqOrEvent)
+ * - usage actuel dans ton code: const { requireAuth } = require('./jwt-middleware')
+ *   const { uid } = await requireAuth(req)
+ */
+async function requireAuth(reqOrEvent) {
+  return authenticate(reqOrEvent);
+}
+
+/**
+ * getAuthenticatedUID(reqOrEvent)
+ * - alias pratique si tu veux juste l'uid
+ */
+function getAuthenticatedUID(reqOrEvent) {
+  const { uid } = authenticate(reqOrEvent);
+  return uid;
+}
+
+/**
+ * wrap(handler)
+ * - option : envelopper un handler pour forcer auth et injecter uid en 3e arg
+ *   module.exports = wrap(async (req, ctx, uid) => { ... })
+ */
+function wrap(handler) {
+  return async (reqOrEvent, context) => {
+    const { uid, decoded } = authenticate(reqOrEvent);
+    return handler(reqOrEvent, context, uid, decoded);
   };
 }
 
-function requireAuth(event) {
-  const auth = authenticate(event);
-  if (!auth.authenticated) {
-    return {
-      statusCode: 401,
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ 
-        ok: false, 
-        error: 'UNAUTHORIZED',
-        message: auth.error 
-      })
-    };
-  }
-  return auth;
-}
-
-module.exports = { authenticate, requireAuth };
+module.exports = {
+  requireAuth,
+  getAuthenticatedUID,
+  wrap,
+};
