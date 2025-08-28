@@ -209,7 +209,7 @@
     }
 
     // Helper pour lier image à région (utilisé par upload-addon.js)
-    async linkImageToRegion(regionId, imageUrlOrPath) {
+    /*async linkImageToRegion(regionId, imageUrlOrPath) {
       try {
         if (!regionId || !imageUrlOrPath) {
           throw new Error('Missing regionId or imageUrl');
@@ -232,7 +232,12 @@
         }
         throw e;
       }
+    }*/
+    async linkImageToRegion(regionId, imageUrlOrPath) {
+      console.debug('[UploadManager] linkImageToRegion noop: déjà géré par /upload', { regionId, imageUrlOrPath });
+      return { ok: true, noop: true };
     }
+
   }
 
   // Export global
