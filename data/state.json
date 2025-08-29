@@ -1,6 +1,82 @@
 {
   "sold": {},
-  "locks": {},
+  "locks": {
+    "248": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756471840159,
+      "regionId": "r_0cee897c_mewtviwv_248-249-250-251-252-348"
+    },
+    "249": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756471840159,
+      "regionId": "r_0cee897c_mewtviwv_248-249-250-251-252-348"
+    },
+    "250": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756471840159,
+      "regionId": "r_0cee897c_mewtviwv_248-249-250-251-252-348"
+    },
+    "251": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756471840159,
+      "regionId": "r_0cee897c_mewtviwv_248-249-250-251-252-348"
+    },
+    "252": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756471840159,
+      "regionId": "r_0cee897c_mewtviwv_248-249-250-251-252-348"
+    },
+    "348": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756471840159,
+      "regionId": "r_0cee897c_mewtviwv_248-249-250-251-252-348"
+    },
+    "349": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756471840159,
+      "regionId": "r_0cee897c_mewtviwv_248-249-250-251-252-348"
+    },
+    "350": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756471840159,
+      "regionId": "r_0cee897c_mewtviwv_248-249-250-251-252-348"
+    },
+    "351": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756471840159,
+      "regionId": "r_0cee897c_mewtviwv_248-249-250-251-252-348"
+    },
+    "352": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756471840159,
+      "regionId": "r_0cee897c_mewtviwv_248-249-250-251-252-348"
+    },
+    "448": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756471840159,
+      "regionId": "r_0cee897c_mewtviwv_248-249-250-251-252-348"
+    },
+    "449": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756471840159,
+      "regionId": "r_0cee897c_mewtviwv_248-249-250-251-252-348"
+    },
+    "450": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756471840159,
+      "regionId": "r_0cee897c_mewtviwv_248-249-250-251-252-348"
+    },
+    "451": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756471840159,
+      "regionId": "r_0cee897c_mewtviwv_248-249-250-251-252-348"
+    },
+    "452": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756471840159,
+      "regionId": "r_0cee897c_mewtviwv_248-249-250-251-252-348"
+    }
+  },
   "regions": {
     "r_0cee897c_mews8cvn_257-258-259-260-261-357": {
       "rect": {
@@ -1118,6 +1194,35 @@
         550,
         551,
         552
+      ],
+      "imageUrl": "",
+      "name": "",
+      "linkUrl": "",
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a"
+    },
+    "r_0cee897c_mewtviwv_248-249-250-251-252-348": {
+      "rect": {
+        "x": 48,
+        "y": 2,
+        "w": 5,
+        "h": 3
+      },
+      "blocks": [
+        248,
+        249,
+        250,
+        251,
+        252,
+        348,
+        349,
+        350,
+        351,
+        352,
+        448,
+        449,
+        450,
+        451,
+        452
       ],
       "imageUrl": "",
       "name": "",
