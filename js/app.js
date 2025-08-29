@@ -269,7 +269,13 @@
           const fin = await apiCall('/finalize', {
             method:'POST',
             headers:{ 'content-type':'application/json' },
-            body: JSON.stringify({ name, linkUrl, blocks, regionId: preRegionId })
+            //body: JSON.stringify({ name, linkUrl, blocks, regionId: preRegionId })
+            body: JSON.stringify({
+              name,
+              linkUrl,
+              blocks,
+              regionId: currentRegionId || lr.regionId || null   // <-- essentiel
+            })
           });
           if (!fin || !fin.ok) return { ok:false, error: fin?.error || 'FINALIZE_FAILED' };
           return { ok:true, regionId: preRegionId };

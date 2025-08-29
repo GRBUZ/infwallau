@@ -114,7 +114,15 @@
 
     // Ajuster localLocks avec la vérité renvoyée par le serveur (pour les autres uid)
     localLocks = merge(res.locks || {});
-    return { ok:true, locked: res.locked || [], conflicts: res.conflicts || [], locks: localLocks, ttlSeconds: res.ttlSeconds };
+    return {
+     ok: true,
+     locked: res.locked || [],
+     conflicts: res.conflicts || [],
+     locks: localLocks,
+     ttlSeconds: res.ttlSeconds,
+     regionId: res.regionId || null
+    };
+    //return { ok:true, locked: res.locked || [], conflicts: res.conflicts || [], locks: localLocks, ttlSeconds: res.ttlSeconds };
   }
 
   async function unlock(blocks){
