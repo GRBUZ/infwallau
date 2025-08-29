@@ -126,63 +126,51 @@ exports.handler = async (event, context) => {
     return bad(400, 'BAD_JSON');
   }
 
-  const blocks = Array.isArray(body.blocks) ? body.blocks.map(n => parseInt(n, 10)).filter(Number.isInteger) : [];
-  const ttl    = Number(body.ttl || 180000);
-  if (!blocks.length) return bad(400, 'NO_BLOCKS');
-
   try {
     if (event.httpMethod !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
     if (!GH_REPO || !GH_TOKEN)  return bad(500, "GITHUB_CONFIG_MISSING");
 
-    const uid = getAuthenticatedUID(event);
-
-    // Support JSON (filename + data base64) ET multipart (file)
+    // Support JSON uniquement (filename + base64). On refuse multipart ici.
     const ct = (event.headers['content-type'] || event.headers['Content-Type'] || '').toLowerCase();
-
-    let regionId = "";
-    let filename = "";
-    let buffer   = null;
-
-    if (ct.includes('application/json')) {
-      const body = JSON.parse(event.body || '{}');
-      regionId = String(body.regionId || '').trim();
-      filename = safeFilename(body.filename || "image.jpg");
-      const data = body.data || body.contentBase64 || '';
-      if (!regionId) return bad(400, "MISSING_REGION_ID");
-      if (!data) return bad(400, "NO_FILE_BASE64");
-      buffer = Buffer.from(String(data), 'base64');
-    } else {
-      // multipart — Netlify invoke: pas de formData() côté node standard.
-      // Simplifions: on n’accepte ici que JSON (côté front on envoie JSON base64).
-      return bad(415, "UNSUPPORTED_MEDIA_TYPE", { hint: "send JSON {regionId, filename, data(base64)}" });
+    if (!ct.includes('application/json')) {
+      return bad(415, "UNSUPPORTED_MEDIA_TYPE", { hint: "send JSON {regionId, filename, contentBase64} (or 'data')" });
     }
 
-    // Charger l’état, valider que regionId est bien LOCKÉ par ce uid
+    // Récupération des champs attendus pour la nouvelle archi
+    const regionId = String(body.regionId || '').trim();
+    const filename = safeFilename(body.filename || "image.jpg");
+    const dataB64  = body.contentBase64 || body.data || '';
+
+    if (!regionId) return bad(400, "MISSING_REGION_ID");
+    if (!dataB64)  return bad(400, "NO_FILE_BASE64");
+
+    // Charger l'état et valider la région/ownership
     const { json: state0, sha } = await ghGetJson(STATE_PATH);
     const st = state0 || { sold:{}, locks:{}, regions:{} };
     st.locks = pruneLocks(st.locks);
 
-    const region = (st.regions||{})[regionId];
+    const region = (st.regions || {})[regionId];
     if (!region) return bad(404, "REGION_NOT_FOUND");
-    if (region.uid !== uid) return bad(403, "NOT_REGION_OWNER");
-    // vérifier au moins qu’un lock actif lie encore ce regionId
-    const anyLock = Object.values(st.locks).some(l => l && l.regionId === regionId && l.uid === uid);
-    if (!anyLock) return bad(409, "LOCK_MISSING_OR_EXPIRED");
+    if (region.uid && region.uid !== uid) return bad(403, "NOT_REGION_OWNER");
 
-    // Upload du binaire
+    // S'assurer qu'il reste au moins un lock actif pour cette région par ce uid
+    const hasActiveLock = Object.values(st.locks).some(l => l && l.regionId === regionId && l.uid === uid && l.until > Date.now());
+    if (!hasActiveLock) return bad(409, "LOCK_MISSING_OR_EXPIRED");
+
+    // Upload du binaire vers le repo
     const repoPath = `assets/images/${regionId}/${filename}`;
-    const putBin   = await ghPutBinary(repoPath, buffer, `feat: upload ${filename} for ${regionId}`);
+    const buffer   = Buffer.from(String(dataB64), 'base64');
+    await ghPutBinary(repoPath, buffer, `feat: upload ${filename} for ${regionId}`);
 
-    // URL RAW
+    // URL RAW GitHub et mise à jour de state.json
     const imageUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${repoPath}`;
-
-    // Mise à jour de la région
     st.regions[regionId].imageUrl = imageUrl;
 
     await ghPutJson(STATE_PATH, st, sha, `chore: set imageUrl for ${regionId}`);
 
-     return ok({ ok:true, locked: blocks, conflicts: [], locks: {}, ttlSeconds: Math.floor(ttl/1000) });
+    // Réponse simplifiée et utile au front
+    return ok({ ok: true, regionId, imageUrl, path: repoPath });
   } catch (e) {
-    return bad(500, 'SERVER_ERROR', { message: String(e && e.message || e) });
+    return bad(500, 'SERVER_ERROR', { message: String((e && e.message) || e) });
   }
 };
