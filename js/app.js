@@ -233,7 +233,6 @@
         body: JSON.stringify({
           regionId,                 // requis
           filename: file.name,
-          contentType: sniffedType, // optionnel
           contentBase64: base64Data // ou 'data': base64Data (les deux sont supportés)
         })
       });
