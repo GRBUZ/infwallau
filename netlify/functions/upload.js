@@ -154,8 +154,8 @@ exports.handler = async (event, context) => {
     if (region.uid && region.uid !== uid) return bad(403, "NOT_REGION_OWNER");
 
     // S'assurer qu'il reste au moins un lock actif pour cette région par ce uid
-    const hasActiveLock = Object.values(st.locks).some(l => l && l.regionId === regionId && l.uid === uid && l.until > Date.now());
-    if (!hasActiveLock) return bad(409, "LOCK_MISSING_OR_EXPIRED");
+    //const hasActiveLock = Object.values(st.locks).some(l => l && l.regionId === regionId && l.uid === uid && l.until > Date.now());
+    //if (!hasActiveLock) return bad(409, "LOCK_MISSING_OR_EXPIRED");
 
     // Upload du binaire vers le repo
     const repoPath = `assets/images/${regionId}/${filename}`;
