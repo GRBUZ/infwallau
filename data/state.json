@@ -1,52 +1,6 @@
 {
   "sold": {},
-  "locks": {
-    "451": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481862002,
-      "regionId": "r_0cee897c_mewzubte_451-452-453-551-552-553"
-    },
-    "452": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481862002,
-      "regionId": "r_0cee897c_mewzubte_451-452-453-551-552-553"
-    },
-    "453": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481862002,
-      "regionId": "r_0cee897c_mewzubte_451-452-453-551-552-553"
-    },
-    "551": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481862002,
-      "regionId": "r_0cee897c_mewzubte_451-452-453-551-552-553"
-    },
-    "552": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481862002,
-      "regionId": "r_0cee897c_mewzubte_451-452-453-551-552-553"
-    },
-    "553": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481862002,
-      "regionId": "r_0cee897c_mewzubte_451-452-453-551-552-553"
-    },
-    "651": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481862002,
-      "regionId": "r_0cee897c_mewzubte_451-452-453-551-552-553"
-    },
-    "652": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481862002,
-      "regionId": "r_0cee897c_mewzubte_451-452-453-551-552-553"
-    },
-    "653": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481862002,
-      "regionId": "r_0cee897c_mewzubte_451-452-453-551-552-553"
-    }
-  },
+  "locks": {},
   "regions": {
     "r_0cee897c_mews8cvn_257-258-259-260-261-357": {
       "rect": {
