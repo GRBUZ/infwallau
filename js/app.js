@@ -227,7 +227,16 @@
       const fd = new FormData();
       fd.append('file', file, file.name);
       fd.append('regionId', regionId);
-      const res = await apiCall('/upload', { method:'POST', body: fd, raw:true }); // apiCall gère auth; raw => ne force pas JSON
+      //const res = await apiCall('/upload', { method:'POST', body: fd, raw:true }); // apiCall gère auth; raw => ne force pas JSON
+      const res = await apiCall('/upload', {
+        method: 'POST',
+        body: JSON.stringify({
+          regionId,                 // requis
+          filename: file.name,
+          contentType: sniffedType, // optionnel
+          contentBase64: base64Data // ou 'data': base64Data (les deux sont supportés)
+        })
+      });
       if (!res || !res.ok) return { ok:false, error: res?.error || 'UPLOAD_FAILED' };
       return { ok:true, imageUrl: res.imageUrl, regionId: res.regionId };
     }

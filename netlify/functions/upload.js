@@ -12,7 +12,7 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 };
 const ok = (obj) => ({ statusCode: 200, headers: CORS, body: JSON.stringify(obj) });
-const bad = (status, error, extra={}) => ({ statusCode: status, headers: CORS, body: JSON.stringify({ ok:false, error, ...extra }) });
+//const bad = (status, error, extra={}) => ({ statusCode: status, headers: CORS, body: JSON.stringify({ ok:false, error, ...extra }) });
 
 
 const STATE_PATH = process.env.STATE_PATH || "data/state.json";
