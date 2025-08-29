@@ -1,67 +1,6 @@
 {
   "sold": {},
-  "locks": {
-    "255": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481435858,
-      "regionId": "r_0cee897c_mewzl702_255-256-257-258-355-356"
-    },
-    "256": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481435858,
-      "regionId": "r_0cee897c_mewzl702_255-256-257-258-355-356"
-    },
-    "257": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481435858,
-      "regionId": "r_0cee897c_mewzl702_255-256-257-258-355-356"
-    },
-    "258": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481435858,
-      "regionId": "r_0cee897c_mewzl702_255-256-257-258-355-356"
-    },
-    "355": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481435858,
-      "regionId": "r_0cee897c_mewzl702_255-256-257-258-355-356"
-    },
-    "356": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481435858,
-      "regionId": "r_0cee897c_mewzl702_255-256-257-258-355-356"
-    },
-    "357": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481435858,
-      "regionId": "r_0cee897c_mewzl702_255-256-257-258-355-356"
-    },
-    "358": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481435858,
-      "regionId": "r_0cee897c_mewzl702_255-256-257-258-355-356"
-    },
-    "455": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481435858,
-      "regionId": "r_0cee897c_mewzl702_255-256-257-258-355-356"
-    },
-    "456": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481435858,
-      "regionId": "r_0cee897c_mewzl702_255-256-257-258-355-356"
-    },
-    "457": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481435858,
-      "regionId": "r_0cee897c_mewzl702_255-256-257-258-355-356"
-    },
-    "458": {
-      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
-      "until": 1756481435858,
-      "regionId": "r_0cee897c_mewzl702_255-256-257-258-355-356"
-    }
-  },
+  "locks": {},
   "regions": {
     "r_0cee897c_mews8cvn_257-258-259-260-261-357": {
       "rect": {
