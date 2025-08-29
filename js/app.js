@@ -348,13 +348,12 @@
   });
 
   // ==== Finalize + Upload (submit) ====
-  form.addEventListener('submit', async (e)=>{
+  /*form.addEventListener('submit', async (e)=>{
     e.preventDefault();
     const name  = (nameInput.value || '').trim();
     let linkUrl = normalizeUrl(linkInput.value);
     if(!name || !linkUrl){ return; }
 
-    // quelle image ?
     const file = (fileInput && fileInput.files && fileInput.files[0]) ? fileInput.files[0] : null;
 
     confirmBtn.disabled = true;
@@ -362,8 +361,6 @@
 
     try{
       const blocks = currentLock.length ? currentLock.slice() : Array.from(selected);
-
-      // Re-lock juste avant (défensif, même uid)
       const lr = await window.LockManager.lock(blocks, 180000);
       locks = window.LockManager.getLocalLocks();
       if (!lr || !lr.ok) {
@@ -372,10 +369,8 @@
         confirmBtn.disabled=false; confirmBtn.textContent='Confirm';
         return;
       }
-      // Si reserve réactualise un regionId, prends-le
       if (lr.regionId) currentRegionId = lr.regionId;
 
-      // Orchestration
       const out = await FlowManager.run({
         name, linkUrl, blocks, file, preRegionId: currentRegionId
       });
@@ -385,12 +380,10 @@
         return;
       }
       if (out.uploadError){
-        // La vente est OK, mais on informe que l’upload n’a pas accroché
         console.warn('[upload] post-finalize issue:', out.uploadError);
         alert('Your pixels are confirmed, but image upload failed. You can retry the upload from the form.');
       }
 
-      // Release + refresh
       try { await window.LockManager.unlock(blocks); } catch {}
       locks = window.LockManager.getLocalLocks();
       currentLock = []; currentRegionId = null;
@@ -406,7 +399,7 @@
     }finally{
       confirmBtn.disabled=false; confirmBtn.textContent='Confirm';
     }
-  });
+  });*/
 
   function rectFromIndices(arr){
     if (!arr || !arr.length) return null;
