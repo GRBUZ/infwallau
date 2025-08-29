@@ -116,12 +116,18 @@ exports.handler = async (event, context) => {
   // CORS preflight
   if (event.httpMethod === 'OPTIONS') return ok({ ok: true });
 
-  // Auth JWT (ne JAMAIS lire req.headers.authorization directement)
+  // Méthode autorisée
+  if (event.httpMethod !== 'POST') return bad(405, 'METHOD_NOT_ALLOWED');
+
+  // Auth JWT
   const auth = requireAuth(event);
-  if (auth && auth.statusCode) return auth; // 401 déjà formatée par le middleware
+  if (auth && auth.statusCode) return auth;   // 401 déjà formatée
   const uid = auth.uid;
 
-  // Parse JSON body
+  // Config GH
+  if (!GH_REPO || !GH_TOKEN) return bad(500, 'GITHUB_CONFIG_MISSING');
+
+  // Parse JSON body (une seule fois)
   let body = {};
   try {
     body = event.body ? JSON.parse(event.body) : {};
@@ -129,52 +135,47 @@ exports.handler = async (event, context) => {
     return bad(400, 'BAD_JSON');
   }
 
-  const blocks = Array.isArray(body.blocks) ? body.blocks.map(n => parseInt(n, 10)).filter(Number.isInteger) : [];
-  const ttl    = Number(body.ttl || 180000);
+  // Lecture & validation inputs
+  const blocks = Array.isArray(body.blocks)
+    ? body.blocks.map(n => parseInt(n, 10)).filter(n => Number.isInteger(n) && n >= 0 && n < 10000)
+    : [];
+  const ttl = Math.max(60_000, Math.min(parseInt(body.ttl || '180000', 10) || 180_000, 10 * 60_000));
   if (!blocks.length) return bad(400, 'NO_BLOCKS');
 
   try {
-    if (event.httpMethod !== 'POST') return jres(405, { ok:false, error:'METHOD_NOT_ALLOWED' });
-    if (!GH_REPO || !GH_TOKEN) return jres(500, { ok:false, error:'GITHUB_CONFIG_MISSING' });
-
-    const uid = getAuthenticatedUID(event); // du middleware (extrait du JWT)
-    const body = JSON.parse(event.body || '{}');
-    const blocks = Array.isArray(body.blocks)
-      ? body.blocks.map(n=>parseInt(n,10)).filter(n=>Number.isInteger(n)&&n>=0&&n<10000)
-      : [];
-    const ttl = Math.max(60_000, Math.min(parseInt(body.ttl||'180000',10)||180_000, 10*60_000));
-    if (!blocks.length) return jres(400, { ok:false, error:'NO_BLOCKS' });
-
-    // Charger state
+    // Charger state.json
     let got = await ghGetFile(STATE_PATH);
     let st = parseState(got.content);
     st.locks = pruneLocks(st.locks);
 
-    // Vérifier collisions
+    // Détecter conflits (vendu ou locké par autrui)
+    const conflicts = [];
+    const now = Date.now();
     for (const b of blocks) {
       const key = String(b);
-      if (st.sold[key]) return jres(409, { ok:false, error:'ALREADY_SOLD' });
+      if (st.sold[key]) { conflicts.push(b); continue; }
       const l = st.locks[key];
-      if (l && l.until > Date.now() && l.uid !== uid) {
-        return jres(409, { ok:false, error:'LOCKED_BY_OTHER' });
-      }
+      if (l && l.until > now && l.uid !== uid) conflicts.push(b);
+    }
+    if (conflicts.length) {
+      // 200 avec ok:false + conflicts → le front sait gérer
+      return ok({ ok: false, error: 'CONFLICT', conflicts, locks: st.locks });
     }
 
-    // Générer regionId pour CETTE réservation
-    const regionId = genRegionId(uid, blocks);
-    const until = Date.now() + ttl;
+    // Générer un regionId par réservation et appliquer les locks
+    const regionId = genRegionId(uid, blocks);              // doit exister dans ce fichier
+    const until = now + ttl;
 
-    // Poser les locks (tous pointent vers le même regionId)
     for (const b of blocks) {
       st.locks[String(b)] = { uid, until, regionId };
     }
 
-    // Init stub de région si absent
+    // Créer/initialiser la région si absente
     st.regions ||= {};
     if (!st.regions[regionId]) {
       st.regions[regionId] = {
-        rect: computeRectFromBlocks(blocks),
-        blocks,
+        rect: computeRectFromBlocks(blocks),                // doit exister dans ce fichier
+        blocks: blocks.slice(),
         imageUrl: '',
         name: '',
         linkUrl: '',
@@ -182,12 +183,21 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Commit
+    // Commit GitHub
     const newContent = JSON.stringify(st, null, 2);
     await ghPutFile(STATE_PATH, newContent, got.sha, `reserve ${blocks.length} by ${uid} -> ${regionId}`);
 
-    return jres(200, { ok:true, regionId, until, locks: st.locks });
+    // Réponse attendue par LockManager/app.js
+    return ok({
+      ok: true,
+      locked: blocks.slice(),
+      conflicts: [],
+      locks: st.locks,                                     // snapshot complet pour merge()
+      ttlSeconds: Math.floor(ttl / 1000),
+      regionId,
+      until
+    });
   } catch (e) {
-    return jres(500, { ok:false, error:'RESERVE_FAILED', message:String(e&&e.message||e) });
+    return bad(500, 'RESERVE_FAILED', { message: String(e && e.message || e) });
   }
 };
