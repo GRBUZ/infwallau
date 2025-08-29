@@ -321,85 +321,78 @@
     };
   })();
 
-  // ==== Buy flow ====
-  buyBtn.addEventListener('click', async ()=>{
-    if(!selected.size) return;
-    const want = Array.from(selected);
-    try{
-      const lr = await window.LockManager.lock(want, 180000);
+  // DRY helper
+    async function ensureLock(ttlMs = 180000) {
+      // si on a déjà un lock courant, on tente juste un renouvellement "soft"
+      const blocks = currentLock.length ? currentLock.slice() : Array.from(selected);
+      if (!blocks.length) return { ok:false, error:'NO_SELECTION' };
+
+      // (Option) si le heartbeat tourne, tu peux sauter le re-lock agressif ici
+      const lr = await window.LockManager.lock(blocks, ttlMs);
       locks = window.LockManager.getLocalLocks();
 
-      if (!lr || !lr.ok || (lr.conflicts && lr.conflicts.length>0) || (lr.locked && lr.locked.length !== want.length)){
-        const rect = rectFromIndices(want);
-        if (rect) showInvalidRect(rect.r0, rect.c0, rect.r1, rect.c1, 1200);
-        clearSelection(); paintAll();
-        return;
-      }
-
-      currentLock = (lr.locked || []).slice();
-      currentRegionId = lr.regionId || null; // SI ton backend renvoie regionId à reserve()
-      clearSelection();
-      for(const i of currentLock){ selected.add(i); grid.children[i].classList.add('sel'); }
-      openModal();
-      paintAll();
-    }catch(e){
-      alert('Reservation failed: ' + (e?.message || e));
+      if (!lr || !lr.ok) return { ok:false, error: lr && lr.error };
+      if (lr.regionId) currentRegionId = lr.regionId;
+      currentLock = (lr.locked || blocks).slice();
+      return { ok:true, regionId: currentRegionId, blocks: currentLock };
     }
+
+  // ==== Buy flow ====
+  buyBtn.addEventListener('click', async () => {
+    if (!selected.size) return;
+    const lr = await ensureLock(180000);
+    if (!lr.ok) {
+      const rect = rectFromIndices(Array.from(selected));
+      if (rect) showInvalidRect(rect.r0, rect.c0, rect.r1, rect.c1, 1200);
+      clearSelection(); paintAll();
+      return;
+    }
+    clearSelection();
+    for (const i of currentLock) { selected.add(i); grid.children[i].classList.add('sel'); }
+    openModal(); paintAll();
   });
 
+
   // ==== Finalize + Upload (submit) ====
-  /*form.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const name  = (nameInput.value || '').trim();
-    let linkUrl = normalizeUrl(linkInput.value);
-    if(!name || !linkUrl){ return; }
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name  = (nameInput.value || '').trim();
+  let linkUrl = normalizeUrl(linkInput.value);
+  if (!name || !linkUrl) return;
 
-    const file = (fileInput && fileInput.files && fileInput.files[0]) ? fileInput.files[0] : null;
+  const file = (fileInput?.files?.[0]) || null;
+  confirmBtn.disabled = true; confirmBtn.textContent = 'Processing…';
 
-    confirmBtn.disabled = true;
-    confirmBtn.textContent = 'Processing…';
-
-    try{
-      const blocks = currentLock.length ? currentLock.slice() : Array.from(selected);
-      const lr = await window.LockManager.lock(blocks, 180000);
-      locks = window.LockManager.getLocalLocks();
-      if (!lr || !lr.ok) {
-        await loadStatus().catch(()=>{});
-        alert((lr && lr.error) || 'Some blocks are already locked/sold. Please reselect.');
-        confirmBtn.disabled=false; confirmBtn.textContent='Confirm';
-        return;
-      }
-      if (lr.regionId) currentRegionId = lr.regionId;
-
-      const out = await FlowManager.run({
-        name, linkUrl, blocks, file, preRegionId: currentRegionId
-      });
-
-      if (!out.ok){
-        alert(out.error || 'Unexpected error');
-        return;
-      }
-      if (out.uploadError){
-        console.warn('[upload] post-finalize issue:', out.uploadError);
-        alert('Your pixels are confirmed, but image upload failed. You can retry the upload from the form.');
-      }
-
-      try { await window.LockManager.unlock(blocks); } catch {}
-      locks = window.LockManager.getLocalLocks();
-      currentLock = []; currentRegionId = null;
-      window.LockManager.heartbeat.stop();
-
-      await loadStatus();
-      clearSelection();
-      paintAll();
-      closeModal();
-      refreshTopbar();
-    }catch(err){
-      alert('Finalize failed: '+(err?.message||err));
-    }finally{
-      confirmBtn.disabled=false; confirmBtn.textContent='Confirm';
+  try {
+    const lr = await ensureLock(180000);
+    if (!lr.ok) {
+      await loadStatus().catch(()=>{});
+      alert(lr.error || 'Some blocks are already locked/sold. Please reselect.');
+      return;
     }
-  });*/
+
+    const out = await FlowManager.run({
+      name, linkUrl, blocks: currentLock.slice(), file, preRegionId: currentRegionId
+    });
+    if (!out.ok) { alert(out.error || 'Unexpected error'); return; }
+    if (out.uploadError) {
+      console.warn('[upload] post-finalize issue:', out.uploadError);
+      alert('Your pixels are confirmed, but image upload failed. You can retry the upload from the form.');
+    }
+
+    try { await window.LockManager.unlock(currentLock); } catch {}
+    locks = window.LockManager.getLocalLocks();
+    currentLock = []; currentRegionId = null;
+    window.LockManager.heartbeat.stop();
+
+    await loadStatus(); clearSelection(); paintAll(); closeModal(); refreshTopbar();
+  } catch (err) {
+    alert('Finalize failed: ' + (err?.message || err));
+  } finally {
+    confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm';
+  }
+});
+
 
   function rectFromIndices(arr){
     if (!arr || !arr.length) return null;
