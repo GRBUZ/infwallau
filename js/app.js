@@ -222,34 +222,35 @@
       return { ok:true, skip:false };
     }
 
-    async function uploadImage(regionId, file){
-      if (!regionId || !file) return { ok:true, skip:true };
-      const fd = new FormData();
-      fd.append('file', file, file.name);
-      fd.append('regionId', regionId);
-      //const res = await apiCall('/upload', { method:'POST', body: fd, raw:true }); // apiCall gère auth; raw => ne force pas JSON
-      const res = await apiCall('/upload', {
-        method: 'POST',
-        body: JSON.stringify({
-          regionId,                 // requis
-          filename: file.name,
-          contentBase64: base64Data // ou 'data': base64Data (les deux sont supportés)
-        })
-      });
-      if (!res || !res.ok) return { ok:false, error: res?.error || 'UPLOAD_FAILED' };
-      return { ok:true, imageUrl: res.imageUrl, regionId: res.regionId };
-    }
+    async function uploadImage(regionId, file) {
+        if (!regionId || !file) return { ok: true, skip: true };
 
-    /*async function linkImage(regionId, imageUrl){
-      if (!regionId || !imageUrl) return { ok:true, skip:true };
-      const res = await apiCall('/link-image', {
-        method:'POST',
-        headers:{ 'content-type':'application/json' },
-        body: JSON.stringify({ regionId, imageUrl })
-      });
-      if (!res || !res.ok) return { ok:false, error: res?.error || 'LINK_IMAGE_FAILED' };
-      return { ok:true };
-    }*/
+        try {
+          // Utiliser UploadManager pour valider + conversion base64
+          const sniffedType = await window.UploadManager.validateFile(file);
+          const { base64Data } = await window.UploadManager.toBase64(file);
+
+          const res = await apiCall('/upload', {
+            method: 'POST',
+            body: JSON.stringify({
+              regionId,                 // requis
+              filename: file.name,
+              contentType: sniffedType, // info utile côté serveur
+              contentBase64: base64Data // bien défini ici
+            })
+          });
+
+          if (!res || !res.ok) {
+            return { ok: false, error: res?.error || 'UPLOAD_FAILED' };
+          }
+
+          return { ok: true, imageUrl: res.imageUrl, regionId: res.regionId };
+        } catch (e) {
+          console.error('[uploadImage] Failed:', e);
+          return { ok: false, error: e.message || 'UPLOAD_EXCEPTION' };
+        }
+      }
+
    // Déprécié : /link-image n'est plus utilisé car /upload écrit déjà imageUrl dans state.json
   async function linkImage(regionId, imageUrl){
   if (!regionId || !imageUrl) return { ok:true, skip:true };
