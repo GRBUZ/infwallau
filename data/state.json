@@ -697,7 +697,88 @@
       "regionId": "r_mey9cnbu_ntoj"
     }
   },
-  "locks": {},
+  "locks": {
+    "63": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "64": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "65": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "66": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "163": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "164": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "165": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "166": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "263": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "264": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "265": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "266": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "363": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "364": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "365": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "366": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "463": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "464": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "465": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    },
+    "466": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756590856692
+    }
+  },
   "regions": {
     "r_mey7z4jd_sxbu": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mey7z4jd_sxbu/Capture-d__cran-2024-06-20-230224_1756555810582_asu48b.png",
