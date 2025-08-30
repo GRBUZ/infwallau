@@ -38,6 +38,26 @@
     fileInput.setAttribute('accept', 'image/*');
   }
 
+  //new
+  // --- pause/reprise du heartbeat pour éviter /reserve pendant le processing
+  let __processing = false;
+  function pauseHB(){
+    if (__processing) return;
+    __processing = true;
+    try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+  }
+  function resumeHB(){
+    if (!__processing) return;
+    __processing = false;
+    try {
+      // on ne relance que si le modal est encore ouvert et qu'il reste une sélection
+      const sel = (typeof getSelectedIndices === 'function') ? getSelectedIndices() : [];
+      if (modal && !modal.classList.contains('hidden') && sel && sel.length) {
+        window.LockManager?.heartbeat?.start?.(sel); // interval/ttl par défaut
+      }
+    } catch {}
+  }
+  //new
   // UI helpers
   function uiWarn(msg){
     if (window.Errors && window.Errors.showToast) {
@@ -189,6 +209,7 @@
       return; // ⛔️ on sort: PAS de /finalize
     }
 
+    pauseHB();
     btnBusy(true);
 
     // Re-reserve just before finalize (defensive)
@@ -199,6 +220,7 @@
           await refreshStatus();
           uiWarn((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
           btnBusy(false);
+          resumeHB();
           return;
         }
       } else {
@@ -207,6 +229,7 @@
           await refreshStatus();
           uiWarn((jr && jr.error) || 'Some blocks are already locked/sold. Please reselect.');
           btnBusy(false);
+          resumeHB();
           return;
         }
       }
@@ -222,6 +245,7 @@
       if (!file) {
         uiWarn("Veuillez sélectionner une image (PNG, JPG, GIF, WebP).");
         btnBusy(false);
+        resumeHB(); 
         return;
       }
       const contentType = await window.UploadManager.validateFile(file);
@@ -240,12 +264,14 @@
     } catch (e) {
       uiError(e, 'Start order');
       btnBusy(false);
+      resumeHB();
       return;
     }
     if (!start || !start.ok) {
       const message = (start && (start.error || start.message)) || 'Start order failed';
       uiError(window.Errors ? window.Errors.create('START_ORDER_FAILED', message, { details: start }) : new Error(message), 'Start order');
       btnBusy(false);
+      resumeHB();
       return;
     }
 
@@ -304,6 +330,7 @@ if (USE_FAKE_PAYMENTS) {
         if (st && st.ok && st.status === 'failed') {
           uiWarn("Paiement échoué. Aucun bloc n'a été vendu.");
           btnBusy(false);
+          resumeHB();
           return;
         }
         // status: pending -> continue polling
