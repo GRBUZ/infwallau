@@ -53,6 +53,41 @@ function toAbsoluteUrl(imageUrl){
   return `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${p}`;
 }
 
+async function linkImageWithRetry(regionId, url, maxAttempts = 3) {
+  let attempt = 0;
+  let delay = 150; // ms
+
+  while (attempt < maxAttempts) {
+    attempt++;
+    // 1) lire l'état FRAIS
+    const { json: state0, sha } = await ghGetJson(STATE_PATH);
+    const state = state0 || { sold:{}, locks:{}, regions:{} };
+    state.regions ||= {};
+    const existing = state.regions[regionId] || {};
+
+    // 2) appliquer SANS perdre les autres champs
+    state.regions[regionId] = { ...existing, imageUrl: url };
+
+    // 3) tenter le PUT
+    try {
+      await ghPutJson(STATE_PATH, state, sha, `chore: link imageUrl for ${regionId}`);
+      return; // ✅ succès
+    } catch (err) {
+      const msg = String(err?.message || err);
+      // 409 => re-lire + re-tenter (backoff)
+      if (msg.includes('409') && attempt < maxAttempts) {
+        await new Promise(r => setTimeout(r, delay));
+        delay *= 2;
+        continue;
+      }
+      // autre erreur -> remonter
+      throw err;
+    }
+  }
+
+  throw new Error('LINK_IMAGE_MAX_RETRIES_EXCEEDED');
+}
+
 exports.handler = async (event) => {
   try {
     // Authentification requise
@@ -73,21 +108,15 @@ exports.handler = async (event) => {
     // Optionnel: vérifier que l'utilisateur authentifié possède cette région
     // (si vous avez cette logique dans votre business model)
 
-    const { json: state0, sha } = await ghGetJson(STATE_PATH);
-    const state = state0 || { sold:{}, locks:{}, regions:{} };
-    if (!state.regions) state.regions = {};
-    if (!state.regions[regionId]) state.regions[regionId] = { imageUrl:"", rect:{x:0,y:0,w:1,h:1} };
+    // url absolutisée (tu as déjà toAbsoluteUrl), validations faites…
+    await linkImageWithRetry(regionId, url);
 
-    state.regions[regionId].imageUrl = url;
-
-    await ghPutJson(STATE_PATH, state, sha, `chore: link imageUrl for ${regionId}`);
-    
     return {
       statusCode: 200,
-      headers: { "content-type":"application/json", "cache-control":"no-store" },
-      body: JSON.stringify({ ok:true, regionId, imageUrl: url })
+      headers: { "content-type": "application/json", "cache-control": "no-store" },
+      body: JSON.stringify({ ok: true, regionId, imageUrl: url })
     };
-    
+
   } catch (e) {
     return bad(500, "SERVER_ERROR", { message: String(e?.message || e) });
   }

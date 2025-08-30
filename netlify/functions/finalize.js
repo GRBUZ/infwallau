@@ -130,7 +130,6 @@ exports.handler = async (event) => {
       if (error.message.includes('409')) {
         const { json: freshState, sha: freshSha } = await ghGetJson(STATE_PATH);
         const mergedState = freshState || { sold:{}, locks:{}, regions:{} };
-
         // Re-apply sold
         const newTs = Date.now();
         for (const idx of validatedBlocks) {
@@ -141,11 +140,11 @@ exports.handler = async (event) => {
         // Re-apply region WITHOUT clobbering imageUrl
         mergedState.regions ||= {};
         const existing = mergedState.regions[regionId] || {};
-        mergedState.regions[regionId] = { 
-          imageUrl: existing.imageUrl || "", 
-          rect 
+        mergedState.regions[regionId] = {
+          // 🔸 préserve une image éventuellement déjà liée par /link-image
+          imageUrl: existing.imageUrl || "",
+          rect
         };
-
         await ghPutJson(STATE_PATH, mergedState, freshSha);
       } else {
         throw error;
