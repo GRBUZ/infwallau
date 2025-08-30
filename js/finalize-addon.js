@@ -215,85 +215,79 @@
       console.warn('[IW patch] pre-finalize reserve warning:', e);
     }
 
-    // Finalize
-    let out = null;
+    // === START-ORDER: on prépare la commande et on uploade l'image en staging ===
+    let start = null;
     try {
-      out = await apiCall('/finalize', {
-        method:'POST',
-        body: JSON.stringify({ name, linkUrl, blocks })
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      if (!file) {
+        uiWarn("Veuillez sélectionner une image (PNG, JPG, GIF, WebP).");
+        btnBusy(false);
+        return;
+      }
+      const contentType = await window.UploadManager.validateFile(file);
+      const { base64Data } = await window.UploadManager.toBase64(file);
+
+      // Server: aucune vente ; image en staging + order record
+      start = await apiCall('/start-order', {
+        method: 'POST',
+        body: JSON.stringify({
+          name, linkUrl, blocks,
+          filename: file.name,
+          contentType,
+          contentBase64: base64Data
+        })
       });
     } catch (e) {
-      // CoreManager.apiCall notifie déjà, on ajoute un contexte si besoin
-      uiError(e, 'Finalize');
+      uiError(e, 'Start order');
+      btnBusy(false);
+      return;
+    }
+    if (!start || !start.ok) {
+      const message = (start && (start.error || start.message)) || 'Start order failed';
+      uiError(window.Errors ? window.Errors.create('START_ORDER_FAILED', message, { details: start }) : new Error(message), 'Start order');
       btnBusy(false);
       return;
     }
 
-    if (!out || !out.ok) {
-      const message = (out && (out.error || out.message)) || 'Finalize failed';
-      const err = window.Errors ? window.Errors.create('FINALIZE_FAILED', message, { status: out?.status || 0, retriable: false, details: out }) : new Error(message);
-      uiError(err, 'Finalize');
-      btnBusy(false);
-      return;
-    }
+    // On a un orderId + regionId, l'image est en staging côté repo
+    const { orderId, regionId } = start;
+    if (fileInput && regionId) fileInput.dataset.regionId = regionId;
 
-    // Save regionId for other modules and emit event
-    try {
-      const regionId = out.regionId || '';
-      if (fileInput && regionId) {
-        fileInput.dataset.regionId = regionId;
-      }
-      // Emit event for listeners (e.g., upload-addon auto-upload)
-      document.dispatchEvent(new CustomEvent('finalize:success', {
-        detail: { regionId, blocks, name, linkUrl }
-      }));
-    } catch (e) {
-      console.warn('[IW patch] finalize:success dispatch failed', e);
-    }
+    // === Ici tu déclencheras PayPal ===
+    // 1) soit tu ouvres la popup PayPal (SDK) avec un /paypal-create-order qui renvoie l’id PayPal
+    // 2) soit (temporaire) tu affiches un message invitant à payer
+    uiInfo('Commande créée. Veuillez finaliser le paiement…');
 
-    // Optional inline upload with UploadManager (kept for backward-compat; upload-addon may also handle it via event)
-    // --- finalize-addon.js (patch, dans le bloc "Optional inline upload ...") ---
+    // Exemple minimaliste de polling en attendant la confirmation via webhook
+    let tries = 0;
+    while (tries < 60) { // ~60s; ajuste selon ton webhook
+      await new Promise(r => setTimeout(r, 1000));
+      tries++;
+
       try {
-        const file = fileInput && fileInput.files && fileInput.files[0];
-        if (file) {
-          if (!out.regionId) {
-            console.warn('[IW patch] finalize returned no regionId, skipping upload');
-          } else {
-            const uploadResult = await window.UploadManager.uploadForRegion(file, out.regionId);
-            const url = uploadResult?.imageUrl || uploadResult?.url || '';
-            if (url) {
-              // NEW: lier l'image à la région pour mettre à jour state.json côté backend
-              try {
-                await window.UploadManager.linkImageToRegion(out.regionId, url);
-              } catch (linkErr) {
-                console.warn('[IW patch] link-image failed after upload', linkErr);
-              }
-              uiInfo('Image uploaded and linked.');
-            } else {
-              uiWarn('Image uploaded, but no URL returned.');
-            }
-          }
+        const st = await apiCall('/order-status?orderId=' + encodeURIComponent(orderId));
+        if (st && st.ok && st.status === 'completed') {
+          // OK, le webhook a validé et vendu les blocs
+          // on sort de la boucle et on termine le flux
+          break;
         }
-      } catch (e) {
-        uiError(e, 'Upload');
+        if (st && st.ok && st.status === 'failed') {
+          uiWarn("Paiement échoué. Aucun bloc n'a été vendu.");
+          btnBusy(false);
+          return;
+        }
+        // status: pending -> continue polling
+      } catch (pollErr) {
+        // ignore 1-2 erreurs réseau
       }
+    }
 
-
-    // After finalize: refresh + unlock selection
-    try {
-      await unlockSelection();
-    } catch {}
-
+    // After finalize-by-webhook: refresh + unlock selection (verrouillage n'a plus d'intérêt)
+    try { await unlockSelection(); } catch {}
     await refreshStatus();
-
-    // Close modal if exists
-    try {
-      if (modal && !modal.classList.contains('hidden')) {
-        modal.classList.add('hidden');
-      }
-    } catch {}
-
+    try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
     btnBusy(false);
+
   }
 
   // Wire up UI

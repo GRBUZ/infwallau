@@ -51,6 +51,34 @@ async function ghPutBinary(path, buffer, message){
   return put.json();
 }
 
+//new
+function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+async function ghPutBinaryWithRetry(repoPath, buffer, message, maxAttempts = 4) {
+  let attempt = 0;
+  let lastErr;
+
+  while (attempt < maxAttempts) {
+    attempt++;
+    try {
+      // ghPutBinary fait déjà un probe (GET) + PUT avec sha si besoin
+      return await ghPutBinary(repoPath, buffer, message);
+    } catch (e) {
+      const msg = String(e?.message || e);
+      lastErr = e;
+      // 409 = conflit GitHub: on re-tente (HEAD a changé pendant notre PUT)
+      if (msg.includes('GH_PUT_BIN_FAILED:409')) {
+        await sleep(120 * attempt); // backoff linéaire (simple & suffisant ici)
+        continue;
+      }
+      // autres erreurs -> pas de retry
+      throw e;
+    }
+  }
+  throw lastErr || new Error('UPLOAD_MAX_RETRIES_EXCEEDED');
+}
+//new
+
 exports.handler = async (event) => {
   try {
     const auth = requireAuth(event);
@@ -73,7 +101,8 @@ exports.handler = async (event) => {
     const buffer = Buffer.from(b64, "base64");
 
     const repoPath = `assets/images/${regionId}/${filename}`;
-    await ghPutBinary(repoPath, buffer, `feat: upload ${filename} for ${regionId}`);
+    //await ghPutBinary(repoPath, buffer, `feat: upload ${filename} for ${regionId}`);
+    await ghPutBinaryWithRetry(repoPath, buffer, `feat: upload ${filename} for ${regionId}`);
 
     const imageUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${repoPath}`;
 
