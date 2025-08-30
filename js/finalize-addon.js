@@ -34,6 +34,9 @@
   const nameInput    = document.getElementById('name') || document.querySelector('input[name="name"]');
   const linkInput    = document.getElementById('link') || document.querySelector('input[name="link"]');
   const fileInput    = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
+  if (fileInput && !fileInput.getAttribute('accept')) {
+    fileInput.setAttribute('accept', 'image/*');
+  }
 
   // UI helpers
   function uiWarn(msg){
@@ -170,6 +173,21 @@
 
     if (!blocks.length){ uiWarn('Please select at least one block.'); return; }
     if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
+
+    // ✅ Pré-validation du fichier sélectionné AVANT toute finalisation
+    try {
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      if (file) {
+        // Vérifie type MIME réel + taille (UploadManager.validateFile lève "Invalid file type" / "Too large")
+        await window.UploadManager.validateFile(file);
+        // (Optionnel) tu peux aussi faire une vérif taille côté UI ici via file.size si tu veux un message encore plus rapide.
+      }
+    } catch (preErr) {
+      // Empêche la vente si l'image n'est pas valable
+      uiError(preErr, 'Upload');
+      uiWarn('Veuillez sélectionner une image valide (PNG, JPG, GIF, WebP).');
+      return; // ⛔️ on sort: PAS de /finalize
+    }
 
     btnBusy(true);
 
