@@ -168,11 +168,7 @@
     }
 
     async call(endpoint, options = {}) {
-      //const url = `${this.BASE_URL}${endpoint}`;
-      // remplace la ligne:
-      // par:
-      const url = `${this.BASE_URL}${String(endpoint || '')}`.replace(/([^:]\/)\/+/g, '$1');
-
+      const url = `${this.BASE_URL}${endpoint}`;
       const headers = await this._buildHeaders(options);
       const baseConfig = {
         ...options,
@@ -244,10 +240,7 @@
     }
 
     async callMultipart(endpoint, formData, options = {}) {
-      //const url = `${this.BASE_URL}${endpoint}`;
-      // par:
-      const url = `${this.BASE_URL}${String(endpoint || '')}`.replace(/([^:]\/)\/+/g, '$1');
-
+      const url = `${this.BASE_URL}${endpoint}`;
       const headers = await this._buildHeaders({ ...(options || {}), body: formData }); // ne pas définir Content-Type
       const baseConfig = {
         method: 'POST',
@@ -311,10 +304,7 @@
     }
 
     async callRaw(endpoint, options = {}) {
-      //const url = `${this.BASE_URL}${endpoint}`;
-      // par:
-      const url = `${this.BASE_URL}${String(endpoint || '')}`.replace(/([^:]\/)\/+/g, '$1');
-
+      const url = `${this.BASE_URL}${endpoint}`;
       const authHeaders = await this.getAuthHeaders();
 
       const isForm = options.body && (options.body instanceof FormData);
@@ -348,7 +338,6 @@
   // Exports globaux pour compatibilité
   window.CoreManager = {
     uid: uidManager.uid,
-    getUID: () => uidManager.uid,
     apiCall: (endpoint, options) => apiManager.call(endpoint, options),
     apiCallMultipart: (endpoint, formData, options) => apiManager.callMultipart(endpoint, formData, options),
     apiCallRaw: (endpoint, options) => apiManager.callRaw(endpoint, options)

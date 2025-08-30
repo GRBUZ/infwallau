@@ -1,19 +1,5 @@
-// netlify/functions/upload.js
-// Upload image pour un regionId RÉSERVÉ (refuse si lock absent/expiré)
-
-const { requireAuth, getAuthenticatedUID } = require('./jwt-middleware.js');
-
-// utils communs (copier en haut de chaque fn)
-const CORS = {
-  'content-type': 'application/json',
-  'cache-control': 'no-store',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-};
-const ok = (obj) => ({ statusCode: 200, headers: CORS, body: JSON.stringify(obj) });
-//const bad = (status, error, extra={}) => ({ statusCode: status, headers: CORS, body: JSON.stringify({ ok:false, error, ...extra }) });
-
+// netlify/functions/upload.js (v2, converti en fonction classique)
+const { requireAuth } = require('./auth-middleware');
 
 const STATE_PATH = process.env.STATE_PATH || "data/state.json";
 const GH_REPO    = process.env.GH_REPO;
@@ -24,8 +10,26 @@ function bad(status, error, extra = {}) {
   return {
     statusCode: status,
     headers: { "content-type":"application/json", "cache-control":"no-store" },
-    body: JSON.stringify({ ok:false, error, ...extra })
+    body: JSON.stringify({ ok:false, error, ...extra, signature:"upload.v2" })
   };
+}
+
+function safeFilename(name) {
+  const parts = String(name || "image").split("/").pop().split("\\");
+  const base  = parts[parts.length - 1];
+  
+  // Nettoyer le nom de base
+  const cleaned = base.replace(/\s+/g, "-").replace(/[^\w.\-]/g, "_").slice(0, 100);
+  
+  // Séparer nom et extension
+  const nameWithoutExt = cleaned.replace(/\.[^.]*$/, '') || 'image';
+  const ext = cleaned.match(/\.[^.]*$/)?.[0] || '.jpg';
+  
+  // Ajouter timestamp + random pour garantir l'unicité
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 8); // 6 caractères aléatoires
+  
+  return `${nameWithoutExt}_${timestamp}_${random}${ext}`;
 }
 
 async function ghGetJson(path){
@@ -47,7 +51,7 @@ async function ghPutJson(path, jsonData, sha, message){
     content: Buffer.from(pretty, "utf-8").toString("base64"),
     branch: GH_BRANCH
   };
-  if (sha) body.sha = sha;
+  if (sha) body.sha = sha; // n'ajouter sha que s'il existe, sinon 422
   const r = await fetch(
     `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`,
     {
@@ -61,29 +65,32 @@ async function ghPutJson(path, jsonData, sha, message){
     }
   );
   if (!r.ok) throw new Error(`GH_PUT_JSON_FAILED:${r.status}`);
-  return r.json();
+  return r.json(); // contient { commit:{ sha:... }, content:{ sha:... } }
 }
 
-async function ghPutBinary(repoPath, buffer, message){
-  const baseURL = `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(repoPath)}`;
+// Version "upsert" pour les binaires
+async function ghPutBinary(path, buffer, message){
+  const baseURL = `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`;
   const headers = {
     "Authorization": `Bearer ${GH_TOKEN}`,
     "Accept": "application/vnd.github+json",
     "Content-Type": "application/json"
   };
 
-  // probe (sha si déjà présent)
+  // 1) probe: existe-t-il déjà ? (pour récupérer le sha)
   let sha = null;
   const probe = await fetch(`${baseURL}?ref=${GH_BRANCH}`, { headers });
   if (probe.ok) {
     const j = await probe.json();
     sha = j.sha || null;
   } else if (probe.status !== 404) {
+    // autre erreur (ex: 409 si branche), on lève
     throw new Error(`GH_GET_PROBE_FAILED:${probe.status}`);
   }
 
+  // 2) PUT avec ou sans sha (update si sha présent, sinon create)
   const body = {
-    message: message || `feat: upload ${repoPath}`,
+    message: message || `feat: upload ${path}`,
     content: Buffer.from(buffer).toString("base64"),
     branch: GH_BRANCH
   };
@@ -94,83 +101,108 @@ async function ghPutBinary(repoPath, buffer, message){
   return put.json();
 }
 
-function pruneLocks(locks) {
-  const now = Date.now();
-  const out = {};
-  for (const [k,v] of Object.entries(locks || {})) {
-    if (v && typeof v.until === 'number' && v.until > now) out[k] = v;
+// Helper pour parser multipart/form-data dans Function classique
+function parseMultipartFormData(body, boundary) {
+  const parts = body.split(`--${boundary}`);
+  const formData = {};
+  
+  for (const part of parts) {
+    if (!part.trim() || part.trim() === '--') continue;
+    
+    const [headers, ...bodyParts] = part.split('\r\n\r\n');
+    if (!headers || bodyParts.length === 0) continue;
+    
+    const disposition = headers.match(/Content-Disposition: form-data; name="([^"]+)"/);
+    if (!disposition) continue;
+    
+    const fieldName = disposition[1];
+    let content = bodyParts.join('\r\n\r\n').replace(/\r\n--$/, '');
+    
+    if (headers.includes('filename=')) {
+      // C'est un fichier
+      const filename = headers.match(/filename="([^"]+)"/)?.[1] || 'unknown';
+      const contentType = headers.match(/Content-Type: ([^\r\n]+)/)?.[1] || 'application/octet-stream';
+      
+      formData[fieldName] = {
+        name: filename,
+        type: contentType,
+        data: content
+      };
+    } else {
+      // C'est un champ texte
+      formData[fieldName] = content.trim();
+    }
   }
-  return out;
+  
+  return formData;
 }
 
-function safeFilename(name) {
-  const parts = String(name || "image").split("/").pop().split("\\");
-  const base  = parts[parts.length - 1];
-  return base.replace(/\s+/g, "-").replace(/[^\w.\-]/g, "_").slice(0, 120) || "image.jpg";
-}
-
-exports.handler = async (event, context) => {
-  // CORS preflight
-  if (event.httpMethod === 'OPTIONS') return ok({ ok: true });
-
-  // Auth JWT (ne JAMAIS lire req.headers.authorization directement)
-  const auth = requireAuth(event);
-  if (auth && auth.statusCode) return auth; // 401 déjà formatée par le middleware
-  const uid = auth.uid;
-
-  // Parse JSON body
-  let body = {};
+exports.handler = async (event) => {
   try {
-    body = event.body ? JSON.parse(event.body) : {};
-  } catch {
-    return bad(400, 'BAD_JSON');
-  }
-
-  try {
+    // Authentification requise
+    const auth = requireAuth(event);
+    if (auth.statusCode) return auth; // Erreur d'auth
+    
+    const authenticatedUID = auth.uid;
+    
     if (event.httpMethod !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
-    if (!GH_REPO || !GH_TOKEN)  return bad(500, "GITHUB_CONFIG_MISSING");
+    if (!GH_REPO || !GH_TOKEN) return bad(500, "GITHUB_CONFIG_MISSING", { GH_REPO, GH_BRANCH });
 
-    // Support JSON uniquement (filename + base64). On refuse multipart ici.
-    const ct = (event.headers['content-type'] || event.headers['Content-Type'] || '').toLowerCase();
-    if (!ct.includes('application/json')) {
-      return bad(415, "UNSUPPORTED_MEDIA_TYPE", { hint: "send JSON {regionId, filename, contentBase64} (or 'data')" });
+    const ct = (event.headers['content-type'] || event.headers['Content-Type'] || "").toLowerCase();
+
+    let regionId = "";
+    let filename = "";
+    let buffer   = null;
+
+    if (ct.includes("multipart/form-data")) {
+      // Parser multipart manuellement pour Function classique
+      const boundary = ct.match(/boundary=([^;]+)/)?.[1];
+      if (!boundary) return bad(400, "NO_BOUNDARY");
+      
+      const formData = parseMultipartFormData(event.body, boundary);
+      
+      const file = formData.file;
+      regionId   = String(formData.regionId || "").trim();
+      
+      if (!file || !file.name) return bad(400, "NO_FILE");
+      if (!file.type || !file.type.startsWith("image/")) return bad(400, "NOT_IMAGE");
+      
+      filename = safeFilename(file.name);
+      // Le contenu est en base64 dans event.body pour les binaires
+      buffer   = Buffer.from(file.data, 'binary');
+    } else {
+      // JSON format
+      const body = JSON.parse(event.body || '{}');
+      regionId = String(body.regionId || "").trim();
+      filename = safeFilename(body.filename || "image.jpg");
+      const b64 = String(body.contentBase64 || "");
+      if (!b64) return bad(400, "NO_FILE_BASE64");
+      buffer   = Buffer.from(b64, "base64");
     }
 
-    // Récupération des champs attendus pour la nouvelle archi
-    const regionId = String(body.regionId || '').trim();
-    const filename = safeFilename(body.filename || "image.jpg");
-    const dataB64  = body.contentBase64 || body.data || '';
-
     if (!regionId) return bad(400, "MISSING_REGION_ID");
-    if (!dataB64)  return bad(400, "NO_FILE_BASE64");
 
-    // Charger l'état et valider la région/ownership
-    const { json: state0, sha } = await ghGetJson(STATE_PATH);
-    const st = state0 || { sold:{}, locks:{}, regions:{} };
-    st.locks = pruneLocks(st.locks);
-
-    const region = (st.regions || {})[regionId];
-    if (!region) return bad(404, "REGION_NOT_FOUND");
-    if (region.uid && region.uid !== uid) return bad(403, "NOT_REGION_OWNER");
-
-    // S'assurer qu'il reste au moins un lock actif pour cette région par ce uid
-    //const hasActiveLock = Object.values(st.locks).some(l => l && l.regionId === regionId && l.uid === uid && l.until > Date.now());
-    //if (!hasActiveLock) return bad(409, "LOCK_MISSING_OR_EXPIRED");
-
-    // Upload du binaire vers le repo
+    // 1) commit du binaire
     const repoPath = `assets/images/${regionId}/${filename}`;
-    const buffer   = Buffer.from(String(dataB64), 'base64');
-    await ghPutBinary(repoPath, buffer, `feat: upload ${filename} for ${regionId}`);
+    const putBin   = await ghPutBinary(repoPath, buffer, `feat: upload ${filename} for ${regionId}`);
+    const binSha   = putBin?.commit?.sha;
 
-    // URL RAW GitHub et mise à jour de state.json
+    // 2) URL RAW
     const imageUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${repoPath}`;
-    st.regions[regionId].imageUrl = imageUrl;
 
-    await ghPutJson(STATE_PATH, st, sha, `chore: set imageUrl for ${regionId}`);
+      return {
+        statusCode: 200,
+        headers: { "content-type":"application/json", "cache-control":"no-store" },
+        body: JSON.stringify({
+          ok: true,
+          signature: "upload.v2",
+          regionId,
+          path: repoPath,
+          imageUrl
+        })
+      };
 
-    // Réponse simplifiée et utile au front
-    return ok({ ok: true, regionId, imageUrl, path: repoPath });
   } catch (e) {
-    return bad(500, 'SERVER_ERROR', { message: String((e && e.message) || e) });
+    return bad(500, "SERVER_ERROR", { message: String(e?.message || e), signature:"upload.v2" });
   }
 };

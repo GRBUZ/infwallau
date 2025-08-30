@@ -80,46 +80,6 @@
       return sniffed;
     }
 
-    //ajout pour s'adapter a app.js patch
-    // Alias attendu par l'app.js (renvoie { ok: true } si valide)
-    async validate(file) {
-      await this.validateFile(file);
-      return { ok: true };
-    }
-
-    // Petit utilitaire pour construire un FormData propre
-    toFormData(file, extra = {}) {
-      const fd = new FormData();
-      fd.append('file', file, file.name);
-      for (const [k, v] of Object.entries(extra || {})) {
-        if (v !== undefined && v !== null) fd.append(k, v);
-      }
-      return fd;
-    }
-
-    // Variante multipart pour l'upload lié à une région (optionnel)
-    async uploadMultipartForRegion(file, regionId) {
-      if (!regionId) throw new Error('Missing regionId');
-      await this.validateFile(file);
-
-      const fd = this.toFormData(file, { regionId });
-
-      // NOTE: apiCall(..., { raw:true }) pour laisser le FormData tel quel
-      const res = await window.CoreManager.apiCall('/upload', {
-        method: 'POST',
-        body: fd,
-        raw: true
-      });
-
-      if (!res || !res.ok) {
-        const msg = (res && (res.message || res.error)) || 'Upload failed';
-        throw new Error(msg);
-      }
-      return res;
-    }
-
-    //fin ajout
-
     // Conversion base64 commune
     async toBase64(file) {
       return new Promise((resolve, reject) => {
@@ -140,76 +100,84 @@
     }
 
     // Upload générique (ex: upload-addon.js)
-    async uploadGeneric(file, options = {}) {
-      try {
-        const sniffedType = await this.validateFile(file);
+    // --- upload-manager.js (patch) ---
+async uploadGeneric(file, options = {}) {
+  try {
+    const sniffedType = await this.validateFile(file);
+    const { base64Data } = await this.toBase64(file);
 
-        const { base64Data } = await this.toBase64(file);
+    const approxBytes = Math.floor((base64Data.length * 3) / 4);
+    if (approxBytes > this.MAX_SIZE) throwTooLarge();
 
-        // Vérif taille effective du payload base64 (~ *3/4)
-        const approxBytes = Math.floor((base64Data.length * 3) / 4);
-        if (approxBytes > this.MAX_SIZE) throwTooLarge();
+    const payload = {
+      filename: file.name,
+      contentType: sniffedType,
+      contentBase64: base64Data,       // << was "data"
+      ...options
+    };
 
-        const payload = {
-          filename: file.name,
-          contentType: sniffedType,
-          data: base64Data,
-          ...options
-        };
+    const response = await window.CoreManager.apiCall('/upload', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
 
-        const response = await window.CoreManager.apiCall('/upload', {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
-
-        if (!response || !response.ok) {
-          const msg = (response && (response.message || response.error)) || 'Upload failed';
-          throw new Error(msg);
-        }
-
-        return response;
-      } catch (e) {
-        rethrowUpload(e);
-      }
+    if (!response || !response.ok) {
+      const msg = (response && (response.message || response.error)) || 'Upload failed';
+      throw new Error(msg);
     }
 
-    // Upload avec regionId (ex: finalize-addon.js → event finalize:success)
-    async uploadForRegion(file, regionId) {
-      try {
-        if (!regionId) throw new Error('Missing regionId');
+    // Normaliser la réponse
+    return {
+      ok: true,
+      imageUrl: response.imageUrl || response.url || '',
+      path: response.path || '',
+      regionId: response.regionId || payload.regionId || ''
+    };
+  } catch (e) {
+    rethrowUpload(e);
+  }
+}
 
-        const sniffedType = await this.validateFile(file);
-        const { base64Data } = await this.toBase64(file);
+async uploadForRegion(file, regionId) {
+  try {
+    if (!regionId) throw new Error('Missing regionId');
+    const sniffedType = await this.validateFile(file);
+    const { base64Data } = await this.toBase64(file);
 
-        // Vérif taille effective
-        const approxBytes = Math.floor((base64Data.length * 3) / 4);
-        if (approxBytes > this.MAX_SIZE) throwTooLarge();
+    const approxBytes = Math.floor((base64Data.length * 3) / 4);
+    if (approxBytes > this.MAX_SIZE) throwTooLarge();
 
-        const payload = {
-          regionId,
-          filename: file.name,
-          contentType: sniffedType,
-          contentBase64: base64Data
-        };
+    const payload = {
+      regionId,
+      filename: file.name,
+      contentType: sniffedType,
+      contentBase64: base64Data
+    };
 
-        const response = await window.CoreManager.apiCall('/upload', {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
+    const response = await window.CoreManager.apiCall('/upload', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
 
-        if (!response || !response.ok) {
-          const msg = (response && (response.message || response.error)) || 'Upload failed';
-          throw new Error(msg);
-        }
-
-        return response;
-      } catch (e) {
-        rethrowUpload(e);
-      }
+    if (!response || !response.ok) {
+      const msg = (response && (response.message || response.error)) || 'Upload failed';
+      throw new Error(msg);
     }
+
+    return {
+      ok: true,
+      imageUrl: response.imageUrl || response.url || '',
+      path: response.path || '',
+      regionId
+    };
+  } catch (e) {
+    rethrowUpload(e);
+  }
+}
+
 
     // Helper pour lier image à région (utilisé par upload-addon.js)
-    /*async linkImageToRegion(regionId, imageUrlOrPath) {
+    async linkImageToRegion(regionId, imageUrlOrPath) {
       try {
         if (!regionId || !imageUrlOrPath) {
           throw new Error('Missing regionId or imageUrl');
@@ -232,12 +200,7 @@
         }
         throw e;
       }
-    }*/
-    async linkImageToRegion(regionId, imageUrlOrPath) {
-      console.debug('[UploadManager] linkImageToRegion noop: déjà géré par /upload', { regionId, imageUrlOrPath });
-      return { ok: true, noop: true };
     }
-
   }
 
   // Export global

@@ -13,10 +13,10 @@
   // State local des locks
   let localLocks = Object.create(null);    // { "idx": { uid, until } }
   const othersLastSeen = Object.create(null);
-  const OTHERS_GRACE_MS = 5000;           // Grâce temporaire pour "trous" réseau
+  const OTHERS_GRACE_MS = 3000;           // Grâce temporaire pour "trous" réseau
   let hbTimer = null;
   let hbBlocks = [];                       // blocks courants pour le heartbeat
-  const HB_INTERVAL_MS = 2000;
+  const HB_INTERVAL_MS = 4000;
 
   // Petit event emitter
   const listeners = new Set();
@@ -114,15 +114,7 @@
 
     // Ajuster localLocks avec la vérité renvoyée par le serveur (pour les autres uid)
     localLocks = merge(res.locks || {});
-    
-    return {
-     ok: true,
-     locked: res.locked || [],
-     conflicts: res.conflicts || [],
-     locks: localLocks,
-     ttlSeconds: res.ttlSeconds,
-     regionId: res.regionId || null
-    };
+    return { ok:true, locked: res.locked || [], conflicts: res.conflicts || [], locks: localLocks, ttlSeconds: res.ttlSeconds };
   }
 
   async function unlock(blocks){

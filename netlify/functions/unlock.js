@@ -1,15 +1,4 @@
-const { requireAuth } = require('./jwt-middleware');
-
-// utils communs (copier en haut de chaque fn)
-const CORS = {
-  'content-type': 'application/json',
-  'cache-control': 'no-store',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-};
-const ok = (obj) => ({ statusCode: 200, headers: CORS, body: JSON.stringify(obj) });
-const bad = (status, error, extra={}) => ({ statusCode: status, headers: CORS, body: JSON.stringify({ ok:false, error, ...extra }) });
+const { requireAuth } = require('./auth-middleware');
 
 const GH_REPO   = process.env.GH_REPO;
 const GH_TOKEN  = process.env.GH_TOKEN;
@@ -94,26 +83,7 @@ function pruneLocks(locks) {
   return out;
 }
 
-exports.handler = async (event, context) => {
-  // CORS preflight
-  if (event.httpMethod === 'OPTIONS') return ok({ ok: true });
-
-  // Auth JWT (ne JAMAIS lire req.headers.authorization directement)
-  const auth = requireAuth(event);
-  if (auth && auth.statusCode) return auth; // 401 déjà formatée par le middleware
-  const uid = auth.uid;
-
-  // Parse JSON body
-  let body = {};
-  try {
-    body = event.body ? JSON.parse(event.body) : {};
-  } catch {
-    return bad(400, 'BAD_JSON');
-  }
-
-  const blocks = Array.isArray(body.blocks) ? body.blocks.map(n => parseInt(n, 10)).filter(Number.isInteger) : [];
-  const ttl    = Number(body.ttl || 180000);
-  if (!blocks.length) return bad(400, 'NO_BLOCKS');
+exports.handler = async (event) => {
   try {
     // Authentification requise
     const auth = requireAuth(event);
