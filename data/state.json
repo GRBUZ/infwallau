@@ -241,7 +241,56 @@
       "regionId": "r_mey7zz94_7qaj"
     }
   },
-  "locks": {},
+  "locks": {
+    "44": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756556060550
+    },
+    "45": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756556060550
+    },
+    "46": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756556060550
+    },
+    "47": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756556060550
+    },
+    "144": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756556060550
+    },
+    "145": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756556060550
+    },
+    "146": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756556060550
+    },
+    "147": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756556060550
+    },
+    "244": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756556060550
+    },
+    "245": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756556060550
+    },
+    "246": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756556060550
+    },
+    "247": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756556060550
+    }
+  },
   "regions": {
     "r_mey7z4jd_sxbu": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mey7z4jd_sxbu/Capture-d__cran-2024-06-20-230224_1756555810582_asu48b.png",
