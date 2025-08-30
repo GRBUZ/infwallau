@@ -258,6 +258,36 @@
     // 2) soit (temporaire) tu affiches un message invitant à payer
     uiInfo('Commande créée. Veuillez finaliser le paiement…');
 
+    //a supprimer en prod debut
+      // === DEV SHORTCUT (pas de PayPal): finaliser tout de suite côté serveur
+const USE_FAKE_PAYMENTS = true; // désactive-le quand tu branches PayPal
+if (USE_FAKE_PAYMENTS) {
+  try {
+    const r = await apiCall('/dev-complete-order', {
+      method: 'POST',
+      body: JSON.stringify({ orderId })
+    });
+    if (!r || !r.ok) {
+      uiError(window.Errors ? window.Errors.create('DEV_COMPLETE_FAILED', r?.error || r?.message || 'Dev complete failed', { details: r }) : new Error('Dev complete failed'), 'Dev complete');
+      btnBusy(false);
+      return;
+    }
+  } catch (e) {
+    uiError(e, 'Dev complete');
+    btnBusy(false);
+    return;
+  }
+
+  // vente faite -> nettoyer UI
+  try { await unlockSelection(); } catch {}
+  await refreshStatus();
+  try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
+  btnBusy(false);
+  return; // ⛔️ on ne lance PAS le polling
+}
+
+    //a supprimer en prod fin
+
     // Exemple minimaliste de polling en attendant la confirmation via webhook
     let tries = 0;
     while (tries < 60) { // ~60s; ajuste selon ton webhook
