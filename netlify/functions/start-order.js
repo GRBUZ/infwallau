@@ -161,7 +161,9 @@ exports.handler = async (event) => {
     const payload = JSON.parse(event.body || '{}');
 
     // Valide et normalise name/linkUrl/blocks via ton validateur
-    const { name, linkUrl, blocks } = guardFinalizeInput(event, payload); // lève si invalide
+    //const { name, linkUrl, blocks } = guardFinalizeInput(event, payload); // lève si invalide
+    const { name, linkUrl, blocks } = await guardFinalizeInput(event); 
+
     if (!Array.isArray(blocks) || blocks.length === 0) return bad(400, "NO_BLOCKS");
 
     // Image OBLIGATOIRE pour la commande
