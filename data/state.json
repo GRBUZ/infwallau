@@ -625,7 +625,108 @@
       "regionId": "r_mey9cnbu_ntoj"
     }
   },
-  "locks": {},
+  "locks": {
+    "767": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "768": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "769": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "770": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "771": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "867": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "868": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "869": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "870": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "871": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "967": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "968": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "969": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "970": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "971": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "1067": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "1068": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "1069": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "1070": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "1071": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "1167": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "1168": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "1169": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "1170": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    },
+    "1171": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1756589899706
+    }
+  },
   "regions": {
     "r_mey7z4jd_sxbu": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mey7z4jd_sxbu/Capture-d__cran-2024-06-20-230224_1756555810582_asu48b.png",
