@@ -97,11 +97,13 @@ exports.handler = async (event) => {
     const blocks = Array.isArray(body.blocks) ? body.blocks.map(n=>parseInt(n,10)).filter(n=>Number.isInteger(n)&&n>=0&&n<10000) : [];
     if (!uid || blocks.length===0) return jres(400, { ok:false, error:'MISSING_FIELDS' });
 
+    // 1) Lire l'état courant
     let got = await ghGetFile(PATH_JSON);
     let sha = got.sha;
     let st = parseState(got.content);
     st.locks = pruneLocks(st.locks);
 
+    // 2) Supprimer mes locks pour les indices demandés
     let changed = false;
     for (const b of blocks) {
       const key = String(b);
@@ -109,18 +111,39 @@ exports.handler = async (event) => {
       if (l && l.uid === uid) { delete st.locks[key]; changed = true; }
     }
 
-    if (!changed) return jres(200, { ok:true, locks: st.locks });
+    if (!changed) {
+      // Rien à faire, renvoyer l'état actuel (déjà nettoyé)
+      return jres(200, { ok:true, locks: st.locks });
+    }
 
+    // 3) Commit
     const newContent = JSON.stringify(st, null, 2);
     try {
-      const newSha = await ghPutFile(PATH_JSON, newContent, sha, `unlock ${blocks.length} by ${uid}`);
+      await ghPutFile(PATH_JSON, newContent, sha, `unlock ${blocks.length} by ${uid}`);
+      // Important: renvoyer la map complète de locks après commit
       return jres(200, { ok:true, locks: st.locks });
     } catch (e) {
+      // 409 GitHub: re-fetch, re-appliquer les suppressions, re-commit
       if (String(e).includes('GITHUB_PUT_FAILED 409')) {
-        // Refetch and return current locks; client will refresh via /status soon
+        // Recharger l'état le plus frais
         got = await ghGetFile(PATH_JSON);
-        const st2 = parseState(got.content);
+        sha = got.sha;
+        let st2 = parseState(got.content);
         st2.locks = pruneLocks(st2.locks);
+
+        // Re-appliquer la même suppression (idempotent)
+        let changed2 = false;
+        for (const b of blocks) {
+          const key = String(b);
+          const l = st2.locks[key];
+          if (l && l.uid === uid) { delete st2.locks[key]; changed2 = true; }
+        }
+
+        if (changed2) {
+          const content2 = JSON.stringify(st2, null, 2);
+          await ghPutFile(PATH_JSON, content2, sha, `unlock(retry) ${blocks.length} by ${uid}`);
+        }
+        // Renvoyer l'état frais (qu'il ait changé ou pas)
         return jres(200, { ok:true, locks: st2.locks });
       }
       throw e;
