@@ -1,5 +1,5 @@
 {
-  "status": "pending",
+  "status": "completed",
   "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
   "name": "bouzzy",
   "linkUrl": "https://toto.com/",
@@ -40,5 +40,7 @@
   "amount": null,
   "currency": "USD",
   "createdAt": 1756979140846,
-  "expiresAt": 1756980340846
+  "expiresAt": 1756980340846,
+  "updatedAt": 1756979143717,
+  "finalImageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mf580kdf_tvhq/Capture-d__cran-2025-02-02-181215_1756979139260_5uolsr.png"
 }
