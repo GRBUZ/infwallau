@@ -18,6 +18,24 @@
   let hbBlocks = [];                       // blocks courants pour le heartbeat
   const HB_INTERVAL_MS = 4000;
 
+  //new
+  // NEW — limites de durée et inactivité
+  let hbStartedAt = 0;
+  let hbMaxMs = 180000;          // durée totale max du heartbeat (3 min)
+  let hbAutoUnlock = true;       // libérer automatiquement à l’arrêt
+  let hbRequireActivity = true;  // ne pas prolonger si l’utilisateur est inactif
+  let lastActivityTs = Date.now();
+  const IDLE_LIMIT_MS = 120000;  // inactif après 2 min
+
+  // NEW — on suivra un minimum d’activité côté client
+  (function attachActivityListenersOnce(){
+    const bump = () => { lastActivityTs = Date.now(); };
+    window.addEventListener('mousemove', bump, { passive:true });
+    window.addEventListener('keydown',   bump, { passive:true });
+    window.addEventListener('touchstart',bump, { passive:true });
+  })();
+  //new
+
   // Petit event emitter
   const listeners = new Set();
   function emitChange(){
@@ -144,12 +162,10 @@
     return { ok:true, locks: localLocks };
   }
 
-  function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000){
+  /*function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000){
     stopHeartbeat();
     hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
     if (!hbBlocks.length) return;
-
-    // Premier "reserve" immédiat
     lock(hbBlocks, ttlMs).catch(()=>{});
 
     hbTimer = setInterval(()=>{
@@ -161,7 +177,47 @@
   function stopHeartbeat(){
     if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
     hbBlocks = [];
-  }
+  }*/
+  function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, options = {}){
+  stopHeartbeat();
+  hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
+  if (!hbBlocks.length) return;
+
+  // options (toutes facultatives)
+  hbMaxMs           = Math.max(10000, options.maxMs || 180000);  // min 10s
+  hbAutoUnlock      = options.autoUnlock !== false;               // par défaut true
+  hbRequireActivity = options.requireActivity !== false;          // par défaut true
+
+  hbStartedAt    = Date.now();
+  lastActivityTs = Date.now();
+
+  // premier renew immédiat
+  lock(hbBlocks, ttlMs).catch(()=>{});
+
+  hbTimer = setInterval(async ()=>{
+    // cap de durée totale
+    if (Date.now() - hbStartedAt > hbMaxMs) {
+      stopHeartbeat();
+      if (hbAutoUnlock) { try { await unlock(hbBlocks); } catch {} }
+      return;
+    }
+    // inactivité prolongée
+    if (hbRequireActivity && (Date.now() - lastActivityTs > IDLE_LIMIT_MS)) {
+      stopHeartbeat();
+      if (hbAutoUnlock) { try { await unlock(hbBlocks); } catch {} }
+      return;
+    }
+    // renouveler le TTL
+    if (hbBlocks.length) lock(hbBlocks, ttlMs).catch(()=>{});
+  }, Math.max(500, intervalMs));
+}
+
+function stopHeartbeat(){
+  if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
+  hbBlocks = [];
+  hbStartedAt = 0;
+}
+
 
   function setHeartbeatBlocks(blocks){
     hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
