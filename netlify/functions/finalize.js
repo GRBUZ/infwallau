@@ -1,13 +1,9 @@
-// netlify/functions/finalize.js — regions-aware finalize
-// Env required:
-//   GH_REPO   = "OWNER/REPO"
-//   GH_TOKEN  = "<fine-grained PAT>"
-//   GH_BRANCH = "main"
-// Optional:
-//   STATE_PATH = "data/state.json"
+// netlify/functions/finalize.js — regions-aware finalize (patch)
+// Garde la compatibilité de l’API de réponse actuelle.
 
 const { requireAuth } = require('./auth-middleware');
 const { guardFinalizeInput } = require('./_validation');
+const crypto = require('crypto');
 
 const STATE_PATH = process.env.STATE_PATH || "data/state.json";
 const GH_REPO = process.env.GH_REPO;
@@ -16,11 +12,19 @@ const GH_BRANCH = process.env.GH_BRANCH || "main";
 
 const N = 100;
 
-function bad(status, error, extra={}){
+function bad(status, error, extra = {}){
   return {
     statusCode: status,
     headers: { "content-type":"application/json", "cache-control":"no-store" },
     body: JSON.stringify({ ok:false, error, ...extra })
+  };
+}
+
+function ok(payload = {}){
+  return {
+    statusCode: 200,
+    headers: { "content-type":"application/json", "cache-control":"no-store" },
+    body: JSON.stringify({ ok:true, ...payload })
   };
 }
 
@@ -36,20 +40,10 @@ function boundsFromIndices(indices){
   return { x:x0, y:y0, w:(x1-x0+1), h:(y1-y0+1) };
 }
 
-function normalizeUrl(raw) {
-  let s = (raw || "").trim();
-  if (!s) throw new Error("EMPTY");
-  // Si l'utilisateur n'a pas mis de schéma, on préfixe en https://
-  if (!/^[a-z][a-z0-9+\-.]*:\/\//i.test(s)) {
-    s = "https://" + s;
-  }
-  let u;
-  try { u = new URL(s); } catch { throw new Error("INVALID_URL"); }
-  if (u.protocol !== "http:" && u.protocol !== "https:") {
-    throw new Error("INVALID_URL_SCHEME");
-  }
-  u.hash = "";            // on enlève l'ancre (#...)
-  return u.toString();    // URL normalisée
+function genRegionId(uid, blocks){
+  const arr = Array.from(new Set(blocks)).sort((a,b)=>a-b);
+  const seed = `${uid}|${arr.join(',')}`;
+  return crypto.createHash('sha1').update(seed).digest('hex').slice(0, 12);
 }
 
 async function ghGetJson(path){
@@ -63,16 +57,10 @@ async function ghGetJson(path){
   return { json: JSON.parse(content || "{}"), sha: data.sha };
 }
 
-async function ghPutJson(path, jsonData, sha){
-  // pretty-print (indent=2) + newline final pour une lecture propre dans GitHub
+async function ghPutJson(path, jsonData, sha, message = "chore: update state (pretty JSON)"){
   const pretty = JSON.stringify(jsonData, null, 2) + "\n";
   const content = Buffer.from(pretty, "utf-8").toString("base64");
-  const body = {
-    message: "chore: update state (pretty JSON)",
-    content,
-    branch: GH_BRANCH,
-    sha
-  };
+  const body = { message, content, branch: GH_BRANCH, sha };
   const r = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`, {
     method: "PUT",
     headers: {
@@ -86,80 +74,129 @@ async function ghPutJson(path, jsonData, sha){
   return r.json();
 }
 
+function pruneLocks(locks){
+  const now = Date.now();
+  const out = {};
+  for (const [k, v] of Object.entries(locks || {})){
+    if (v && typeof v.until === 'number' && v.until > now) out[k] = v;
+  }
+  return out;
+}
+
 exports.handler = async (event) => {
   try {
-    // Authentification requise
+    // Auth obligatoire
     const auth = requireAuth(event);
     if (auth.statusCode) return auth;
-    
     const authenticatedUID = auth.uid;
-    
+
     if (event.httpMethod !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
     if (!GH_REPO || !GH_TOKEN) return bad(500, "GITHUB_CONFIG_MISSING");
 
-    // Validation complète via _validation.js avec renommage
+    // Validation via _validation (renvoie { name, linkUrl, blocks })
     const { name: validatedName, linkUrl: validatedLinkUrl, blocks: validatedBlocks } = await guardFinalizeInput(event);
-    
-    // Load state.json
-    const { json: state0, sha } = await ghGetJson(STATE_PATH);
-    const state = state0 || { sold:{}, locks:{}, regions:{} };
-
-    // Anti-double-achat: blocs libres + vérifier que les locks appartiennent à l'utilisateur authentifié
-    for (const idx of validatedBlocks) {
-      if (state.sold[idx]) return bad(409, "ALREADY_SOLD", { idx });
-      const lk = state.locks[idx];
-      if (lk && lk.uid && lk.uid !== authenticatedUID) return bad(409, "LOCKED_BY_OTHER", { idx });
+    if (!Array.isArray(validatedBlocks) || validatedBlocks.length === 0) {
+      return bad(400, "NO_BLOCKS");
     }
 
-    // Crée une région unique pour cette sélection
-    const regionId = `r_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`;
-    const rect = boundsFromIndices(validatedBlocks);
-    if (!state.regions) state.regions = {};
-    state.regions[regionId] = { imageUrl: "", rect };
+    // Charger l'état
+    const { json: state0, sha } = await ghGetJson(STATE_PATH);
+    const state = state0 || { sold:{}, locks:{}, regions:{} };
+    state.locks   = pruneLocks(state.locks || {});
+    state.regions = state.regions || {};
 
-    // Ecrit les blocs vendus avec regionId
-    const ts = Date.now();
-    for (const idx of validatedBlocks) {
+    const now = Date.now();
+
+    // 1) Vérifier que chaque bloc est encore locké par cet utilisateur et non expiré
+    const regionIdsSeen = new Set();
+    for (const idx of validatedBlocks){
+      if (state.sold[idx]) return bad(409, "ALREADY_SOLD", { idx });
+      const lk = state.locks[idx];
+      if (!lk || lk.uid !== authenticatedUID || !(lk.until > now)) {
+        return bad(409, "LOCK_MISSING_OR_EXPIRED", { idx });
+      }
+      if (lk.regionId) regionIdsSeen.add(lk.regionId);
+    }
+
+    // 2) Déterminer le regionId à utiliser (depuis les locks si présent, sinon hash stable)
+    let regionId = null;
+    if (regionIdsSeen.size === 1) {
+      regionId = Array.from(regionIdsSeen)[0];
+    } else {
+      // soit absent (anciennes réservations), soit multiple → on reconstitue un ID stable
+      regionId = genRegionId(authenticatedUID, validatedBlocks);
+    }
+
+    // 3) Vérifier la région + expiration côté région (si disponible)
+    const rect = boundsFromIndices(validatedBlocks);
+    const reg0 = state.regions[regionId];
+    if (reg0 && reg0.reservedUntil && reg0.reservedUntil <= now) {
+      return bad(409, "RESERVATION_EXPIRED", { regionId });
+    }
+
+    // Créer/mettre à jour la région sans écraser imageUrl si elle existe déjà
+    const prevImage = (reg0 && reg0.imageUrl) || "";
+    state.regions[regionId] = {
+      imageUrl: prevImage,              // NE PAS ECRASER une image déjà téléversée
+      rect,
+      uid: authenticatedUID,
+      // On peut garder reservedUntil à titre informatif, mais la vente confirme, donc plus pertinent
+      // reservedUntil: undefined,
+      blocks: Array.from(new Set(validatedBlocks)).sort((a,b)=>a-b)
+    };
+
+    // 4) Marquer les blocs vendus + supprimer les locks correspondants
+    const ts = now;
+    for (const idx of validatedBlocks){
       state.sold[idx] = { name: validatedName, linkUrl: validatedLinkUrl, ts, regionId };
       if (state.locks) delete state.locks[idx];
     }
 
+    // 5) Commit (avec retry 409)
     try {
-      await ghPutJson(STATE_PATH, state, sha);
+      await ghPutJson(STATE_PATH, state, sha, `finalize ${validatedBlocks.length} -> ${regionId}`);
     } catch (error) {
-      if (error.message.includes('409')) {
+      if (String(error.message || error).includes('409')) {
         const { json: freshState, sha: freshSha } = await ghGetJson(STATE_PATH);
-        const mergedState = freshState || { sold:{}, locks:{}, regions:{} };
-        // Re-apply sold
-        const newTs = Date.now();
-        for (const idx of validatedBlocks) {
-          mergedState.sold[idx] = { name: validatedName, linkUrl: validatedLinkUrl, ts: newTs, regionId };
-          if (mergedState.locks) delete mergedState.locks[idx];
+        const merged = freshState || { sold:{}, locks:{}, regions:{} };
+        merged.locks   = pruneLocks(merged.locks || {});
+        merged.regions = merged.regions || {};
+
+        // Re-valider côté merged avant d’appliquer (toujours même règles)
+        for (const idx of validatedBlocks){
+          if (merged.sold[idx]) return bad(409, "ALREADY_SOLD", { idx });
+          const lk = merged.locks[idx];
+          if (!lk || lk.uid !== authenticatedUID || !(lk.until > Date.now())) {
+            return bad(409, "LOCK_MISSING_OR_EXPIRED", { idx });
+          }
         }
 
-        // Re-apply region WITHOUT clobbering imageUrl
-        mergedState.regions ||= {};
-        const existing = mergedState.regions[regionId] || {};
-        mergedState.regions[regionId] = {
-          // 🔸 préserve une image éventuellement déjà liée par /link-image
-          imageUrl: existing.imageUrl || "",
-          rect
+        // Préserver imageUrl s’il existe
+        const existingImg = (merged.regions[regionId] && merged.regions[regionId].imageUrl) || (state.regions[regionId] && state.regions[regionId].imageUrl) || "";
+        merged.regions[regionId] = {
+          imageUrl: existingImg,
+          rect,
+          uid: authenticatedUID,
+          blocks: Array.from(new Set(validatedBlocks)).sort((a,b)=>a-b)
         };
-        await ghPutJson(STATE_PATH, mergedState, freshSha);
+
+        // Appliquer sold + purge locks
+        const ts2 = Date.now();
+        for (const idx of validatedBlocks){
+          merged.sold[idx] = { name: validatedName, linkUrl: validatedLinkUrl, ts: ts2, regionId };
+          if (merged.locks) delete merged.locks[idx];
+        }
+
+        await ghPutJson(STATE_PATH, merged, freshSha, `finalize(retry) ${validatedBlocks.length} -> ${regionId}`);
       } else {
         throw error;
       }
     }
-    
-    return {
-      statusCode: 200,
-      headers: { "content-type":"application/json", "cache-control":"no-store" },
-      body: JSON.stringify({ ok:true, regionId, rect, soldCount: validatedBlocks.length })
-    };
-    
-  } catch (validationError) {
-    // Si guardFinalizeInput throw un bad(), on le retourne directement
-    if (validationError.statusCode) return validationError;
-    throw validationError;
+
+    return ok({ regionId, rect, soldCount: validatedBlocks.length });
+
+  } catch (err) {
+    if (err && err.statusCode) return err; // erreurs formatées (ex: guardFinalizeInput)
+    return bad(500, "FINALIZE_FAILED", { message: String(err && err.message || err) });
   }
 };

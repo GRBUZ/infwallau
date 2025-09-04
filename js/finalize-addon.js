@@ -38,7 +38,6 @@
     fileInput.setAttribute('accept', 'image/*');
   }
 
-  //new
   // --- pause/reprise du heartbeat pour éviter /reserve pendant le processing
   let __processing = false;
   function pauseHB(){
@@ -57,7 +56,7 @@
       }
     } catch {}
   }
-  //new
+
   // UI helpers
   function uiWarn(msg){
     if (window.Errors && window.Errors.showToast) {
@@ -198,12 +197,10 @@
     try {
       const file = fileInput && fileInput.files && fileInput.files[0];
       if (file) {
-        // Vérifie type MIME réel + taille (UploadManager.validateFile lève "Invalid file type" / "Too large")
+        // Vérifie type MIME réel + taille
         await window.UploadManager.validateFile(file);
-        // (Optionnel) tu peux aussi faire une vérif taille côté UI ici via file.size si tu veux un message encore plus rapide.
       }
     } catch (preErr) {
-      // Empêche la vente si l'image n'est pas valable
       uiError(preErr, 'Upload');
       uiWarn('Veuillez sélectionner une image valide (PNG, JPG, GIF, WebP).');
       return; // ⛔️ on sort: PAS de /finalize
@@ -280,39 +277,34 @@
     if (fileInput && regionId) fileInput.dataset.regionId = regionId;
 
     // === Ici tu déclencheras PayPal ===
-    // 1) soit tu ouvres la popup PayPal (SDK) avec un /paypal-create-order qui renvoie l’id PayPal
-    // 2) soit (temporaire) tu affiches un message invitant à payer
     uiInfo('Commande créée. Veuillez finaliser le paiement…');
 
-    //a supprimer en prod debut
-      // === DEV SHORTCUT (pas de PayPal): finaliser tout de suite côté serveur
-const USE_FAKE_PAYMENTS = true; // désactive-le quand tu branches PayPal
-if (USE_FAKE_PAYMENTS) {
-  try {
-    const r = await apiCall('/dev-complete-order', {
-      method: 'POST',
-      body: JSON.stringify({ orderId })
-    });
-    if (!r || !r.ok) {
-      uiError(window.Errors ? window.Errors.create('DEV_COMPLETE_FAILED', r?.error || r?.message || 'Dev complete failed', { details: r }) : new Error('Dev complete failed'), 'Dev complete');
+    // === DEV SHORTCUT (pas de PayPal): finaliser tout de suite côté serveur
+    const USE_FAKE_PAYMENTS = true; // désactive-le quand tu branches PayPal
+    if (USE_FAKE_PAYMENTS) {
+      try {
+        const r = await apiCall('/dev-complete-order', {
+          method: 'POST',
+          body: JSON.stringify({ orderId })
+        });
+        if (!r || !r.ok) {
+          uiError(window.Errors ? window.Errors.create('DEV_COMPLETE_FAILED', r?.error || r?.message || 'Dev complete failed', { details: r }) : new Error('Dev complete failed'), 'Dev complete');
+          btnBusy(false);
+          return;
+        }
+      } catch (e) {
+        uiError(e, 'Dev complete');
+        btnBusy(false);
+        return;
+      }
+
+      // vente faite -> nettoyer UI
+      try { await unlockSelection(); } catch {}
+      await refreshStatus();
+      try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
       btnBusy(false);
-      return;
+      return; // ⛔️ on ne lance PAS le polling
     }
-  } catch (e) {
-    uiError(e, 'Dev complete');
-    btnBusy(false);
-    return;
-  }
-
-  // vente faite -> nettoyer UI
-  try { await unlockSelection(); } catch {}
-  await refreshStatus();
-  try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
-  btnBusy(false);
-  return; // ⛔️ on ne lance PAS le polling
-}
-
-    //a supprimer en prod fin
 
     // Exemple minimaliste de polling en attendant la confirmation via webhook
     let tries = 0;
@@ -323,8 +315,6 @@ if (USE_FAKE_PAYMENTS) {
       try {
         const st = await apiCall('/order-status?orderId=' + encodeURIComponent(orderId));
         if (st && st.ok && st.status === 'completed') {
-          // OK, le webhook a validé et vendu les blocs
-          // on sort de la boucle et on termine le flux
           break;
         }
         if (st && st.ok && st.status === 'failed') {
@@ -350,6 +340,12 @@ if (USE_FAKE_PAYMENTS) {
   // Wire up UI
   if (confirmBtn) confirmBtn.addEventListener('click', (e)=>{ e.preventDefault(); doConfirm(); });
   if (form) form.addEventListener('submit', (e)=>{ e.preventDefault(); doConfirm(); });
+
+  // 🔗 NOUVEAU : écouter l’évènement émis par app.js
+  document.addEventListener('finalize:submit', (e) => {
+    try { e.preventDefault && e.preventDefault(); } catch {}
+    doConfirm();
+  });
 
   // Expose for debugging if needed
   window.__iwPatch = { doConfirm, refreshStatus, unlockSelection, uid };

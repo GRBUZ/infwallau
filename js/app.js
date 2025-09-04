@@ -38,6 +38,9 @@
   let selected = new Set();
   let currentLock = [];         // blocks locked when opening the modal
 
+  // Surveillance d’expiration pendant le modal
+  let modalLockTimer = null;
+
   // Expose la sélection au besoin (pour d'autres modules)
   window.getSelectedIndices = () => Array.from(selected);
 
@@ -207,6 +210,31 @@
     toggleCell(idx);
   });
 
+  // === Garde-fous d’expiration côté client ===
+  function haveMyValidLocks(arr, graceMs = 500){
+    if (!arr || !arr.length) return false;
+    const now = Date.now() + Math.max(0, graceMs|0);
+    for (const i of arr){
+      const l = locks[String(i)];
+      if (!l || l.uid !== uid || !(l.until > now)) return false;
+    }
+    return true;
+  }
+  function startModalMonitor(){
+    stopModalMonitor();
+    modalLockTimer = setInterval(()=>{
+      const blocks = currentLock.length ? currentLock : Array.from(selected);
+      const ok = haveMyValidLocks(blocks);
+      // Si expiré → désactiver le bouton pour éviter une finalisation tardive
+      confirmBtn.disabled = !ok;
+      if (!ok) confirmBtn.textContent = 'Reservation expired — reselect';
+      else     confirmBtn.textContent = 'Confirm';
+    }, 1500);
+  }
+  function stopModalMonitor(){
+    if (modalLockTimer){ clearInterval(modalLockTimer); modalLockTimer = null; }
+  }
+
   function openModal(){
     modal.classList.remove('hidden');
 
@@ -221,10 +249,17 @@
     if (currentLock.length) {
       window.LockManager.heartbeat.start(currentLock);
     }
+
+    // Surveiller l'expiration
+    startModalMonitor();
   }
   function closeModal(){
     modal.classList.add('hidden');
     window.LockManager.heartbeat.stop();
+    stopModalMonitor();
+    // reset bouton si besoin
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Confirm';
   }
 
   // Modal close buttons
@@ -232,6 +267,7 @@
     const toRelease = (currentLock && currentLock.length) ? currentLock.slice() : Array.from(selected);
     currentLock = [];
     window.LockManager.heartbeat.stop();
+    stopModalMonitor();
     if (toRelease.length) {
       try { await window.LockManager.unlock(toRelease); } catch {}
       locks = window.LockManager.getLocalLocks();
@@ -247,6 +283,7 @@
       const toRelease = (currentLock && currentLock.length) ? currentLock.slice() : Array.from(selected);
       currentLock = [];
       window.LockManager.heartbeat.stop();
+      stopModalMonitor();
       if (toRelease.length) {
         try { await window.LockManager.unlock(toRelease); } catch {}
         locks = window.LockManager.getLocalLocks();
@@ -282,14 +319,40 @@
     }
   });
 
-  // Finalize form
-  // Finalize form — délégué à finalize-addon.js
-  form.addEventListener('submit', (e)=>{
+  // Finalize form — on garde la délégation à finalize-addon.js,
+  // mais on ajoute un re-lock défensif si les locks ont expiré.
+  form.addEventListener('submit', async (e)=>{
     e.preventDefault();
-    // Optionnel : émettre un event si tu veux tracer
+
+    const blocks = currentLock.length ? currentLock.slice() : Array.from(selected);
+
+    // Si ma resa a expiré, tenter un re-lock avant de laisser finalize-addon agir
+    if (!haveMyValidLocks(blocks)) {
+      try {
+        const lr = await window.LockManager.lock(blocks, 180000);
+        locks = window.LockManager.getLocalLocks();
+        if (!lr || !lr.ok || !lr.locked || lr.locked.length !== blocks.length) {
+          await loadStatus().catch(()=>{});
+          closeModal();
+          clearSelection();
+          paintAll();
+          alert('Your reservation expired. Please reselect your pixels.');
+          return;
+        }
+        currentLock = lr.locked.slice();
+      } catch {
+        await loadStatus().catch(()=>{});
+        closeModal();
+        clearSelection();
+        paintAll();
+        alert('Your reservation expired. Please reselect your pixels.');
+        return;
+      }
+    }
+
+    // Tout est bon → laisser finalize-addon.js faire le reste
     document.dispatchEvent(new CustomEvent('finalize:submit'));
   });
-
 
   function rectFromIndices(arr){
     if (!arr || !arr.length) return null;
@@ -315,6 +378,14 @@
 
       window.regions = s.regions || {};
       if (typeof window.renderRegions === 'function') window.renderRegions();
+
+      // Si le modal est ouvert et que mes locks ont sauté → désactiver confirm
+      if (!modal.classList.contains('hidden')) {
+        const blocks = currentLock.length ? currentLock : Array.from(selected);
+        const ok = haveMyValidLocks(blocks);
+        confirmBtn.disabled = !ok;
+        if (!ok) confirmBtn.textContent = 'Reservation expired — reselect';
+      }
 
       paintAll();
     } catch (e) {
