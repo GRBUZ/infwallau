@@ -1069,68 +1069,7 @@
       "regionId": "r_meytktkb_nrws"
     }
   },
-  "locks": {
-    "0": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "until": 1756978984758
-    },
-    "1": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "until": 1756978984758
-    },
-    "2": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "until": 1756978984758
-    },
-    "3": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "until": 1756978984758
-    },
-    "4": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "until": 1756978984758
-    },
-    "100": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "until": 1756978984758
-    },
-    "101": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "until": 1756978984758
-    },
-    "102": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "until": 1756978984758
-    },
-    "103": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "until": 1756978984758
-    },
-    "104": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "until": 1756978984758
-    },
-    "200": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "until": 1756978984758
-    },
-    "201": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "until": 1756978984758
-    },
-    "202": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "until": 1756978984758
-    },
-    "203": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "until": 1756978984758
-    },
-    "204": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "until": 1756978984758
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mey7z4jd_sxbu": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mey7z4jd_sxbu/Capture-d__cran-2024-06-20-230224_1756555810582_asu48b.png",
