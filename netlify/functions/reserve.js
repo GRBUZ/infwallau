@@ -1,4 +1,5 @@
 const { requireAuth } = require('./auth-middleware');
+const crypto = require('crypto');
 
 const GH_REPO   = process.env.GH_REPO;
 const GH_TOKEN  = process.env.GH_TOKEN;
@@ -55,21 +56,15 @@ async function ghPutFile(path, content, sha, message) {
 }
 
 function parseState(raw) {
-  if (!raw) return { sold:{}, locks:{} };
+  if (!raw) return { sold:{}, locks:{}, regions:{} };
   try {
     const obj = JSON.parse(raw);
-    if (obj.artCells && !obj.sold) {
-      const sold = {};
-      for (const [k,v] of Object.entries(obj.artCells)) {
-        sold[k] = { name: v.name || v.n || '', linkUrl: v.linkUrl || v.u || '', ts: v.ts || Date.now() };
-      }
-      return { sold, locks: obj.locks || {} };
-    }
-    if (!obj.sold) obj.sold = {};
-    if (!obj.locks) obj.locks = {};
+    if (!obj.sold)   obj.sold   = {};
+    if (!obj.locks)  obj.locks  = {};
+    if (!obj.regions) obj.regions = {};  // ← s'assure que regions existe
     return obj;
   } catch {
-    return { sold:{}, locks:{} };
+    return { sold:{}, locks:{}, regions:{} };
   }
 }
 
@@ -82,29 +77,51 @@ function pruneLocks(locks) {
   return out;
 }
 
-const TTL_MS = 3 * 60 * 1000;
+// Helpers ajoutés (stables, sans impacter le reste)
+function genRegionId(uid, blocks) {
+  const arr = Array.from(new Set(blocks)).sort((a,b)=>a-b);
+  const seed = `${uid}|${arr.join(',')}`;
+  return crypto.createHash('sha1').update(seed).digest('hex').slice(0, 12);
+}
+function computeRectFromBlocks(blocks, gridW = 100) {
+  if (!Array.isArray(blocks) || !blocks.length) return { x:0, y:0, w:1, h:1 };
+  let minR=1e9, minC=1e9, maxR=-1, maxC=-1;
+  for (const idx of blocks) {
+    const r = Math.floor(idx / gridW);
+    const c = idx % gridW;
+    if (r < minR) minR = r;
+    if (c < minC) minC = c;
+    if (r > maxR) maxR = r;
+    if (c > maxC) maxC = c;
+  }
+  return { x:minC, y:minR, w:(maxC-minC+1), h:(maxR-minR+1) };
+}
+
+const TTL_MS = 3 * 60 * 1000; // 3 minutes
 
 exports.handler = async (event) => {
   try {
-    // Authentification requise
+    // Authentification requise (inchangé)
     const auth = requireAuth(event);
-    if (auth.statusCode) return auth; // Erreur d'auth
-    
+    if (auth.statusCode) return auth;
     const authenticatedUID = auth.uid;
-    
+
     if (event.httpMethod !== 'POST') return jres(405, { ok:false, error:'METHOD_NOT_ALLOWED' });
+
     const body = JSON.parse(event.body || '{}');
     const uid = authenticatedUID;
-    const blocks = Array.isArray(body.blocks) ? body.blocks.map(n=>parseInt(n,10)).filter(n=>Number.isInteger(n)&&n>=0&&n<10000) : [];
+    const blocks = Array.isArray(body.blocks)
+      ? body.blocks.map(n=>parseInt(n,10)).filter(n=>Number.isInteger(n)&&n>=0&&n<10000)
+      : [];
     if (!uid || blocks.length===0) return jres(400, { ok:false, error:'MISSING_FIELDS' });
 
-    // Read current state
+    // Read state
     let got = await ghGetFile(PATH_JSON);
     let sha = got.sha;
     let st = parseState(got.content);
     st.locks = pruneLocks(st.locks);
 
-    // Build lock set
+    // Build lock set — on NE modifie pas st.locks ici pour pouvoir calculer regionId sur "locked"
     const now = Date.now();
     const until = now + TTL_MS;
     const locked = [];
@@ -115,38 +132,138 @@ exports.handler = async (event) => {
       if (st.sold[key]) { conflicts.push(b); continue; }
       const l = st.locks[key];
       if (l && l.until > now && l.uid !== uid) { conflicts.push(b); continue; }
-      st.locks[key] = { uid, until };
+      // candidat verrouillable
       locked.push(b);
     }
 
-    // Commit only if something changed
+    // S'il n'y a rien de nouveau à verrouiller, on peut renvoyer l'état actuel (comportement historique)
+    if (!locked.length) {
+      return jres(200, {
+        ok: true,
+        locked: [],
+        conflicts,
+        locks: st.locks,
+        ttlSeconds: Math.round(TTL_MS/1000)
+      });
+    }
+
+    // Générer un regionId STABLE pour *les blocs réellement verrouillés*
+    const regionId = genRegionId(uid, locked);
+
+    // Écrire les locks maintenant, avec regionId
+    for (const b of locked) {
+      st.locks[String(b)] = { uid, until, regionId };
+    }
+
+    // Mettre à jour/Créer le stub de région (reservedUntil sert de vérité serveur pour l’expiration)
+    st.regions ||= {};
+    const rect = computeRectFromBlocks(locked);
+    if (!st.regions[regionId]) {
+      st.regions[regionId] = {
+        rect,
+        blocks: Array.from(new Set(locked)).sort((a,b)=>a-b),
+        imageUrl: st.regions[regionId]?.imageUrl || '',
+        name:     st.regions[regionId]?.name     || '',
+        linkUrl:  st.regions[regionId]?.linkUrl  || '',
+        uid,
+        reservedUntil: until
+      };
+    } else {
+      const reg = st.regions[regionId];
+      // toujours possédé par moi dans ce flux — sinon on écrase quand même car regionId est dérivé de (uid,locked)
+      reg.uid = uid;
+      reg.blocks = Array.from(new Set(locked)).sort((a,b)=>a-b);
+      reg.rect = rect;
+      reg.reservedUntil = Math.max(reg.reservedUntil || 0, until);
+    }
+
+    // Commit
     const newContent = JSON.stringify(st, null, 2);
-    let newSha;
     try {
-      newSha = await ghPutFile(PATH_JSON, newContent, sha, `reserve ${locked.length} blocks by ${uid}`);
+      await ghPutFile(PATH_JSON, newContent, sha, `reserve ${locked.length} blocks by ${uid} -> ${regionId}`);
     } catch (e) {
-      // Retry once on conflict (sha changed)
+      // Retry once on conflict
       if (String(e).includes('GITHUB_PUT_FAILED 409')) {
         got = await ghGetFile(PATH_JSON);
-        sha = got.sha; st = parseState(got.content); st.locks = pruneLocks(st.locks);
-        // recompute with fresh state (single pass)
+        sha = got.sha;
+        st = parseState(got.content);
+        st.locks = pruneLocks(st.locks);
+
+        // Recalcule "locked" avec l'état actuel
         const locked2 = [];
-        const now2 = Date.now(); const until2 = now2 + TTL_MS;
+        const now2 = Date.now();
+        const until2 = now2 + TTL_MS;
         for (const b of blocks) {
           const key = String(b);
           if (st.sold[key]) continue;
           const l = st.locks[key];
           if (l && l.until > now2 && l.uid !== uid) continue;
-          st.locks[key] = { uid, until: until2 };
           locked2.push(b);
         }
+
+        if (!locked2.length) {
+          return jres(200, {
+            ok: true,
+            locked: [],
+            conflicts,
+            locks: st.locks,
+            ttlSeconds: Math.round(TTL_MS/1000)
+          });
+        }
+
+        const regionId2 = genRegionId(uid, locked2);
+
+        for (const b of locked2) {
+          st.locks[String(b)] = { uid, until: until2, regionId: regionId2 };
+        }
+
+        st.regions ||= {};
+        const rect2 = computeRectFromBlocks(locked2);
+        if (!st.regions[regionId2]) {
+          st.regions[regionId2] = {
+            rect: rect2,
+            blocks: Array.from(new Set(locked2)).sort((a,b)=>a-b),
+            imageUrl: '',
+            name: '',
+            linkUrl: '',
+            uid,
+            reservedUntil: until2
+          };
+        } else {
+          const reg2 = st.regions[regionId2];
+          reg2.uid = uid;
+          reg2.blocks = Array.from(new Set(locked2)).sort((a,b)=>a-b);
+          reg2.rect = rect2;
+          reg2.reservedUntil = Math.max(reg2.reservedUntil || 0, until2);
+        }
+
         const content2 = JSON.stringify(st, null, 2);
-        newSha = await ghPutFile(PATH_JSON, content2, got.sha, `reserve(retry) ${locked2.length} by ${uid}`);
-        return jres(200, { ok:true, locked: locked2, conflicts, locks: st.locks, ttlSeconds: Math.round(TTL_MS/1000) });
+        await ghPutFile(PATH_JSON, content2, got.sha, `reserve(retry) ${locked2.length} by ${uid} -> ${regionId2}`);
+
+        return jres(200, {
+          ok: true,
+          locked: locked2,
+          conflicts,
+          locks: st.locks,
+          ttlSeconds: Math.round(TTL_MS/1000),
+          regionId: regionId2,
+          until: until2
+        });
       }
       throw e;
     }
-    return jres(200, { ok:true, locked, conflicts, locks: st.locks, ttlSeconds: Math.round(TTL_MS/1000) });
+
+    // Réponse (compatible + champs additionnels utiles)
+    return jres(200, {
+      ok: true,
+      locked,
+      conflicts,
+      locks: st.locks,
+      ttlSeconds: Math.round(TTL_MS/1000),
+      regionId,
+      until
+    });
+
   } catch (e) {
     return jres(500, { ok:false, error:'RESERVE_FAILED', message: String(e) });
   }
