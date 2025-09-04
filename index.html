@@ -127,8 +127,6 @@
   </div>
 </div>
 
-<!-- Add this script tag somewhere after your other scripts -->
- <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
   <script src="js/errors.js"></script> 
   <script src="js/core-manager.js"></script>
   <script src="js/auth-utils.js"></script>
@@ -138,6 +136,7 @@
   <script src="js/finalize-addon.js"></script>
   <script src="js/app.js"></script>
   <script src="js/contact-modal.js"></script>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
   <script>
   // Initialisation de l'authentification au chargement de la page
   document.addEventListener('DOMContentLoaded', async () => {
