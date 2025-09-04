@@ -1,5 +1,5 @@
 {
-  "status": "pending",
+  "status": "completed",
   "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
   "name": "bouzzy",
   "linkUrl": "https://toto.com/",
@@ -36,5 +36,7 @@
   "amount": null,
   "currency": "USD",
   "createdAt": 1756979046547,
-  "expiresAt": 1756980246547
+  "expiresAt": 1756980246547,
+  "updatedAt": 1756979049699,
+  "finalImageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mf57yk88_jrry/test2_1756979045698_ycu34l.jpg"
 }
