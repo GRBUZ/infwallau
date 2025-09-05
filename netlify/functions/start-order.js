@@ -213,7 +213,54 @@ exports.handler = async (event) => {
       // exemple: 20 min
       expiresAt: Date.now() + 20*60*1000
     };
-    await ghPutJson(orderPath, orderJson, null, `feat: create order ${orderId}`);
+    //await ghPutJson(orderPath, orderJson, null, `feat: create order ${orderId}`);
+
+    //new
+    try {
+      await ghPutJson(STATE_PATH, st, sha, `start-order ${orderId} (${blocks.length}) for ${uid}`);
+    } catch (e) {
+      if (String(e.message || e).includes('GH_PUT_JSON_FAILED:409')) {
+        // 1) Refetch fresh state + sha
+        const ref = await ghGetJson(STATE_PATH);
+        let s2 = ref.json || { sold:{}, locks:{}, regions:{}, orders:{} };
+        s2.locks = pruneLocks(s2.locks);
+        s2.regions ||= {};
+        s2.orders  ||= {};
+
+        // 2) Re-check availability defensively
+        const now2 = Date.now();
+        for (const idx of blocks) {
+          if (s2.sold[idx]) {
+            return bad(409, 'ALREADY_SOLD', { idx });
+          }
+          const l = s2.locks[idx];
+          if (l && l.until > now2 && l.uid !== uid) {
+            return bad(409, 'LOCKED_BY_OTHER', { idx });
+          }
+        }
+
+        // 3) Re-apply your intended changes
+        s2.regions[regionId] = {
+          ...(s2.regions[regionId] || {}),
+          rect,
+          blocks: Array.from(new Set(blocks)).sort((a,b)=>a-b),
+          imageUrl: '',
+          stagingUrl,
+          uid,
+          reservedUntil: Math.max(s2.regions[regionId]?.reservedUntil || 0, now2 + 180000) // 3 min
+        };
+        s2.orders[orderId] = {
+          uid, regionId, blocks: s2.regions[regionId].blocks,
+          status: 'pending', ts: now2, name, linkUrl, stagingUrl
+        };
+
+        // 4) Retry PUT with fresh sha
+        await ghPutJson(STATE_PATH, s2, ref.sha, `start-order(retry) ${orderId} (${blocks.length}) for ${uid}`);
+      } else {
+        throw e; // non-409 error -> keep failing
+      }
+    }
+    //new
 
     return ok({ orderId, regionId, imageUrl });
 
