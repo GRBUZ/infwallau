@@ -2083,7 +2083,92 @@
       "regionId": "r_mf580kdf_tvhq"
     }
   },
-  "locks": {},
+  "locks": {
+    "848": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757071013181,
+      "until": 1757071193181,
+      "capUntil": 1757071193181,
+      "regionId": "ebc763a75581"
+    },
+    "849": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757071013181,
+      "until": 1757071193181,
+      "capUntil": 1757071193181,
+      "regionId": "ebc763a75581"
+    },
+    "850": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757071013181,
+      "until": 1757071193181,
+      "capUntil": 1757071193181,
+      "regionId": "ebc763a75581"
+    },
+    "851": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757071013181,
+      "until": 1757071193181,
+      "capUntil": 1757071193181,
+      "regionId": "ebc763a75581"
+    },
+    "948": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757071013181,
+      "until": 1757071193181,
+      "capUntil": 1757071193181,
+      "regionId": "ebc763a75581"
+    },
+    "949": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757071013181,
+      "until": 1757071193181,
+      "capUntil": 1757071193181,
+      "regionId": "ebc763a75581"
+    },
+    "950": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757071013181,
+      "until": 1757071193181,
+      "capUntil": 1757071193181,
+      "regionId": "ebc763a75581"
+    },
+    "951": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757071013181,
+      "until": 1757071193181,
+      "capUntil": 1757071193181,
+      "regionId": "ebc763a75581"
+    },
+    "1048": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757071013181,
+      "until": 1757071193181,
+      "capUntil": 1757071193181,
+      "regionId": "ebc763a75581"
+    },
+    "1049": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757071013181,
+      "until": 1757071193181,
+      "capUntil": 1757071193181,
+      "regionId": "ebc763a75581"
+    },
+    "1050": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757071013181,
+      "until": 1757071193181,
+      "capUntil": 1757071193181,
+      "regionId": "ebc763a75581"
+    },
+    "1051": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757071013181,
+      "until": 1757071193181,
+      "capUntil": 1757071193181,
+      "regionId": "ebc763a75581"
+    }
+  },
   "regions": {
     "r_mey7z4jd_sxbu": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mey7z4jd_sxbu/Capture-d__cran-2024-06-20-230224_1756555810582_asu48b.png",
@@ -2721,6 +2806,33 @@
         "h": 5
       },
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mf6qpbe3_hu6k/Capture-d__cran-2025-02-02-181215_1757070993029_j5xj8f.png"
+    },
+    "ebc763a75581": {
+      "rect": {
+        "x": 48,
+        "y": 8,
+        "w": 4,
+        "h": 3
+      },
+      "blocks": [
+        848,
+        849,
+        850,
+        851,
+        948,
+        949,
+        950,
+        951,
+        1048,
+        1049,
+        1050,
+        1051
+      ],
+      "imageUrl": "",
+      "name": "",
+      "linkUrl": "",
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "reservedUntil": 1757071193181
     }
   }
 }
