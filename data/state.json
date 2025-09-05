@@ -2227,7 +2227,120 @@
       "regionId": "r_mf580kdf_tvhq"
     }
   },
-  "locks": {},
+  "locks": {
+    "1844": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    },
+    "1845": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    },
+    "1846": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    },
+    "1847": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    },
+    "1944": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    },
+    "1945": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    },
+    "1946": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    },
+    "1947": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    },
+    "2044": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    },
+    "2045": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    },
+    "2046": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    },
+    "2047": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    },
+    "2144": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    },
+    "2145": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    },
+    "2146": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    },
+    "2147": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092173441,
+      "until": 1757092353441,
+      "capUntil": 1757092353441,
+      "regionId": "511fdd526e3c"
+    }
+  },
   "regions": {
     "r_mey7z4jd_sxbu": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mey7z4jd_sxbu/Capture-d__cran-2024-06-20-230224_1756555810582_asu48b.png",
@@ -2988,6 +3101,37 @@
       "linkUrl": "",
       "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
       "reservedUntil": 1757085411255
+    },
+    "511fdd526e3c": {
+      "rect": {
+        "x": 44,
+        "y": 18,
+        "w": 4,
+        "h": 4
+      },
+      "blocks": [
+        1844,
+        1845,
+        1846,
+        1847,
+        1944,
+        1945,
+        1946,
+        1947,
+        2044,
+        2045,
+        2046,
+        2047,
+        2144,
+        2145,
+        2146,
+        2147
+      ],
+      "imageUrl": "",
+      "name": "",
+      "linkUrl": "",
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "reservedUntil": 1757092353441
     }
   }
 }
