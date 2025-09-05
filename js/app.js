@@ -222,14 +222,25 @@
   }
   function startModalMonitor(){
     stopModalMonitor();
-    modalLockTimer = setInterval(()=>{
+    modalLockTimer = setInterval(() => {
+  // 👉 Don't touch while finalize flow is running
+      if (confirmBtn.textContent === 'Processing…') return;
+
       const blocks = currentLock.length ? currentLock : Array.from(selected);
       const ok = haveMyValidLocks(blocks);
-      // Si expiré → désactiver le bouton pour éviter une finalisation tardive
+
+      // Only update when not processing
+      confirmBtn.disabled = !ok;
+      confirmBtn.textContent = ok ? 'Confirm' : 'Reservation expired — reselect';
+    }, 1500);
+
+    /*modalLockTimer = setInterval(()=>{
+      const blocks = currentLock.length ? currentLock : Array.from(selected);
+      const ok = haveMyValidLocks(blocks);
       confirmBtn.disabled = !ok;
       if (!ok) confirmBtn.textContent = 'Reservation expired — reselect';
       else     confirmBtn.textContent = 'Confirm';
-    }, 1500);
+    }, 1500);*/
   }
   function stopModalMonitor(){
     if (modalLockTimer){ clearInterval(modalLockTimer); modalLockTimer = null; }
@@ -380,12 +391,24 @@
       if (typeof window.renderRegions === 'function') window.renderRegions();
 
       // Si le modal est ouvert et que mes locks ont sauté → désactiver confirm
-      if (!modal.classList.contains('hidden')) {
+      /*if (!modal.classList.contains('hidden')) {
         const blocks = currentLock.length ? currentLock : Array.from(selected);
         const ok = haveMyValidLocks(blocks);
         confirmBtn.disabled = !ok;
         if (!ok) confirmBtn.textContent = 'Reservation expired — reselect';
+      }*/
+      // If the modal is open and my locks expired, disable confirm
+      if (!modal.classList.contains('hidden')) {
+        // 👉 Don't touch while finalize flow is running
+        if (confirmBtn.textContent !== 'Processing…') {
+          const blocks = currentLock.length ? currentLock : Array.from(selected);
+          const ok = haveMyValidLocks(blocks);
+          confirmBtn.disabled = !ok;
+          if (!ok) confirmBtn.textContent = 'Reservation expired — reselect';
+          else     confirmBtn.textContent = 'Confirm';
+        }
       }
+
 
       paintAll();
     } catch (e) {
