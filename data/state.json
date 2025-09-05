@@ -2491,7 +2491,71 @@
       "regionId": "r_mf73cekj_smnl"
     }
   },
-  "locks": {},
+  "locks": {
+    "71": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757102400847,
+      "until": 1757102580847,
+      "capUntil": 1757102580847,
+      "regionId": "3aee7695b858"
+    },
+    "72": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757102400847,
+      "until": 1757102580847,
+      "capUntil": 1757102580847,
+      "regionId": "3aee7695b858"
+    },
+    "73": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757102400847,
+      "until": 1757102580847,
+      "capUntil": 1757102580847,
+      "regionId": "3aee7695b858"
+    },
+    "171": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757102400847,
+      "until": 1757102580847,
+      "capUntil": 1757102580847,
+      "regionId": "3aee7695b858"
+    },
+    "172": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757102400847,
+      "until": 1757102580847,
+      "capUntil": 1757102580847,
+      "regionId": "3aee7695b858"
+    },
+    "173": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757102400847,
+      "until": 1757102580847,
+      "capUntil": 1757102580847,
+      "regionId": "3aee7695b858"
+    },
+    "271": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757102400847,
+      "until": 1757102580847,
+      "capUntil": 1757102580847,
+      "regionId": "3aee7695b858"
+    },
+    "272": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757102400847,
+      "until": 1757102580847,
+      "capUntil": 1757102580847,
+      "regionId": "3aee7695b858"
+    },
+    "273": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757102400847,
+      "until": 1757102580847,
+      "capUntil": 1757102580847,
+      "regionId": "3aee7695b858"
+    }
+  },
   "regions": {
     "r_mey7z4jd_sxbu": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mey7z4jd_sxbu/Capture-d__cran-2024-06-20-230224_1756555810582_asu48b.png",
@@ -3533,6 +3597,30 @@
       "linkUrl": "",
       "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
       "reservedUntil": 1757100974209
+    },
+    "3aee7695b858": {
+      "rect": {
+        "x": 71,
+        "y": 0,
+        "w": 3,
+        "h": 3
+      },
+      "blocks": [
+        71,
+        72,
+        73,
+        171,
+        172,
+        173,
+        271,
+        272,
+        273
+      ],
+      "imageUrl": "",
+      "name": "",
+      "linkUrl": "",
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "reservedUntil": 1757102580847
     }
   }
 }
