@@ -1,121 +1,78 @@
 // netlify/functions/start-order.js
-const { requireAuth } = require('./auth-middleware');
-const { guardFinalizeInput } = require('./_validation'); // garde le même validateur
+// Crée une commande *sans modifier state.json* :
+// - upload l'image en staging
+// - écrit data/orders/<orderId>.json (status: "pending")
+// - renvoie { orderId, regionId, stagingUrl }
 
-const STATE_PATH = process.env.STATE_PATH || "data/state.json";
-const ORDERS_DIR = process.env.ORDERS_DIR || "data/orders";
+const { requireAuth } = require('./auth-middleware');
+
 const GH_REPO    = process.env.GH_REPO;
 const GH_TOKEN   = process.env.GH_TOKEN;
-const GH_BRANCH  = process.env.GH_BRANCH || "main";
+const GH_BRANCH  = process.env.GH_BRANCH || 'main';
+const ORDERS_DIR = process.env.ORDERS_DIR || 'data/orders'; // dossier des commandes
+const N          = 100;              // grille 100x100
+const TTL_MS     = 3 * 60 * 1000;    // 3 minutes
 
-function bad(status, error, extra = {}) {
-  return {
-    statusCode: status,
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
-    body: JSON.stringify({ ok: false, error, ...extra, signature: "start-order.v1" })
-  };
-}
-function ok(body) {
-  return {
-    statusCode: 200,
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
-    body: JSON.stringify({ ok: true, signature: "start-order.v1", ...body })
-  };
-}
+const API_BASE = 'https://api.github.com';
 
-function safeFilename(name) {
-  const parts = String(name || "image").split("/").pop().split("\\");
-  const base  = parts[parts.length - 1];
-  const cleaned = base.replace(/\s+/g, "-").replace(/[^\w.\-]/g, "_").slice(0, 100);
-  const nameWithoutExt = cleaned.replace(/\.[^.]*$/, '') || 'image';
-  const ext = cleaned.match(/\.[^.]*$/)?.[0] || '.jpg';
-  const ts = Date.now();
-  const rnd = Math.random().toString(36).slice(2, 8);
-  return `${nameWithoutExt}_${ts}_${rnd}${ext}`;
+// ---------- petites utilitaires ----------
+function ok(obj){ return { statusCode:200, headers:hdr(), body:JSON.stringify({ ok:true, ...obj }) }; }
+function bad(status, error, extra={}){ return { statusCode:status, headers:hdr(), body:JSON.stringify({ ok:false, error, ...extra }) }; }
+function hdr(){ return { 'content-type':'application/json', 'cache-control':'no-store' }; }
+
+function safeFilename(name){
+  const parts = String(name || 'image').split('/').pop().split('\\');
+  const base  = parts[parts.length-1];
+  const cleaned = base.replace(/\s+/g, '-').replace(/[^\w.\-]/g, '_').slice(0, 100);
+  const stem = cleaned.replace(/\.[^.]*$/, '') || 'image';
+  const ext  = cleaned.match(/\.[^.]*$/)?.[0] || '.jpg';
+  return `${stem}_${Date.now()}_${Math.random().toString(36).slice(2,8)}${ext}`;
 }
-function makeId(prefix) {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`;
-}
-function computeRect(blocks){
-  let minR=1e9, maxR=-1e9, minC=1e9, maxC=-1e9;
-  for (const idx of blocks){
-    const r = Math.floor(idx / 100);
-    const c = idx % 100;
-    if (r<minR) minR=r; if (r>maxR) maxR=r;
-    if (c<minC) minC=c; if (c>maxC) maxC=c;
+function idxToXY(idx){ return { x: idx % N, y: (idx / N) | 0 }; }
+function boundsFromIndices(indices){
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for (const i of indices){
+    const p = idxToXY(i);
+    if (p.x<x0) x0=p.x; if (p.x>x1) x1=p.x;
+    if (p.y<y0) y0=p.y; if (p.y>y1) y1=p.y;
   }
-  return { x:minC, y:minR, w:(maxC-minC+1), h:(maxR-minR+1) };
+  return { x:x0, y:y0, w:(x1-x0+1), h:(y1-y0+1) };
 }
 
-// ---- GitHub helpers (alignés sur ton style)
-async function ghGetJson(path){
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${GH_BRANCH}`,
-    { headers: { "Authorization": `Bearer ${GH_TOKEN}`, "Accept":"application/vnd.github+json" } }
-  );
-  if (r.status === 404) return { json:null, sha:null };
-  if (!r.ok) throw new Error(`GH_GET_FAILED:${r.status}`);
-  const data = await r.json();
-  const content = Buffer.from(data.content || "", "base64").toString("utf-8");
-  return { json: JSON.parse(content || "{}"), sha: data.sha };
-}
-async function ghPutJson(path, jsonData, sha, message){
-  const pretty = JSON.stringify(jsonData, null, 2) + "\n";
+// ---------- GitHub helpers ----------
+async function ghPutJson(path, jsonData, sha /*peut être null*/, message){
+  const pretty = JSON.stringify(jsonData, null, 2) + '\n';
   const body = {
-    message: message || "chore: write json",
-    content: Buffer.from(pretty, "utf-8").toString("base64"),
+    message: message || 'chore: write json',
+    content: Buffer.from(pretty, 'utf-8').toString('base64'),
     branch: GH_BRANCH
   };
-  if (sha) body.sha = sha;
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`,
-    {
-      method: "PUT",
-      headers: {
-        "Authorization": `Bearer ${GH_TOKEN}`,
-        "Accept":"application/vnd.github+json",
-        "Content-Type":"application/json"
-      },
-      body: JSON.stringify(body)
-    }
-  );
+  if (sha) body.sha = sha; // on ne s’en sert pas ici
+  const r = await fetch(`${API_BASE}/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`, {
+    method:'PUT',
+    headers:{
+      'Authorization': `Bearer ${GH_TOKEN}`,
+      'Accept': 'application/vnd.github+json',
+      'User-Agent': 'netlify-fn',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
   if (!r.ok) throw new Error(`GH_PUT_JSON_FAILED:${r.status}`);
   return r.json();
 }
-async function ghGetFile(path){
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${GH_BRANCH}`,
-    { headers: { "Authorization": `Bearer ${GH_TOKEN}`, "Accept":"application/vnd.github+json" } }
-  );
-  if (!r.ok) throw new Error(`GH_GET_FILE_FAILED:${r.status}`);
-  return r.json(); // { content (b64), sha, ... }
-}
-async function ghDeletePath(path, sha, message){
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`,
-    {
-      method: "DELETE",
-      headers: {
-        "Authorization": `Bearer ${GH_TOKEN}`,
-        "Accept":"application/vnd.github+json",
-        "Content-Type":"application/json"
-      },
-      body: JSON.stringify({ message: message || `chore: delete ${path}`, sha, branch: GH_BRANCH })
-    }
-  );
-  if (!r.ok) throw new Error(`GH_DELETE_FAILED:${r.status}`);
-  return r.json();
-}
+
 async function ghPutBinary(path, buffer, message){
-  const baseURL = `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`;
+  const baseURL = `${API_BASE}/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`;
   const headers = {
-    "Authorization": `Bearer ${GH_TOKEN}`,
-    "Accept": "application/vnd.github+json",
-    "Content-Type": "application/json"
+    'Authorization': `Bearer ${GH_TOKEN}`,
+    'Accept': 'application/vnd.github+json',
+    'Content-Type': 'application/json',
+    'User-Agent': 'netlify-fn'
   };
-  // probe
+  // probe (pour SHA si déjà existant)
   let sha = null;
-  const probe = await fetch(`${baseURL}?ref=${GH_BRANCH}`, { headers });
+  const probe = await fetch(`${baseURL}?ref=${encodeURIComponent(GH_BRANCH)}`, { headers });
   if (probe.ok) {
     const j = await probe.json();
     sha = j.sha || null;
@@ -124,147 +81,77 @@ async function ghPutBinary(path, buffer, message){
   }
   const body = {
     message: message || `feat: upload ${path}`,
-    content: Buffer.from(buffer).toString("base64"),
+    content: Buffer.from(buffer).toString('base64'),
     branch: GH_BRANCH
   };
   if (sha) body.sha = sha;
-  const put = await fetch(baseURL, { method: "PUT", headers, body: JSON.stringify(body) });
+  const put = await fetch(baseURL, { method:'PUT', headers, body: JSON.stringify(body) });
   if (!put.ok) throw new Error(`GH_PUT_BIN_FAILED:${put.status}`);
   return put.json();
 }
-function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
-async function ghPutBinaryWithRetry(path, buffer, message, maxAttempts = 4){
-  let last;
-  for (let i=0;i<maxAttempts;i++){
-    try { return await ghPutBinary(path, buffer, message); }
-    catch(e){
-      last = e;
-      const msg = String(e?.message || e);
-      if (msg.includes('GH_PUT_BIN_FAILED:409') && i < maxAttempts-1){
-        await sleep(120*(i+1)); continue;
-      }
-      throw e;
-    }
-  }
-  throw last || new Error('UPLOAD_MAX_RETRIES_EXCEEDED');
-}
 
+// ---------- handler ----------
 exports.handler = async (event) => {
   try {
     const auth = requireAuth(event);
     if (auth.statusCode) return auth;
     const uid = auth.uid;
 
-    if (event.httpMethod !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
-    if (!GH_REPO || !GH_TOKEN) return bad(500, "GITHUB_CONFIG_MISSING", { GH_REPO, GH_BRANCH });
+    if (event.httpMethod !== 'POST') return bad(405, 'METHOD_NOT_ALLOWED');
+    if (!GH_REPO || !GH_TOKEN) return bad(500, 'GITHUB_CONFIG_MISSING', { GH_REPO, GH_BRANCH });
 
-    const payload = JSON.parse(event.body || '{}');
+    let body = {};
+    try { body = JSON.parse(event.body || '{}'); }
+    catch { return bad(400, 'BAD_JSON'); }
 
-    // Valide et normalise name/linkUrl/blocks via ton validateur
-    //const { name, linkUrl, blocks } = guardFinalizeInput(event, payload); // lève si invalide
-    const { name, linkUrl, blocks } = await guardFinalizeInput(event); 
+    const name        = String(body.name || '').trim();
+    const linkUrl     = String(body.linkUrl || '').trim();
+    const blocks      = Array.isArray(body.blocks) ? body.blocks.map(n=>parseInt(n,10)).filter(Number.isInteger) : [];
+    const filenameRaw = body.filename || 'image.jpg';
+    const contentType = String(body.contentType || '');
+    const b64         = String(body.contentBase64 || '');
 
-    if (!Array.isArray(blocks) || blocks.length === 0) return bad(400, "NO_BLOCKS");
+    if (!name || !linkUrl)                 return bad(400, 'MISSING_FIELDS');
+    if (!blocks.length)                    return bad(400, 'NO_BLOCKS');
+    if (!b64)                              return bad(400, 'NO_FILE_BASE64');
+    if (!contentType.startsWith('image/')) return bad(400, 'NOT_IMAGE');
 
-    // Image OBLIGATOIRE pour la commande
-    const filename    = safeFilename(payload.filename || "image.jpg");
-    const contentType = String(payload.contentType || "");
-    const b64         = String(payload.contentBase64 || "");
-    if (!contentType.startsWith("image/")) return bad(400, "NOT_IMAGE");
-    if (!b64) return bad(400, "NO_FILE_BASE64");
+    // 1) Staging image
+    const orderId    = `o_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`;
+    const regionId   = `r_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`;
+    const filename   = safeFilename(filenameRaw);
+    const buffer     = Buffer.from(b64, 'base64');
+    const stagingKey = `assets/staging/${orderId}/${filename}`;
 
-    // Vérifier disponibilité des blocs et locks actuels
-    const { json: state } = await ghGetJson(STATE_PATH);
-    const st = state || { sold:{}, locks:{}, regions:{} };
-    const now = Date.now();
-    for (const idx of blocks) {
-      if (st.sold && st.sold[idx]) return bad(409, "ALREADY_SOLD", { idx: Number(idx) });
-      const L = st.locks && st.locks[idx];
-      if (L && L.until > now && L.uid && L.uid !== uid) {
-        return bad(409, "LOCKED_BY_OTHER", { idx: Number(idx) });
-      }
-    }
+    await ghPutBinary(stagingKey, buffer, `feat: staging upload for ${orderId}`);
+    const stagingUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${stagingKey}`;
 
-    // Créer orderId + regionId + rect
-    const orderId  = makeId("ord");
-    const regionId = makeId("r");
-    const rect     = computeRect(blocks);
-
-    // Upload staging
-    const buffer = Buffer.from(b64, "base64");
-    const repoPath = `staging/${orderId}/${filename}`;
-    await ghPutBinaryWithRetry(repoPath, buffer, `feat: staging upload ${filename} for ${orderId}`);
-    const imageUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${repoPath}`;
-
-    // Enregistrer ordre pending
+    // 2) Order JSON (un fichier par commande — pas de SHA nécessaire)
+    const rect = boundsFromIndices(blocks);
     const orderPath = `${ORDERS_DIR}/${orderId}.json`;
+    const now = Date.now();
     const orderJson = {
-      status: "pending",
+      orderId,
       uid,
+      blocks: Array.from(new Set(blocks)).sort((a,b)=>a-b),
       name,
       linkUrl,
-      blocks,
+      regionId,         // utilisé par /dev-complete-order ou ton webhook
       rect,
-      regionId,
-      image: { repoPath, url: imageUrl, contentType },
-      amount: payload.amount || null,
-      currency: payload.currency || "USD",
-      createdAt: Date.now(),
-      // exemple: 20 min
-      expiresAt: Date.now() + 20*60*1000
+      status: 'pending',
+      ts: now,
+      expiresAt: now + TTL_MS,
+      stagingUrl,
+      contentType,
+      filename
     };
-    //await ghPutJson(orderPath, orderJson, null, `feat: create order ${orderId}`);
 
-    //new
-    try {
-      await ghPutJson(STATE_PATH, st, sha, `start-order ${orderId} (${blocks.length}) for ${uid}`);
-    } catch (e) {
-      if (String(e.message || e).includes('GH_PUT_JSON_FAILED:409')) {
-        // 1) Refetch fresh state + sha
-        const ref = await ghGetJson(STATE_PATH);
-        let s2 = ref.json || { sold:{}, locks:{}, regions:{}, orders:{} };
-        s2.locks = pruneLocks(s2.locks);
-        s2.regions ||= {};
-        s2.orders  ||= {};
+    await ghPutJson(orderPath, orderJson, null, `feat: create order ${orderId}`);
 
-        // 2) Re-check availability defensively
-        const now2 = Date.now();
-        for (const idx of blocks) {
-          if (s2.sold[idx]) {
-            return bad(409, 'ALREADY_SOLD', { idx });
-          }
-          const l = s2.locks[idx];
-          if (l && l.until > now2 && l.uid !== uid) {
-            return bad(409, 'LOCKED_BY_OTHER', { idx });
-          }
-        }
-
-        // 3) Re-apply your intended changes
-        s2.regions[regionId] = {
-          ...(s2.regions[regionId] || {}),
-          rect,
-          blocks: Array.from(new Set(blocks)).sort((a,b)=>a-b),
-          imageUrl: '',
-          stagingUrl,
-          uid,
-          reservedUntil: Math.max(s2.regions[regionId]?.reservedUntil || 0, now2 + 180000) // 3 min
-        };
-        s2.orders[orderId] = {
-          uid, regionId, blocks: s2.regions[regionId].blocks,
-          status: 'pending', ts: now2, name, linkUrl, stagingUrl
-        };
-
-        // 4) Retry PUT with fresh sha
-        await ghPutJson(STATE_PATH, s2, ref.sha, `start-order(retry) ${orderId} (${blocks.length}) for ${uid}`);
-      } else {
-        throw e; // non-409 error -> keep failing
-      }
-    }
-    //new
-
-    return ok({ orderId, regionId, imageUrl });
+    // 3) Done
+    return ok({ orderId, regionId, stagingUrl });
 
   } catch (e) {
-    return bad(500, "SERVER_ERROR", { message: String(e?.message || e) });
+    return bad(500, 'SERVER_ERROR', { message: String(e?.message || e) });
   }
 };
