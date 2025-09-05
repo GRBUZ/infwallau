@@ -178,11 +178,12 @@
     }catch(_){}
   }
 
+
   // Global listeners to avoid "lost locks"
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') unlockSelection(); }, { passive:true });
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') unlockKeepalive();
-  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') unlockSelection();
+  }, { passive:true });
+
 
   // Finalize flow
   async function doConfirm(){
