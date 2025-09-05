@@ -2227,7 +2227,71 @@
       "regionId": "r_mf580kdf_tvhq"
     }
   },
-  "locks": {},
+  "locks": {
+    "54": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757085040693,
+      "until": 1757085220693,
+      "capUntil": 1757085220693,
+      "regionId": "c3a843f6ddac"
+    },
+    "55": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757085040693,
+      "until": 1757085220693,
+      "capUntil": 1757085220693,
+      "regionId": "c3a843f6ddac"
+    },
+    "56": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757085040693,
+      "until": 1757085220693,
+      "capUntil": 1757085220693,
+      "regionId": "c3a843f6ddac"
+    },
+    "154": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757085040693,
+      "until": 1757085220693,
+      "capUntil": 1757085220693,
+      "regionId": "c3a843f6ddac"
+    },
+    "155": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757085040693,
+      "until": 1757085220693,
+      "capUntil": 1757085220693,
+      "regionId": "c3a843f6ddac"
+    },
+    "156": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757085040693,
+      "until": 1757085220693,
+      "capUntil": 1757085220693,
+      "regionId": "c3a843f6ddac"
+    },
+    "254": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757085040693,
+      "until": 1757085220693,
+      "capUntil": 1757085220693,
+      "regionId": "c3a843f6ddac"
+    },
+    "255": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757085040693,
+      "until": 1757085220693,
+      "capUntil": 1757085220693,
+      "regionId": "c3a843f6ddac"
+    },
+    "256": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757085040693,
+      "until": 1757085220693,
+      "capUntil": 1757085220693,
+      "regionId": "c3a843f6ddac"
+    }
+  },
   "regions": {
     "r_mey7z4jd_sxbu": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mey7z4jd_sxbu/Capture-d__cran-2024-06-20-230224_1756555810582_asu48b.png",
@@ -2937,6 +3001,30 @@
         "h": 4
       },
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mf6z1icq_sm9v/Capture-d__cran-2024-07-25-152739_1757084998866_1hg0lc.png"
+    },
+    "c3a843f6ddac": {
+      "rect": {
+        "x": 54,
+        "y": 0,
+        "w": 3,
+        "h": 3
+      },
+      "blocks": [
+        54,
+        55,
+        56,
+        154,
+        155,
+        156,
+        254,
+        255,
+        256
+      ],
+      "imageUrl": "",
+      "name": "",
+      "linkUrl": "",
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "reservedUntil": 1757085220693
     }
   }
 }
