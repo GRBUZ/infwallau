@@ -1,0 +1,33 @@
+{
+  "status": "pending",
+  "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+  "name": "bouzzy",
+  "linkUrl": "https://totat.com/",
+  "blocks": [
+    71,
+    72,
+    73,
+    171,
+    172,
+    173,
+    271,
+    272,
+    273
+  ],
+  "rect": {
+    "x": 71,
+    "y": 0,
+    "w": 3,
+    "h": 3
+  },
+  "regionId": "r_mf79fatu_7pyi",
+  "image": {
+    "repoPath": "staging/ord_mf79fatu_eo39/Capture-d__cran-2024-07-22-160340_1757102438421_2qo1gg.png",
+    "url": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/staging/ord_mf79fatu_eo39/Capture-d__cran-2024-07-22-160340_1757102438421_2qo1gg.png",
+    "contentType": "image/png"
+  },
+  "amount": null,
+  "currency": "USD",
+  "createdAt": 1757102439633,
+  "expiresAt": 1757103639633
+}
