@@ -2419,7 +2419,120 @@
       "regionId": "r_mf73cekj_smnl"
     }
   },
-  "locks": {},
+  "locks": {
+    "71": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    },
+    "72": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    },
+    "73": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    },
+    "74": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    },
+    "171": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    },
+    "172": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    },
+    "173": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    },
+    "174": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    },
+    "271": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    },
+    "272": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    },
+    "273": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    },
+    "274": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    },
+    "371": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    },
+    "372": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    },
+    "373": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    },
+    "374": {
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "first": 1757092610654,
+      "until": 1757092790654,
+      "capUntil": 1757092790654,
+      "regionId": "9d00785e8291"
+    }
+  },
   "regions": {
     "r_mey7z4jd_sxbu": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mey7z4jd_sxbu/Capture-d__cran-2024-06-20-230224_1756555810582_asu48b.png",
@@ -3291,6 +3404,37 @@
         "h": 3
       },
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mf73gogy_y7bi/Capture-d__cran-2025-08-17-124837_1757092425240_76q8tz.png"
+    },
+    "9d00785e8291": {
+      "rect": {
+        "x": 71,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "blocks": [
+        71,
+        72,
+        73,
+        74,
+        171,
+        172,
+        173,
+        174,
+        271,
+        272,
+        273,
+        274,
+        371,
+        372,
+        373,
+        374
+      ],
+      "imageUrl": "",
+      "name": "",
+      "linkUrl": "",
+      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+      "reservedUntil": 1757092790654
     }
   }
 }
