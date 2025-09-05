@@ -5,11 +5,12 @@
   // ===================
   // Helpers robustes d'erreurs (non-breaking)
   // ===================
-  const CORE_TIMEOUT_MS = 10000;   // Mettre 0 pour désactiver le timeout
+  const CORE_TIMEOUT_MS = 20000;   // Mettre 0 pour désactiver le timeout
   const CORE_RETRIES    = 2;       // Retries sur erreurs transitoires (en plus du refresh 401)
 
   function cm_isRetriableStatus(status){
-    return status === 0 || status === 408 || status === 429 || status === 502 || status === 503 || status === 504;
+    //return status === 0 || status === 408 || status === 429 || status === 502 || status === 503 || status === 504;
+    return status === 0 || status === 408 || status === 409 || status === 429 || status === 502 || status === 503 || status === 504;
   }
   function cm_guessCode(status){
     if (status === 401) return 'AUTH_REQUIRED';
