@@ -1878,6 +1878,30 @@
       "ts": 1757000557545,
       "regionId": "r_mf5krj51_q6pr"
     },
+    "1525": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757092428555,
+      "regionId": "r_mf73gogy_y7bi"
+    },
+    "1526": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757092428555,
+      "regionId": "r_mf73gogy_y7bi"
+    },
+    "1527": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757092428555,
+      "regionId": "r_mf73gogy_y7bi"
+    },
+    "1528": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757092428555,
+      "regionId": "r_mf73gogy_y7bi"
+    },
     "1538": {
       "name": "bouzzy",
       "linkUrl": "https://toto.com/",
@@ -1938,6 +1962,30 @@
       "ts": 1756979049217,
       "regionId": "r_mf57yk88_jrry"
     },
+    "1625": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757092428555,
+      "regionId": "r_mf73gogy_y7bi"
+    },
+    "1626": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757092428555,
+      "regionId": "r_mf73gogy_y7bi"
+    },
+    "1627": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757092428555,
+      "regionId": "r_mf73gogy_y7bi"
+    },
+    "1628": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757092428555,
+      "regionId": "r_mf73gogy_y7bi"
+    },
     "1652": {
       "name": "bouzzy",
       "linkUrl": "https://toto.com/",
@@ -1961,6 +2009,30 @@
       "linkUrl": "https://toto.com/",
       "ts": 1756979049217,
       "regionId": "r_mf57yk88_jrry"
+    },
+    "1725": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757092428555,
+      "regionId": "r_mf73gogy_y7bi"
+    },
+    "1726": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757092428555,
+      "regionId": "r_mf73gogy_y7bi"
+    },
+    "1727": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757092428555,
+      "regionId": "r_mf73gogy_y7bi"
+    },
+    "1728": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757092428555,
+      "regionId": "r_mf73gogy_y7bi"
     },
     "1752": {
       "name": "bouzzy",
@@ -2347,92 +2419,7 @@
       "regionId": "r_mf73cekj_smnl"
     }
   },
-  "locks": {
-    "1525": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757092405775,
-      "until": 1757092585775,
-      "capUntil": 1757092585775,
-      "regionId": "22d8253acfd9"
-    },
-    "1526": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757092405775,
-      "until": 1757092585775,
-      "capUntil": 1757092585775,
-      "regionId": "22d8253acfd9"
-    },
-    "1527": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757092405775,
-      "until": 1757092585775,
-      "capUntil": 1757092585775,
-      "regionId": "22d8253acfd9"
-    },
-    "1528": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757092405775,
-      "until": 1757092585775,
-      "capUntil": 1757092585775,
-      "regionId": "22d8253acfd9"
-    },
-    "1625": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757092405775,
-      "until": 1757092585775,
-      "capUntil": 1757092585775,
-      "regionId": "22d8253acfd9"
-    },
-    "1626": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757092405775,
-      "until": 1757092585775,
-      "capUntil": 1757092585775,
-      "regionId": "22d8253acfd9"
-    },
-    "1627": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757092405775,
-      "until": 1757092585775,
-      "capUntil": 1757092585775,
-      "regionId": "22d8253acfd9"
-    },
-    "1628": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757092405775,
-      "until": 1757092585775,
-      "capUntil": 1757092585775,
-      "regionId": "22d8253acfd9"
-    },
-    "1725": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757092405775,
-      "until": 1757092585775,
-      "capUntil": 1757092585775,
-      "regionId": "22d8253acfd9"
-    },
-    "1726": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757092405775,
-      "until": 1757092585775,
-      "capUntil": 1757092585775,
-      "regionId": "22d8253acfd9"
-    },
-    "1727": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757092405775,
-      "until": 1757092585775,
-      "capUntil": 1757092585775,
-      "regionId": "22d8253acfd9"
-    },
-    "1728": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757092405775,
-      "until": 1757092585775,
-      "capUntil": 1757092585775,
-      "regionId": "22d8253acfd9"
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mey7z4jd_sxbu": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mey7z4jd_sxbu/Capture-d__cran-2024-06-20-230224_1756555810582_asu48b.png",
@@ -3295,6 +3282,15 @@
       "linkUrl": "",
       "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
       "reservedUntil": 1757092585775
+    },
+    "r_mf73gogy_y7bi": {
+      "rect": {
+        "x": 25,
+        "y": 15,
+        "w": 4,
+        "h": 3
+      },
+      "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mf73gogy_y7bi/Capture-d__cran-2025-08-17-124837_1757092425240_76q8tz.png"
     }
   }
 }
