@@ -123,7 +123,6 @@ exports.handler = async (event) => {
 
     // Build lock set — on NE modifie pas st.locks ici pour pouvoir calculer regionId sur "locked"
     const now = Date.now();
-    const until = now + TTL_MS;
     const locked = [];
     const conflicts = [];
 
@@ -150,12 +149,25 @@ exports.handler = async (event) => {
     // Générer un regionId STABLE pour *les blocs réellement verrouillés*
     const regionId = genRegionId(uid, locked);
 
-    // Écrire les locks maintenant, avec regionId
+    // Écrire les locks maintenant, avec cap dur de 3 min par "premier lock"
+    let regionUntil = 0; // max des until pour la région
     for (const b of locked) {
-      st.locks[String(b)] = { uid, until, regionId };
+      const key = String(b);
+      const cur = st.locks[key];
+
+      // first = première fois où CE uid a posé le lock (sinon maintenant)
+      const first = (cur && cur.uid === uid && typeof cur.first === 'number') ? cur.first : now;
+      // capUntil = first + TTL_MS (figé à la première pose pour ce uid)
+      const capUntil = (cur && cur.uid === uid && typeof cur.capUntil === 'number') ? cur.capUntil : (first + TTL_MS);
+      // on étend au plus à now+TTL_MS, mais jamais au-delà de capUntil
+      const proposed = now + TTL_MS;
+      const until = Math.min(proposed, capUntil);
+
+      st.locks[key] = { uid, first, until, capUntil, regionId };
+      if (until > regionUntil) regionUntil = until;
     }
 
-    // Mettre à jour/Créer le stub de région (reservedUntil sert de vérité serveur pour l’expiration)
+    // Mettre à jour/Créer le stub de région (reservedUntil = max des until — vérité serveur)
     st.regions ||= {};
     const rect = computeRectFromBlocks(locked);
     if (!st.regions[regionId]) {
@@ -166,15 +178,14 @@ exports.handler = async (event) => {
         name:     st.regions[regionId]?.name     || '',
         linkUrl:  st.regions[regionId]?.linkUrl  || '',
         uid,
-        reservedUntil: until
+        reservedUntil: regionUntil
       };
     } else {
       const reg = st.regions[regionId];
-      // toujours possédé par moi dans ce flux — sinon on écrase quand même car regionId est dérivé de (uid,locked)
       reg.uid = uid;
       reg.blocks = Array.from(new Set(locked)).sort((a,b)=>a-b);
       reg.rect = rect;
-      reg.reservedUntil = Math.max(reg.reservedUntil || 0, until);
+      reg.reservedUntil = Math.max(reg.reservedUntil || 0, regionUntil);
     }
 
     // Commit
@@ -192,7 +203,6 @@ exports.handler = async (event) => {
         // Recalcule "locked" avec l'état actuel
         const locked2 = [];
         const now2 = Date.now();
-        const until2 = now2 + TTL_MS;
         for (const b of blocks) {
           const key = String(b);
           if (st.sold[key]) continue;
@@ -213,8 +223,19 @@ exports.handler = async (event) => {
 
         const regionId2 = genRegionId(uid, locked2);
 
+        // Re-écrire les locks avec le même cap dur (first/capUntil) et calculer le until max régional
+        let regionUntil2 = 0;
         for (const b of locked2) {
-          st.locks[String(b)] = { uid, until: until2, regionId: regionId2 };
+          const key = String(b);
+          const cur = st.locks[key];
+
+          const first = (cur && cur.uid === uid && typeof cur.first === 'number') ? cur.first : now2;
+          const capUntil = (cur && cur.uid === uid && typeof cur.capUntil === 'number') ? cur.capUntil : (first + TTL_MS);
+          const proposed = now2 + TTL_MS;
+          const until = Math.min(proposed, capUntil);
+
+          st.locks[key] = { uid, first, until, capUntil, regionId: regionId2 };
+          if (until > regionUntil2) regionUntil2 = until;
         }
 
         st.regions ||= {};
@@ -227,14 +248,14 @@ exports.handler = async (event) => {
             name: '',
             linkUrl: '',
             uid,
-            reservedUntil: until2
+            reservedUntil: regionUntil2
           };
         } else {
           const reg2 = st.regions[regionId2];
           reg2.uid = uid;
           reg2.blocks = Array.from(new Set(locked2)).sort((a,b)=>a-b);
           reg2.rect = rect2;
-          reg2.reservedUntil = Math.max(reg2.reservedUntil || 0, until2);
+          reg2.reservedUntil = Math.max(reg2.reservedUntil || 0, regionUntil2);
         }
 
         const content2 = JSON.stringify(st, null, 2);
@@ -247,7 +268,7 @@ exports.handler = async (event) => {
           locks: st.locks,
           ttlSeconds: Math.round(TTL_MS/1000),
           regionId: regionId2,
-          until: until2
+          until: regionUntil2
         });
       }
       throw e;
@@ -261,7 +282,7 @@ exports.handler = async (event) => {
       locks: st.locks,
       ttlSeconds: Math.round(TTL_MS/1000),
       regionId,
-      until
+      until: regionUntil
     });
 
   } catch (e) {
