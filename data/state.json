@@ -1230,6 +1230,30 @@
       "ts": 1757015819837,
       "regionId": "r_mf5tuocs_bqtu"
     },
+    "848": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1757071028658,
+      "regionId": "r_mf6qpzvm_89np"
+    },
+    "849": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1757071028658,
+      "regionId": "r_mf6qpzvm_89np"
+    },
+    "850": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1757071028658,
+      "regionId": "r_mf6qpzvm_89np"
+    },
+    "851": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1757071028658,
+      "regionId": "r_mf6qpzvm_89np"
+    },
     "854": {
       "name": "bouzzy",
       "linkUrl": "https://toto.com/",
@@ -1308,6 +1332,30 @@
       "ts": 1757015819837,
       "regionId": "r_mf5tuocs_bqtu"
     },
+    "948": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1757071028658,
+      "regionId": "r_mf6qpzvm_89np"
+    },
+    "949": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1757071028658,
+      "regionId": "r_mf6qpzvm_89np"
+    },
+    "950": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1757071028658,
+      "regionId": "r_mf6qpzvm_89np"
+    },
+    "951": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1757071028658,
+      "regionId": "r_mf6qpzvm_89np"
+    },
     "954": {
       "name": "bouzzy",
       "linkUrl": "https://toto.com/",
@@ -1385,6 +1433,30 @@
       "linkUrl": "https://toto.com/",
       "ts": 1757015819837,
       "regionId": "r_mf5tuocs_bqtu"
+    },
+    "1048": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1757071028658,
+      "regionId": "r_mf6qpzvm_89np"
+    },
+    "1049": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1757071028658,
+      "regionId": "r_mf6qpzvm_89np"
+    },
+    "1050": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1757071028658,
+      "regionId": "r_mf6qpzvm_89np"
+    },
+    "1051": {
+      "name": "bouzzy",
+      "linkUrl": "https://toto.com/",
+      "ts": 1757071028658,
+      "regionId": "r_mf6qpzvm_89np"
     },
     "1054": {
       "name": "bouzzy",
@@ -2083,92 +2155,7 @@
       "regionId": "r_mf580kdf_tvhq"
     }
   },
-  "locks": {
-    "848": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757071013181,
-      "until": 1757071193181,
-      "capUntil": 1757071193181,
-      "regionId": "ebc763a75581"
-    },
-    "849": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757071013181,
-      "until": 1757071193181,
-      "capUntil": 1757071193181,
-      "regionId": "ebc763a75581"
-    },
-    "850": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757071013181,
-      "until": 1757071193181,
-      "capUntil": 1757071193181,
-      "regionId": "ebc763a75581"
-    },
-    "851": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757071013181,
-      "until": 1757071193181,
-      "capUntil": 1757071193181,
-      "regionId": "ebc763a75581"
-    },
-    "948": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757071013181,
-      "until": 1757071193181,
-      "capUntil": 1757071193181,
-      "regionId": "ebc763a75581"
-    },
-    "949": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757071013181,
-      "until": 1757071193181,
-      "capUntil": 1757071193181,
-      "regionId": "ebc763a75581"
-    },
-    "950": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757071013181,
-      "until": 1757071193181,
-      "capUntil": 1757071193181,
-      "regionId": "ebc763a75581"
-    },
-    "951": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757071013181,
-      "until": 1757071193181,
-      "capUntil": 1757071193181,
-      "regionId": "ebc763a75581"
-    },
-    "1048": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757071013181,
-      "until": 1757071193181,
-      "capUntil": 1757071193181,
-      "regionId": "ebc763a75581"
-    },
-    "1049": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757071013181,
-      "until": 1757071193181,
-      "capUntil": 1757071193181,
-      "regionId": "ebc763a75581"
-    },
-    "1050": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757071013181,
-      "until": 1757071193181,
-      "capUntil": 1757071193181,
-      "regionId": "ebc763a75581"
-    },
-    "1051": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757071013181,
-      "until": 1757071193181,
-      "capUntil": 1757071193181,
-      "regionId": "ebc763a75581"
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mey7z4jd_sxbu": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mey7z4jd_sxbu/Capture-d__cran-2024-06-20-230224_1756555810582_asu48b.png",
@@ -2833,6 +2820,15 @@
       "linkUrl": "",
       "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
       "reservedUntil": 1757071193181
+    },
+    "r_mf6qpzvm_89np": {
+      "rect": {
+        "x": 48,
+        "y": 8,
+        "w": 4,
+        "h": 3
+      },
+      "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mf6qpzvm_89np/Capture-d__cran-2024-06-20-232241_1757071024946_i5i2sm.png"
     }
   }
 }
