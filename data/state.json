@@ -1861,6 +1861,86 @@
       "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
       "until": 1757066615006,
       "regionId": "ef1c84027ae9"
+    },
+    "504": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
+    },
+    "505": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
+    },
+    "506": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
+    },
+    "507": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
+    },
+    "604": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
+    },
+    "605": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
+    },
+    "606": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
+    },
+    "607": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
+    },
+    "704": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
+    },
+    "705": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
+    },
+    "706": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
+    },
+    "707": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
+    },
+    "804": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
+    },
+    "805": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
+    },
+    "806": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
+    },
+    "807": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "until": 1757066616007,
+      "regionId": "84d075ea0ed2"
     }
   },
   "regions": {
@@ -2353,6 +2433,37 @@
       "linkUrl": "",
       "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
       "reservedUntil": 1757066615006
+    },
+    "84d075ea0ed2": {
+      "rect": {
+        "x": 4,
+        "y": 5,
+        "w": 4,
+        "h": 4
+      },
+      "blocks": [
+        504,
+        505,
+        506,
+        507,
+        604,
+        605,
+        606,
+        607,
+        704,
+        705,
+        706,
+        707,
+        804,
+        805,
+        806,
+        807
+      ],
+      "imageUrl": "",
+      "name": "",
+      "linkUrl": "",
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "reservedUntil": 1757066616007
     }
   }
 }
