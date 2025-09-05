@@ -198,6 +198,24 @@
       "ts": 1756590708431,
       "regionId": "r_meysr2w6_k7g9"
     },
+    "71": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757102443627,
+      "regionId": "r_mf79fatu_7pyi"
+    },
+    "72": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757102443627,
+      "regionId": "r_mf79fatu_7pyi"
+    },
+    "73": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757102443627,
+      "regionId": "r_mf79fatu_7pyi"
+    },
     "100": {
       "name": "tata",
       "linkUrl": "https://tata.insta.com/",
@@ -443,6 +461,24 @@
       "linkUrl": "https://toto.com/",
       "ts": 1756590618078,
       "regionId": "r_meysp500_gvwv"
+    },
+    "171": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757102443627,
+      "regionId": "r_mf79fatu_7pyi"
+    },
+    "172": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757102443627,
+      "regionId": "r_mf79fatu_7pyi"
+    },
+    "173": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757102443627,
+      "regionId": "r_mf79fatu_7pyi"
     },
     "200": {
       "name": "tata",
@@ -713,6 +749,24 @@
       "linkUrl": "https://toto.com/",
       "ts": 1756590618078,
       "regionId": "r_meysp500_gvwv"
+    },
+    "271": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757102443627,
+      "regionId": "r_mf79fatu_7pyi"
+    },
+    "272": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757102443627,
+      "regionId": "r_mf79fatu_7pyi"
+    },
+    "273": {
+      "name": "bouzzy",
+      "linkUrl": "https://totat.com/",
+      "ts": 1757102443627,
+      "regionId": "r_mf79fatu_7pyi"
     },
     "305": {
       "name": "bouzzy",
@@ -2587,71 +2641,7 @@
       "regionId": "r_mf73cekj_smnl"
     }
   },
-  "locks": {
-    "71": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757102400847,
-      "until": 1757102580847,
-      "capUntil": 1757102580847,
-      "regionId": "3aee7695b858"
-    },
-    "72": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757102400847,
-      "until": 1757102580847,
-      "capUntil": 1757102580847,
-      "regionId": "3aee7695b858"
-    },
-    "73": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757102400847,
-      "until": 1757102580847,
-      "capUntil": 1757102580847,
-      "regionId": "3aee7695b858"
-    },
-    "171": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757102400847,
-      "until": 1757102580847,
-      "capUntil": 1757102580847,
-      "regionId": "3aee7695b858"
-    },
-    "172": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757102400847,
-      "until": 1757102580847,
-      "capUntil": 1757102580847,
-      "regionId": "3aee7695b858"
-    },
-    "173": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757102400847,
-      "until": 1757102580847,
-      "capUntil": 1757102580847,
-      "regionId": "3aee7695b858"
-    },
-    "271": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757102400847,
-      "until": 1757102580847,
-      "capUntil": 1757102580847,
-      "regionId": "3aee7695b858"
-    },
-    "272": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757102400847,
-      "until": 1757102580847,
-      "capUntil": 1757102580847,
-      "regionId": "3aee7695b858"
-    },
-    "273": {
-      "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
-      "first": 1757102400847,
-      "until": 1757102580847,
-      "capUntil": 1757102580847,
-      "regionId": "3aee7695b858"
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mey7z4jd_sxbu": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mey7z4jd_sxbu/Capture-d__cran-2024-06-20-230224_1756555810582_asu48b.png",
@@ -3757,6 +3747,15 @@
         "h": 4
       },
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mf79f9rm_lego/Capture-d__cran-2024-11-21-114815_1757102437063_uaa3f1.png"
+    },
+    "r_mf79fatu_7pyi": {
+      "rect": {
+        "x": 71,
+        "y": 0,
+        "w": 3,
+        "h": 3
+      },
+      "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mf79fatu_7pyi/Capture-d__cran-2024-07-22-160340_1757102438421_2qo1gg.png"
     }
   }
 }
