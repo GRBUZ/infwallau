@@ -1044,6 +1044,24 @@
       "ts": 1757015819837,
       "regionId": "r_mf5tuocs_bqtu"
     },
+    "711": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757069244881,
+      "regionId": "r_mf6pnrlt_hb0r"
+    },
+    "712": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757069244881,
+      "regionId": "r_mf6pnrlt_hb0r"
+    },
+    "713": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757069244881,
+      "regionId": "r_mf6pnrlt_hb0r"
+    },
     "735": {
       "name": "bouzzy",
       "linkUrl": "https://toto.com/",
@@ -1073,6 +1091,24 @@
       "linkUrl": "https://toto.com/",
       "ts": 1757015819837,
       "regionId": "r_mf5tuocs_bqtu"
+    },
+    "811": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757069244881,
+      "regionId": "r_mf6pnrlt_hb0r"
+    },
+    "812": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757069244881,
+      "regionId": "r_mf6pnrlt_hb0r"
+    },
+    "813": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757069244881,
+      "regionId": "r_mf6pnrlt_hb0r"
     },
     "835": {
       "name": "bouzzy",
@@ -1134,6 +1170,24 @@
       "ts": 1756558119450,
       "regionId": "r_mey9cnbu_ntoj"
     },
+    "911": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757069244881,
+      "regionId": "r_mf6pnrlt_hb0r"
+    },
+    "912": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757069244881,
+      "regionId": "r_mf6pnrlt_hb0r"
+    },
+    "913": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757069244881,
+      "regionId": "r_mf6pnrlt_hb0r"
+    },
     "935": {
       "name": "bouzzy",
       "linkUrl": "https://toto.com/",
@@ -1193,6 +1247,24 @@
       "linkUrl": "https://toto.com/",
       "ts": 1756558119450,
       "regionId": "r_mey9cnbu_ntoj"
+    },
+    "1011": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757069244881,
+      "regionId": "r_mf6pnrlt_hb0r"
+    },
+    "1012": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757069244881,
+      "regionId": "r_mf6pnrlt_hb0r"
+    },
+    "1013": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757069244881,
+      "regionId": "r_mf6pnrlt_hb0r"
     },
     "1035": {
       "name": "bouzzy",
@@ -1921,92 +1993,7 @@
       "regionId": "r_mf580kdf_tvhq"
     }
   },
-  "locks": {
-    "711": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757069228864,
-      "until": 1757069408864,
-      "capUntil": 1757069408864,
-      "regionId": "4d5aa4404481"
-    },
-    "712": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757069228864,
-      "until": 1757069408864,
-      "capUntil": 1757069408864,
-      "regionId": "4d5aa4404481"
-    },
-    "713": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757069228864,
-      "until": 1757069408864,
-      "capUntil": 1757069408864,
-      "regionId": "4d5aa4404481"
-    },
-    "811": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757069228864,
-      "until": 1757069408864,
-      "capUntil": 1757069408864,
-      "regionId": "4d5aa4404481"
-    },
-    "812": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757069228864,
-      "until": 1757069408864,
-      "capUntil": 1757069408864,
-      "regionId": "4d5aa4404481"
-    },
-    "813": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757069228864,
-      "until": 1757069408864,
-      "capUntil": 1757069408864,
-      "regionId": "4d5aa4404481"
-    },
-    "911": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757069228864,
-      "until": 1757069408864,
-      "capUntil": 1757069408864,
-      "regionId": "4d5aa4404481"
-    },
-    "912": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757069228864,
-      "until": 1757069408864,
-      "capUntil": 1757069408864,
-      "regionId": "4d5aa4404481"
-    },
-    "913": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757069228864,
-      "until": 1757069408864,
-      "capUntil": 1757069408864,
-      "regionId": "4d5aa4404481"
-    },
-    "1011": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757069228864,
-      "until": 1757069408864,
-      "capUntil": 1757069408864,
-      "regionId": "4d5aa4404481"
-    },
-    "1012": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757069228864,
-      "until": 1757069408864,
-      "capUntil": 1757069408864,
-      "regionId": "4d5aa4404481"
-    },
-    "1013": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757069228864,
-      "until": 1757069408864,
-      "capUntil": 1757069408864,
-      "regionId": "4d5aa4404481"
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mey7z4jd_sxbu": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mey7z4jd_sxbu/Capture-d__cran-2024-06-20-230224_1756555810582_asu48b.png",
@@ -2626,6 +2613,15 @@
       "linkUrl": "",
       "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
       "reservedUntil": 1757069408864
+    },
+    "r_mf6pnrlt_hb0r": {
+      "rect": {
+        "x": 11,
+        "y": 7,
+        "w": 3,
+        "h": 4
+      },
+      "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mf6pnrlt_hb0r/Capture-d__cran-2024-08-11-165955_1757069241299_qo9x3x.png"
     }
   }
 }
