@@ -1801,7 +1801,68 @@
       "regionId": "r_mf580kdf_tvhq"
     }
   },
-  "locks": {},
+  "locks": {
+    "5": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1757066501020,
+      "regionId": "ef1c84027ae9"
+    },
+    "6": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1757066501020,
+      "regionId": "ef1c84027ae9"
+    },
+    "7": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1757066501020,
+      "regionId": "ef1c84027ae9"
+    },
+    "8": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1757066501020,
+      "regionId": "ef1c84027ae9"
+    },
+    "105": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1757066501020,
+      "regionId": "ef1c84027ae9"
+    },
+    "106": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1757066501020,
+      "regionId": "ef1c84027ae9"
+    },
+    "107": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1757066501020,
+      "regionId": "ef1c84027ae9"
+    },
+    "108": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1757066501020,
+      "regionId": "ef1c84027ae9"
+    },
+    "205": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1757066501020,
+      "regionId": "ef1c84027ae9"
+    },
+    "206": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1757066501020,
+      "regionId": "ef1c84027ae9"
+    },
+    "207": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1757066501020,
+      "regionId": "ef1c84027ae9"
+    },
+    "208": {
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "until": 1757066501020,
+      "regionId": "ef1c84027ae9"
+    }
+  },
   "regions": {
     "r_mey7z4jd_sxbu": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mey7z4jd_sxbu/Capture-d__cran-2024-06-20-230224_1756555810582_asu48b.png",
@@ -2265,6 +2326,33 @@
       "linkUrl": "",
       "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
       "reservedUntil": 1757016870560
+    },
+    "ef1c84027ae9": {
+      "rect": {
+        "x": 5,
+        "y": 0,
+        "w": 4,
+        "h": 3
+      },
+      "blocks": [
+        5,
+        6,
+        7,
+        8,
+        105,
+        106,
+        107,
+        108,
+        205,
+        206,
+        207,
+        208
+      ],
+      "imageUrl": "",
+      "name": "",
+      "linkUrl": "",
+      "uid": "0cee897c-6ded-4fbb-b772-271b11ab045a",
+      "reservedUntil": 1757066501020
     }
   }
 }
