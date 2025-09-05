@@ -339,14 +339,15 @@
   }
 
   // Wire up UI
-  if (confirmBtn) confirmBtn.addEventListener('click', (e)=>{ e.preventDefault(); doConfirm(); });
-  if (form) form.addEventListener('submit', (e)=>{ e.preventDefault(); doConfirm(); });
+  //if (confirmBtn) confirmBtn.addEventListener('click', (e)=>{ e.preventDefault(); doConfirm(); });
+  //if (form) form.addEventListener('submit', (e)=>{ e.preventDefault(); doConfirm(); });
 
-  // 🔗 NOUVEAU : écouter l’évènement émis par app.js
-  document.addEventListener('finalize:submit', (e) => {
-    try { e.preventDefault && e.preventDefault(); } catch {}
-    doConfirm();
-  });
+  // Finalize déclenché UNIQUEMENT par app.js (après re-lock)
+document.addEventListener('finalize:submit', (e) => {
+  try { e.preventDefault && e.preventDefault(); } catch {}
+  doConfirm();
+});
+
 
   // Expose for debugging if needed
   window.__iwPatch = { doConfirm, refreshStatus, unlockSelection, uid };
