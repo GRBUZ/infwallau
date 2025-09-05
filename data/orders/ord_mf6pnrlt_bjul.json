@@ -1,0 +1,36 @@
+{
+  "status": "pending",
+  "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+  "name": "tata",
+  "linkUrl": "https://tata.insta.com/",
+  "blocks": [
+    711,
+    712,
+    713,
+    811,
+    812,
+    813,
+    911,
+    912,
+    913,
+    1011,
+    1012,
+    1013
+  ],
+  "rect": {
+    "x": 11,
+    "y": 7,
+    "w": 3,
+    "h": 4
+  },
+  "regionId": "r_mf6pnrlt_hb0r",
+  "image": {
+    "repoPath": "staging/ord_mf6pnrlt_bjul/Capture-d__cran-2024-08-11-165955_1757069241299_qo9x3x.png",
+    "url": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/staging/ord_mf6pnrlt_bjul/Capture-d__cran-2024-08-11-165955_1757069241299_qo9x3x.png",
+    "contentType": "image/png"
+  },
+  "amount": null,
+  "currency": "USD",
+  "createdAt": 1757069242168,
+  "expiresAt": 1757070442168
+}
