@@ -2492,6 +2492,62 @@
     }
   },
   "locks": {
+    "59": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757100794209,
+      "until": 1757100974209,
+      "capUntil": 1757100974209,
+      "regionId": "d5d82adb6068"
+    },
+    "60": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757100794209,
+      "until": 1757100974209,
+      "capUntil": 1757100974209,
+      "regionId": "d5d82adb6068"
+    },
+    "61": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757100794209,
+      "until": 1757100974209,
+      "capUntil": 1757100974209,
+      "regionId": "d5d82adb6068"
+    },
+    "62": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757100794209,
+      "until": 1757100974209,
+      "capUntil": 1757100974209,
+      "regionId": "d5d82adb6068"
+    },
+    "159": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757100794209,
+      "until": 1757100974209,
+      "capUntil": 1757100974209,
+      "regionId": "d5d82adb6068"
+    },
+    "160": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757100794209,
+      "until": 1757100974209,
+      "capUntil": 1757100974209,
+      "regionId": "d5d82adb6068"
+    },
+    "161": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757100794209,
+      "until": 1757100974209,
+      "capUntil": 1757100974209,
+      "regionId": "d5d82adb6068"
+    },
+    "162": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757100794209,
+      "until": 1757100974209,
+      "capUntil": 1757100974209,
+      "regionId": "d5d82adb6068"
+    },
     "563": {
       "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
       "first": 1757100785142,
@@ -3567,6 +3623,29 @@
       "linkUrl": "",
       "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
       "reservedUntil": 1757100965142
+    },
+    "d5d82adb6068": {
+      "rect": {
+        "x": 59,
+        "y": 0,
+        "w": 4,
+        "h": 2
+      },
+      "blocks": [
+        59,
+        60,
+        61,
+        62,
+        159,
+        160,
+        161,
+        162
+      ],
+      "imageUrl": "",
+      "name": "",
+      "linkUrl": "",
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "reservedUntil": 1757100974209
     }
   }
 }
