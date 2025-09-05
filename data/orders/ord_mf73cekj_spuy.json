@@ -1,0 +1,44 @@
+{
+  "status": "pending",
+  "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
+  "name": "bouzzy",
+  "linkUrl": "https://toto.com/",
+  "blocks": [
+    1944,
+    1945,
+    1946,
+    1947,
+    1948,
+    2044,
+    2045,
+    2046,
+    2047,
+    2048,
+    2144,
+    2145,
+    2146,
+    2147,
+    2148,
+    2244,
+    2245,
+    2246,
+    2247,
+    2248
+  ],
+  "rect": {
+    "x": 44,
+    "y": 19,
+    "w": 5,
+    "h": 4
+  },
+  "regionId": "r_mf73cekj_smnl",
+  "image": {
+    "repoPath": "staging/ord_mf73cekj_spuy/Capture-d__cran-2025-08-17-124837_1757092225652_rfu8ln.png",
+    "url": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/staging/ord_mf73cekj_spuy/Capture-d__cran-2025-08-17-124837_1757092225652_rfu8ln.png",
+    "contentType": "image/png"
+  },
+  "amount": null,
+  "currency": "USD",
+  "createdAt": 1757092226638,
+  "expiresAt": 1757093426638
+}
