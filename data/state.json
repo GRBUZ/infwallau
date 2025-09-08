@@ -8989,7 +8989,302 @@
       "regionId": "r_mfb3w05h_t92u"
     }
   },
-  "locks": {},
+  "locks": {
+    "105": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "106": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "107": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "108": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "109": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "110": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "111": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "205": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "206": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "207": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "208": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "209": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "210": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "211": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "305": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "306": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "307": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "308": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "309": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "310": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "311": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "405": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "406": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "407": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "408": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "409": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "410": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "411": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "505": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "506": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "507": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "508": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "509": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "510": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "511": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "605": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "606": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "607": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "608": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "609": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "610": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    },
+    "611": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757336478681,
+      "until": 1757336658681,
+      "capUntil": 1757336658681,
+      "regionId": "cb90972d8aaa"
+    }
+  },
   "regions": {
     "r_mfb3w05h_t92u": {
       "rect": {
@@ -9149,6 +9444,63 @@
         "h": 7
       },
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mfb4i78q_gy2f/Capture-d__cran-2024-06-20-232241_1757336040357_emjwou.png"
+    },
+    "cb90972d8aaa": {
+      "rect": {
+        "x": 5,
+        "y": 1,
+        "w": 7,
+        "h": 6
+      },
+      "blocks": [
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        205,
+        206,
+        207,
+        208,
+        209,
+        210,
+        211,
+        305,
+        306,
+        307,
+        308,
+        309,
+        310,
+        311,
+        405,
+        406,
+        407,
+        408,
+        409,
+        410,
+        411,
+        505,
+        506,
+        507,
+        508,
+        509,
+        510,
+        511,
+        605,
+        606,
+        607,
+        608,
+        609,
+        610,
+        611
+      ],
+      "imageUrl": "",
+      "name": "",
+      "linkUrl": "",
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "reservedUntil": 1757336658681
     }
   }
 }
