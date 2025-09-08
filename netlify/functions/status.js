@@ -24,62 +24,51 @@ function pruneLocks(locks) {
 }
 
 // --- Lecture robuste du state : RAW d'abord, fallback contents (et download_url si besoin)
+// --- Lecture robuste du state : via GitHub API (pas de RAW CDN) ---
 async function ghGetStateJson() {
-  // 1) RAW GitHub (supporte bien les gros fichiers et évite les encodages exotiques)
-  try {
-    const raw = await fetch(
-      `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${STATE_PATH}`,
-      { headers: { "User-Agent": "netlify-fn" } }
-    );
-    if (raw.ok) {
-      const txt = await raw.text();
-      try {
-        return JSON.parse(txt || "{}");
-      } catch {
-        // Si le JSON est mal formé ici, on essaie le fallback "contents"
-      }
-    } else if (raw.status === 404) {
-      // Si le fichier n'existe pas, on retourne un état vide
-      return { sold:{}, locks:{}, regions:{} };
-    }
-  } catch (_) {
-    // ignore, on tente le fallback
-  }
+  const baseUrl = `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(STATE_PATH)}?ref=${GH_BRANCH}`;
+  const baseHeaders = { 
+    "Authorization": `Bearer ${GH_TOKEN}`,
+    "Accept": "application/vnd.github+json",
+    "User-Agent": "netlify-fn"
+  };
 
-  // 2) GitHub contents API (legacy)
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(STATE_PATH)}?ref=${GH_BRANCH}`,
-    { headers: { "Authorization": `Bearer ${GH_TOKEN}`, "Accept":"application/vnd.github+json", "User-Agent":"netlify-fn" } }
-  );
+  // 1) Appel "contents" standard pour récupérer metadata (size, encoding, download_url, etc.)
+  const metaRes = await fetch(baseUrl, { headers: baseHeaders });
+  if (metaRes.status === 404) return { sold:{}, locks:{}, regions:{} };
+  if (!metaRes.ok) throw new Error(`GH_GET_FAILED:${metaRes.status}`);
 
-  if (r.status === 404) return { sold:{}, locks:{}, regions:{} };
-  if (!r.ok) throw new Error(`GH_GET_FAILED:${r.status}`);
+  const meta = await metaRes.json();
 
-  const data = await r.json();
-
-  // 2.a) Décode en fonction de l'encodage annoncé
-  if (typeof data.content === 'string') {
+  // 2) Si on a du contenu base64 "petit", décodons directement
+  if (typeof meta.content === 'string' && meta.encoding === 'base64' && Number(meta.size || 0) < 900000) {
     try {
-      const enc = (data.encoding === 'base64') ? 'base64' : (data.encoding || 'utf-8');
-      const buf = Buffer.from(data.content || "", enc);
+      const buf = Buffer.from(meta.content, 'base64');
       return JSON.parse(buf.toString('utf-8') || "{}");
     } catch {
-      // 2.b) Dernier secours : télécharger via download_url si disponible
-      if (data.download_url) {
-        try {
-          const dl = await fetch(data.download_url, { headers: { "User-Agent":"netlify-fn" } });
-          if (dl.ok) {
-            const txt = await dl.text();
-            return JSON.parse(txt || "{}");
-          }
-        } catch {}
-      }
+      // si décodage JSON échoue, on tente le raw via l'API ci-dessous
     }
   }
 
-  // Si tout échoue, retourner un état vide (évite de casser le front)
-  return { sold:{}, locks:{}, regions:{} };
+  // 3) Pour les gros fichiers / encodage non standard / décodage raté :
+  //    on rappelle la même route "contents" mais en demandant le RAW via l’API (pas le CDN)
+  const rawHeaders = {
+    ...baseHeaders,
+    "Accept": "application/vnd.github.raw"
+  };
+  const rawRes = await fetch(baseUrl, { headers: rawHeaders });
+  if (rawRes.status === 404) return { sold:{}, locks:{}, regions:{} };
+  if (!rawRes.ok) throw new Error(`GH_GET_RAW_FAILED:${rawRes.status}`);
+
+  const txt = await rawRes.text();
+  try {
+    return JSON.parse(txt || "{}");
+  } catch {
+    // En ultime recours, état vide pour ne pas casser le front
+    return { sold:{}, locks:{}, regions:{} };
+  }
 }
+
 
 exports.handler = async (event) => {
   try {
