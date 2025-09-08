@@ -1296,6 +1296,24 @@
       "ts": 1757092658119,
       "regionId": "r_mf73lk63_6jom"
     },
+    "604": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757322459703,
+      "regionId": "r_mfawf0va_2gcc"
+    },
+    "605": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757322459703,
+      "regionId": "r_mfawf0va_2gcc"
+    },
+    "606": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757322459703,
+      "regionId": "r_mfawf0va_2gcc"
+    },
     "621": {
       "name": "tata",
       "linkUrl": "https://tata.insta.com/",
@@ -1392,6 +1410,24 @@
       "ts": 1757092658119,
       "regionId": "r_mf73lk63_6jom"
     },
+    "704": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757322459703,
+      "regionId": "r_mfawf0va_2gcc"
+    },
+    "705": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757322459703,
+      "regionId": "r_mfawf0va_2gcc"
+    },
+    "706": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757322459703,
+      "regionId": "r_mfawf0va_2gcc"
+    },
     "711": {
       "name": "tata",
       "linkUrl": "https://tata.insta.com/",
@@ -1457,6 +1493,24 @@
       "linkUrl": "https://toto.com/",
       "ts": 1757015819837,
       "regionId": "r_mf5tuocs_bqtu"
+    },
+    "804": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757322459703,
+      "regionId": "r_mfawf0va_2gcc"
+    },
+    "805": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757322459703,
+      "regionId": "r_mfawf0va_2gcc"
+    },
+    "806": {
+      "name": "tata",
+      "linkUrl": "https://tata.insta.com/",
+      "ts": 1757322459703,
+      "regionId": "r_mfawf0va_2gcc"
     },
     "811": {
       "name": "tata",
@@ -2641,71 +2695,7 @@
       "regionId": "r_mf73cekj_smnl"
     }
   },
-  "locks": {
-    "604": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757322430714,
-      "until": 1757322610714,
-      "capUntil": 1757322610714,
-      "regionId": "1e1126bb81c7"
-    },
-    "605": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757322430714,
-      "until": 1757322610714,
-      "capUntil": 1757322610714,
-      "regionId": "1e1126bb81c7"
-    },
-    "606": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757322430714,
-      "until": 1757322610714,
-      "capUntil": 1757322610714,
-      "regionId": "1e1126bb81c7"
-    },
-    "704": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757322430714,
-      "until": 1757322610714,
-      "capUntil": 1757322610714,
-      "regionId": "1e1126bb81c7"
-    },
-    "705": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757322430714,
-      "until": 1757322610714,
-      "capUntil": 1757322610714,
-      "regionId": "1e1126bb81c7"
-    },
-    "706": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757322430714,
-      "until": 1757322610714,
-      "capUntil": 1757322610714,
-      "regionId": "1e1126bb81c7"
-    },
-    "804": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757322430714,
-      "until": 1757322610714,
-      "capUntil": 1757322610714,
-      "regionId": "1e1126bb81c7"
-    },
-    "805": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757322430714,
-      "until": 1757322610714,
-      "capUntil": 1757322610714,
-      "regionId": "1e1126bb81c7"
-    },
-    "806": {
-      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
-      "first": 1757322430714,
-      "until": 1757322610714,
-      "capUntil": 1757322610714,
-      "regionId": "1e1126bb81c7"
-    }
-  },
+  "locks": {},
   "regions": {
     "r_mey7z4jd_sxbu": {
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mey7z4jd_sxbu/Capture-d__cran-2024-06-20-230224_1756555810582_asu48b.png",
@@ -3903,6 +3893,15 @@
       "linkUrl": "",
       "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
       "reservedUntil": 1757322610714
+    },
+    "r_mfawf0va_2gcc": {
+      "rect": {
+        "x": 4,
+        "y": 6,
+        "w": 3,
+        "h": 3
+      },
+      "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mfawf0va_2gcc/Capture-d__cran-2024-07-22-160340_1757322455211_dk7t1h.png"
     }
   }
 }
