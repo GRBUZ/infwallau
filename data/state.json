@@ -8557,7 +8557,113 @@
       "regionId": "r_mfb3w05h_t92u"
     }
   },
-  "locks": {},
+  "locks": {
+    "10": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757335031062,
+      "until": 1757335211062,
+      "capUntil": 1757335211062,
+      "regionId": "3817e343143f"
+    },
+    "11": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757335031062,
+      "until": 1757335211062,
+      "capUntil": 1757335211062,
+      "regionId": "3817e343143f"
+    },
+    "12": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757335031062,
+      "until": 1757335211062,
+      "capUntil": 1757335211062,
+      "regionId": "3817e343143f"
+    },
+    "13": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757335031062,
+      "until": 1757335211062,
+      "capUntil": 1757335211062,
+      "regionId": "3817e343143f"
+    },
+    "14": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757335031062,
+      "until": 1757335211062,
+      "capUntil": 1757335211062,
+      "regionId": "3817e343143f"
+    },
+    "110": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757335031062,
+      "until": 1757335211062,
+      "capUntil": 1757335211062,
+      "regionId": "3817e343143f"
+    },
+    "111": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757335031062,
+      "until": 1757335211062,
+      "capUntil": 1757335211062,
+      "regionId": "3817e343143f"
+    },
+    "112": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757335031062,
+      "until": 1757335211062,
+      "capUntil": 1757335211062,
+      "regionId": "3817e343143f"
+    },
+    "113": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757335031062,
+      "until": 1757335211062,
+      "capUntil": 1757335211062,
+      "regionId": "3817e343143f"
+    },
+    "114": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757335031062,
+      "until": 1757335211062,
+      "capUntil": 1757335211062,
+      "regionId": "3817e343143f"
+    },
+    "210": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757335031062,
+      "until": 1757335211062,
+      "capUntil": 1757335211062,
+      "regionId": "3817e343143f"
+    },
+    "211": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757335031062,
+      "until": 1757335211062,
+      "capUntil": 1757335211062,
+      "regionId": "3817e343143f"
+    },
+    "212": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757335031062,
+      "until": 1757335211062,
+      "capUntil": 1757335211062,
+      "regionId": "3817e343143f"
+    },
+    "213": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757335031062,
+      "until": 1757335211062,
+      "capUntil": 1757335211062,
+      "regionId": "3817e343143f"
+    },
+    "214": {
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "first": 1757335031062,
+      "until": 1757335211062,
+      "capUntil": 1757335211062,
+      "regionId": "3817e343143f"
+    }
+  },
   "regions": {
     "r_mfb3w05h_t92u": {
       "rect": {
@@ -8567,6 +8673,36 @@
         "h": 31
       },
       "imageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mfb3w05h_t92u/Capture-d__cran-2025-08-17-124837_1757335004779_8qadla.png"
+    },
+    "3817e343143f": {
+      "rect": {
+        "x": 10,
+        "y": 0,
+        "w": 5,
+        "h": 3
+      },
+      "blocks": [
+        10,
+        11,
+        12,
+        13,
+        14,
+        110,
+        111,
+        112,
+        113,
+        114,
+        210,
+        211,
+        212,
+        213,
+        214
+      ],
+      "imageUrl": "",
+      "name": "",
+      "linkUrl": "",
+      "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+      "reservedUntil": 1757335211062
     }
   }
 }
