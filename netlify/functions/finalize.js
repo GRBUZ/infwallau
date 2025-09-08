@@ -154,6 +154,15 @@ exports.handler = async (event) => {
 
     // 5) Commit (avec retry 409)
     try {
+            // juste avant d’écrire newState
+      const oldState = parseState(got.content || '{}'); // tu l’as déjà dans la plupart des handlers
+      const oldSoldCount = Object.keys(oldState.sold || {}).length;
+      const newSoldCount = Object.keys(newState.sold || {}).length;
+      if (newSoldCount < oldSoldCount) {
+        // on n’écrit pas → quelque chose aurait écrasé l’historique
+        return jres(409, { ok:false, error:'SOLD_SHRANK_ABORT' });
+      }
+
       await ghPutJson(STATE_PATH, state, sha, `finalize ${validatedBlocks.length} -> ${regionId}`);
     } catch (error) {
       if (String(error.message || error).includes('409')) {
@@ -185,6 +194,14 @@ exports.handler = async (event) => {
         for (const idx of validatedBlocks){
           merged.sold[idx] = { name: validatedName, linkUrl: validatedLinkUrl, ts: ts2, regionId };
           if (merged.locks) delete merged.locks[idx];
+        }
+        // juste avant d’écrire newState
+        const oldState = parseState(got.content || '{}'); // tu l’as déjà dans la plupart des handlers
+        const oldSoldCount = Object.keys(oldState.sold || {}).length;
+        const newSoldCount = Object.keys(newState.sold || {}).length;
+        if (newSoldCount < oldSoldCount) {
+          // on n’écrit pas → quelque chose aurait écrasé l’historique
+          return jres(409, { ok:false, error:'SOLD_SHRANK_ABORT' });
         }
 
         await ghPutJson(STATE_PATH, merged, freshSha, `finalize(retry) ${validatedBlocks.length} -> ${regionId}`);

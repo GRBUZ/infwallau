@@ -239,6 +239,15 @@ exports.handler = async (event) => {
     // Commit
     const newContent = JSON.stringify(st, null, 2);
     try {
+      // juste avant d’écrire newState
+      const oldState = parseState(got.content || '{}'); // tu l’as déjà dans la plupart des handlers
+      const oldSoldCount = Object.keys(oldState.sold || {}).length;
+      const newSoldCount = Object.keys(newState.sold || {}).length;
+      if (newSoldCount < oldSoldCount) {
+        // on n’écrit pas → quelque chose aurait écrasé l’historique
+        return jres(409, { ok:false, error:'SOLD_SHRANK_ABORT' });
+      }
+
       await ghPutFile(STATE_PATH, newContent, sha, `reserve ${locked.length} blocks by ${uid} -> ${regionId}`);
     } catch (e) {
       // Retry once on conflict
@@ -307,6 +316,15 @@ exports.handler = async (event) => {
         }
 
         const content2 = JSON.stringify(st, null, 2);
+        // juste avant d’écrire newState
+        const oldState = parseState(got.content || '{}'); // tu l’as déjà dans la plupart des handlers
+        const oldSoldCount = Object.keys(oldState.sold || {}).length;
+        const newSoldCount = Object.keys(newState.sold || {}).length;
+        if (newSoldCount < oldSoldCount) {
+          // on n’écrit pas → quelque chose aurait écrasé l’historique
+          return jres(409, { ok:false, error:'SOLD_SHRANK_ABORT' });
+        }
+
         await ghPutFile(STATE_PATH, content2, got.sha, `reserve(retry) ${locked2.length} by ${uid} -> ${regionId2}`);
 
         return jres(200, {

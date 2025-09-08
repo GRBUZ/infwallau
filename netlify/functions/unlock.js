@@ -167,6 +167,15 @@ exports.handler = async (event) => {
     // 3) Commit
     const newContent = JSON.stringify(st, null, 2);
     try {
+      // juste avant d’écrire newState
+      const oldState = parseState(got.content || '{}'); // tu l’as déjà dans la plupart des handlers
+      const oldSoldCount = Object.keys(oldState.sold || {}).length;
+      const newSoldCount = Object.keys(newState.sold || {}).length;
+      if (newSoldCount < oldSoldCount) {
+        // on n’écrit pas → quelque chose aurait écrasé l’historique
+        return jres(409, { ok:false, error:'SOLD_SHRANK_ABORT' });
+      }
+
       await ghPutFile(STATE_PATH, newContent, sha, `unlock ${blocks.length} by ${uid}`);
       // Important: renvoyer la map complète de locks après commit
       return jres(200, { ok:true, locks: st.locks });
@@ -189,6 +198,15 @@ exports.handler = async (event) => {
 
         if (changed2) {
           const content2 = JSON.stringify(st2, null, 2);
+          // juste avant d’écrire newState
+          const oldState = parseState(got.content || '{}'); // tu l’as déjà dans la plupart des handlers
+          const oldSoldCount = Object.keys(oldState.sold || {}).length;
+          const newSoldCount = Object.keys(newState.sold || {}).length;
+          if (newSoldCount < oldSoldCount) {
+            // on n’écrit pas → quelque chose aurait écrasé l’historique
+            return jres(409, { ok:false, error:'SOLD_SHRANK_ABORT' });
+          }
+
           await ghPutFile(STATE_PATH, content2, sha, `unlock(retry) ${blocks.length} by ${uid}`);
         }
         // Renvoyer l'état frais (qu'il ait changé ou pas)
