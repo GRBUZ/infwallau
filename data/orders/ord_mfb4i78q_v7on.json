@@ -1,5 +1,5 @@
 {
-  "status": "pending",
+  "status": "completed",
   "uid": "b2b7bcd7-9bcb-42c3-9511-6a64e42ef084",
   "name": "bouzzy",
   "linkUrl": "https://totat.com/",
@@ -62,5 +62,7 @@
   "amount": null,
   "currency": "USD",
   "createdAt": 1757336041587,
-  "expiresAt": 1757337241587
+  "expiresAt": 1757337241587,
+  "updatedAt": 1757336045658,
+  "finalImageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mfb4i78q_gy2f/Capture-d__cran-2024-06-20-232241_1757336040357_emjwou.png"
 }
