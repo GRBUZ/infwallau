@@ -381,7 +381,15 @@
       const s = await apiCall('/status');
       if (!s || !s.ok) return;
 
-      sold = s.sold || {};
+      //sold = s.sold || {};
+      if (s && s.sold && typeof s.sold === 'object') {
+        const isEmpty = Object.keys(s.sold).length === 0;
+        const hasRegions = s.regions && Object.keys(s.regions).length > 0;
+        if (!isEmpty || !hasRegions) {
+          sold = s.sold;
+        }
+      }
+
       window.sold = sold;
 
       const merged = window.LockManager.merge(s.locks || {});
