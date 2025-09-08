@@ -1,5 +1,5 @@
 {
-  "status": "pending",
+  "status": "completed",
   "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
   "name": "tata",
   "linkUrl": "https://test.com/",
@@ -742,5 +742,7 @@
   "amount": null,
   "currency": "USD",
   "createdAt": 1757356470219,
-  "expiresAt": 1757357670219
+  "expiresAt": 1757357670219,
+  "updatedAt": 1757356473676,
+  "finalImageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mfbgo22w_38dv/Capture-d__cran-2025-02-02-181117_1757356469153_ilo0k6.png"
 }
