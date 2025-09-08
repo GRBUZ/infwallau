@@ -15,7 +15,7 @@ function jres(status, obj) {
   };
 }
 
-async function ghGetFile(path) {
+/*async function ghGetFile(path) {
   const url = `${API_BASE}/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(GH_BRANCH)}`;
   const r = await fetch(url, {
     headers: {
@@ -29,7 +29,55 @@ async function ghGetFile(path) {
   const data = await r.json();
   const buf = Buffer.from(data.content, data.encoding || 'base64');
   return { sha: data.sha, content: buf.toString('utf8'), status: 200 };
+}*/
+async function ghGetFile(path) {
+  const url = `${API_BASE}/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(GH_BRANCH)}`;
+  const headers = {
+    'Authorization': `token ${GH_TOKEN}`,
+    'User-Agent'   : 'netlify-fn',
+    'Accept'       : 'application/vnd.github+json'
+  };
+
+  const r = await fetch(url, { headers });
+  if (r.status === 404) return { sha: null, content: null, status: 404 };
+  if (!r.ok) throw new Error(`GITHUB_GET_FAILED ${r.status}`);
+
+  const data = await r.json();
+
+  // Cas normal: content + base64
+  if (typeof data.content === 'string' && String(data.encoding).toLowerCase() === 'base64') {
+    const buf = Buffer.from(data.content, 'base64');
+    return { sha: data.sha, content: buf.toString('utf8'), status: 200 };
+  }
+
+  // Fallback 1: Git Blob API (fiable pour gros fichiers)
+  if (data.sha) {
+    const r2 = await fetch(`${API_BASE}/repos/${GH_REPO}/git/blobs/${data.sha}`, { headers });
+    if (r2.ok) {
+      const blob = await r2.json(); // { content, encoding: 'base64' | ... }
+      const txt = String(blob.encoding).toLowerCase() === 'base64'
+        ? Buffer.from(blob.content || '', 'base64').toString('utf8')
+        : String(blob.content || '');
+      return { sha: data.sha, content: txt, status: 200 };
+    }
+  }
+
+  // Fallback 2: download_url (suffit souvent pour repo public)
+  if (data.download_url) {
+    const r3 = await fetch(data.download_url, { headers: { 'User-Agent': 'netlify-fn' } });
+    if (!r3.ok) throw new Error(`GITHUB_RAW_FAILED ${r3.status}`);
+    const text = await r3.text();
+    return { sha: data.sha || null, content: text, status: 200 };
+  }
+
+  // Ultime: si on a quand même un string, on le prend tel quel
+  if (typeof data.content === 'string') {
+    return { sha: data.sha || null, content: data.content, status: 200 };
+  }
+
+  throw new Error('GITHUB_GET_FAILED unknown content encoding');
 }
+
 
 async function ghPutFile(path, content, sha, message) {
   const url = `${API_BASE}/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`;
