@@ -8,9 +8,25 @@
   const CORE_TIMEOUT_MS = 20000;   // Mettre 0 pour désactiver le timeout
   const CORE_RETRIES    = 2;       // Retries sur erreurs transitoires (en plus du refresh 401)
 
+  // --- NEW: anti-spam + offline awareness (léger, auto-contenu)
+  const NOTIFY_COOLDOWN_MS = 8000;           // évite les toasts répétés pendant X ms
+  const __notifySeen = new Map();
+  let __offlineFirstNotified = false;
+
+  // drapeau global simple pour "offline"
+  window.addEventListener?.('offline', () => {
+    window.__OFFLINE = true;
+    __offlineFirstNotified = false; // autoriser un seul toast générique
+  });
+  window.addEventListener?.('online', () => {
+    window.__OFFLINE = false;
+    __notifySeen.clear();
+    __offlineFirstNotified = false;
+  });
+
   function cm_isRetriableStatus(status){
-    //return status === 0 || status === 408 || status === 429 || status === 502 || status === 503 || status === 504;
-    return status === 0 || status === 408 || status === 409 || status === 429 || status === 502 || status === 503 || status === 504;
+    // (on laisse 409 en non-retriable ici côté client, pour éviter le spam)
+    return status === 0 || status === 408 || status === 429 || status === 502 || status === 503 || status === 504;
   }
   function cm_guessCode(status){
     if (status === 401) return 'AUTH_REQUIRED';
@@ -20,33 +36,73 @@
     if (status >= 500) return 'SERVER_ERROR';
     return 'HTTP_ERROR';
   }
+
+  // NEW: notifyOnce avec throttling + silence pour endpoints bruyants en transitoire
   function cm_notifyOnce(err, endpoint){
     try {
-      if (window.Errors && typeof window.Errors.notifyError === 'function') {
-        window.Errors.notifyError(err, `API ${endpoint}`);
-      } else {
-        console.error('[API] Error:', err);
+      // Silence global pendant offline (un seul toast générique)
+      if (window.__OFFLINE) {
+        if (__offlineFirstNotified) return;
+        __offlineFirstNotified = true;
+        if (window.Errors && typeof window.Errors.showToast === 'function') {
+          window.Errors.showToast('Network offline. Changes will sync when you’re back online.', 'warn', 3500);
+          return;
+        }
+        console.warn('[API] Offline');
+        return;
       }
+
+      // Pas d'infra Errors -> fallback unique
+      if (!window.Errors || typeof window.Errors.notifyError !== 'function') {
+        console.error('[API] Error:', err);
+        return;
+      }
+
+      const code = err?.code || cm_guessCode(err?.status || 0);
+      const retriable = !!err?.retriable || cm_isRetriableStatus(err?.status || 0);
+
+      // endpoints bruyants : /status et /reserve — on évite les toasts pour erreurs transitoires
+      const noisyEndpoint = endpoint === '/status' || endpoint === '/reserve';
+      if (noisyEndpoint && retriable) {
+        return; // pas de toast dans ces cas
+      }
+
+      // Throttling par (endpoint + code + status)
+      const key = `${endpoint}|${code}|${err?.status||''}`;
+      const now = Date.now();
+      const last = __notifySeen.get(key);
+      if (last && (now - last) < NOTIFY_COOLDOWN_MS) return;
+      __notifySeen.set(key, now);
+
+      window.Errors.notifyError(err, `API ${endpoint}`);
     } catch {}
   }
+
   function cm_backoff(attempt){
     const base = 300 * Math.pow(2, Math.max(0, attempt)); // 300, 600, 1200ms...
     const jitter = Math.floor(Math.random()*200);
     return new Promise(res=>setTimeout(res, base + jitter));
   }
+
   function cm_normalizeNetworkError(e){
     // Timeout/Abort
     if (e && (e.name === 'AbortError' || /aborted/i.test(e.message||''))) {
       if (window.Errors) return window.Errors.create('TIMEOUT', 'Request timeout', { status: 0, retriable: true });
       const err = new Error('Request timeout'); err.code='TIMEOUT'; err.status=0; return err;
     }
-    // Network (TypeError/Fetched failed)
+    // Network (TypeError/Fetched failed) + détection offline
+    const offline = typeof navigator !== 'undefined' && navigator && navigator.onLine === false;
+    if (offline) {
+      if (window.Errors) return window.Errors.create('OFFLINE', 'Network offline', { status: 0, retriable: true });
+      const err = new Error('Network offline'); err.code='OFFLINE'; err.status=0; return err;
+    }
     if (e instanceof TypeError || /Failed to fetch|NetworkError|load failed/i.test(e?.message||'')) {
       if (window.Errors) return window.Errors.create('NETWORK_ERROR', 'Network error', { status: 0, retriable: true });
       const err = new Error('Network error'); err.code='NETWORK_ERROR'; err.status=0; return err;
     }
     return e;
   }
+
   function cm_httpError(status, payload){
     const code = cm_guessCode(status);
     const msg = (payload && (payload.message || payload.error)) || `HTTP ${status}`;
