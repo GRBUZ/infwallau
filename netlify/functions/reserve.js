@@ -16,21 +16,6 @@ function jres(status, obj) {
   };
 }
 
-/*async function ghGetFile(path) {
-  const url = `${API_BASE}/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(GH_BRANCH)}`;
-  const r = await fetch(url, {
-    headers: {
-      'Authorization': `token ${GH_TOKEN}`,
-      'User-Agent': 'netlify-fn',
-      'Accept': 'application/vnd.github+json'
-    }
-  });
-  if (r.status === 404) return { sha: null, content: null, status: 404 };
-  if (!r.ok) throw new Error(`GITHUB_GET_FAILED ${r.status}`);
-  const data = await r.json();
-  const buf = Buffer.from(data.content, data.encoding || 'base64');
-  return { sha: data.sha, content: buf.toString('utf8'), status: 200 };
-}*/
 async function ghGetFile(path) {
   const url = `${API_BASE}/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(GH_BRANCH)}`;
   const headers = {
@@ -115,6 +100,13 @@ function parseState(raw) {
     return { sold:{}, locks:{}, regions:{} };
   }
 }
+
+//new
+function _countSold(s){ return Object.keys((s && s.sold) || {}).length; }
+function _soldShrank(oldState, nextState){
+  return _countSold(nextState) < _countSold(oldState);
+}
+//new
 
 function pruneLocks(locks) {
   const now = Date.now();
@@ -239,19 +231,22 @@ exports.handler = async (event) => {
     // Commit
     const newContent = JSON.stringify(st, null, 2);
     try {
-      // juste avant d’écrire newState
-      const oldState = parseState(got.content || '{}'); // tu l’as déjà dans la plupart des handlers
-      const oldSoldCount = Object.keys(oldState.sold || {}).length;
-      const newSoldCount = Object.keys(newState.sold || {}).length;
-      if (newSoldCount < oldSoldCount) {
-        // on n’écrit pas → quelque chose aurait écrasé l’historique
+      //new
+      const oldState = parseState(got.content || '{}'); // état lu
+      if (_soldShrank(oldState, st)) {
         return jres(409, { ok:false, error:'SOLD_SHRANK_ABORT' });
       }
-
+      //new
       await ghPutFile(STATE_PATH, newContent, sha, `reserve ${locked.length} blocks by ${uid} -> ${regionId}`);
     } catch (e) {
       // Retry once on conflict
       if (String(e).includes('GITHUB_PUT_FAILED 409')) {
+        //new
+        const oldState2 = parseState(got.content || '{}');
+        if (_soldShrank(oldState2, st)) {
+          return jres(409, { ok:false, error:'SOLD_SHRANK_ABORT' });
+        }
+        //new
         got = await ghGetFile(STATE_PATH);
         sha = got.sha;
         st = parseState(got.content);
@@ -316,15 +311,6 @@ exports.handler = async (event) => {
         }
 
         const content2 = JSON.stringify(st, null, 2);
-        // juste avant d’écrire newState
-        const oldState = parseState(got.content || '{}'); // tu l’as déjà dans la plupart des handlers
-        const oldSoldCount = Object.keys(oldState.sold || {}).length;
-        const newSoldCount = Object.keys(newState.sold || {}).length;
-        if (newSoldCount < oldSoldCount) {
-          // on n’écrit pas → quelque chose aurait écrasé l’historique
-          return jres(409, { ok:false, error:'SOLD_SHRANK_ABORT' });
-        }
-
         await ghPutFile(STATE_PATH, content2, got.sha, `reserve(retry) ${locked2.length} by ${uid} -> ${regionId2}`);
 
         return jres(200, {

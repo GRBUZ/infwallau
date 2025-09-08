@@ -165,14 +165,6 @@ exports.handler = async (event) => {
           uid: reg.uid || uid
         };
         try {
-          // juste avant d’écrire newState
-          const oldState = parseState(got.content || '{}'); // tu l’as déjà dans la plupart des handlers
-          const oldSoldCount = Object.keys(oldState.sold || {}).length;
-          const newSoldCount = Object.keys(newState.sold || {}).length;
-          if (newSoldCount < oldSoldCount) {
-            // on n’écrit pas → quelque chose aurait écrasé l’historique
-            return jres(409, { ok:false, error:'SOLD_SHRANK_ABORT' });
-          }
           await ghPutJson(STATE_PATH, st, got.sha, `chore: set imageUrl for ${regionId}`);
         } catch (errPut) {
           // retry simple si 409 (recharge puis réécrit)
@@ -182,15 +174,6 @@ exports.handler = async (event) => {
             st2.regions = st2.regions || {};
             const reg2  = st2.regions[regionId] || {};
             st2.regions[regionId] = { ...reg2, imageUrl, uid: reg2.uid || uid };
-            // juste avant d’écrire newState
-            const oldState = parseState(got.content || '{}'); // tu l’as déjà dans la plupart des handlers
-            const oldSoldCount = Object.keys(oldState.sold || {}).length;
-            const newSoldCount = Object.keys(newState.sold || {}).length;
-            if (newSoldCount < oldSoldCount) {
-              // on n’écrit pas → quelque chose aurait écrasé l’historique
-              return jres(409, { ok:false, error:'SOLD_SHRANK_ABORT' });
-            }
-
             await ghPutJson(STATE_PATH, st2, got2.sha, `chore: set imageUrl for ${regionId} (retry)`);
           } else {
             // ne bloque pas l’upload si l’écriture JSON échoue
