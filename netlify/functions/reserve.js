@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const GH_REPO   = process.env.GH_REPO;
 const GH_TOKEN  = process.env.GH_TOKEN;
 const GH_BRANCH = process.env.GH_BRANCH || 'main';
-const PATH_JSON = process.env.PATH_JSON || 'data/state.json';
+const STATE_PATH = process.env.STATE_PATH || "data/state.json";
 
 const API_BASE = 'https://api.github.com';
 
@@ -164,7 +164,7 @@ exports.handler = async (event) => {
     if (!uid || blocks.length===0) return jres(400, { ok:false, error:'MISSING_FIELDS' });
 
     // Read state
-    let got = await ghGetFile(PATH_JSON);
+    let got = await ghGetFile(STATE_PATH);
     let sha = got.sha;
     let st = parseState(got.content);
     st.locks = pruneLocks(st.locks);
@@ -239,11 +239,11 @@ exports.handler = async (event) => {
     // Commit
     const newContent = JSON.stringify(st, null, 2);
     try {
-      await ghPutFile(PATH_JSON, newContent, sha, `reserve ${locked.length} blocks by ${uid} -> ${regionId}`);
+      await ghPutFile(STATE_PATH, newContent, sha, `reserve ${locked.length} blocks by ${uid} -> ${regionId}`);
     } catch (e) {
       // Retry once on conflict
       if (String(e).includes('GITHUB_PUT_FAILED 409')) {
-        got = await ghGetFile(PATH_JSON);
+        got = await ghGetFile(STATE_PATH);
         sha = got.sha;
         st = parseState(got.content);
         st.locks = pruneLocks(st.locks);
@@ -307,7 +307,7 @@ exports.handler = async (event) => {
         }
 
         const content2 = JSON.stringify(st, null, 2);
-        await ghPutFile(PATH_JSON, content2, got.sha, `reserve(retry) ${locked2.length} by ${uid} -> ${regionId2}`);
+        await ghPutFile(STATE_PATH, content2, got.sha, `reserve(retry) ${locked2.length} by ${uid} -> ${regionId2}`);
 
         return jres(200, {
           ok: true,

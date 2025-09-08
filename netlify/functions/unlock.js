@@ -3,7 +3,7 @@ const { requireAuth } = require('./auth-middleware');
 const GH_REPO   = process.env.GH_REPO;
 const GH_TOKEN  = process.env.GH_TOKEN;
 const GH_BRANCH = process.env.GH_BRANCH || 'main';
-const PATH_JSON = process.env.PATH_JSON || 'data/state.json';
+const STATE_PATH = process.env.STATE_PATH || "data/state.json";
 
 const API_BASE = 'https://api.github.com';
 
@@ -146,7 +146,7 @@ exports.handler = async (event) => {
     if (!uid || blocks.length===0) return jres(400, { ok:false, error:'MISSING_FIELDS' });
 
     // 1) Lire l'état courant
-    let got = await ghGetFile(PATH_JSON);
+    let got = await ghGetFile(STATE_PATH);
     let sha = got.sha;
     let st = parseState(got.content);
     st.locks = pruneLocks(st.locks);
@@ -167,14 +167,14 @@ exports.handler = async (event) => {
     // 3) Commit
     const newContent = JSON.stringify(st, null, 2);
     try {
-      await ghPutFile(PATH_JSON, newContent, sha, `unlock ${blocks.length} by ${uid}`);
+      await ghPutFile(STATE_PATH, newContent, sha, `unlock ${blocks.length} by ${uid}`);
       // Important: renvoyer la map complète de locks après commit
       return jres(200, { ok:true, locks: st.locks });
     } catch (e) {
       // 409 GitHub: re-fetch, re-appliquer les suppressions, re-commit
       if (String(e).includes('GITHUB_PUT_FAILED 409')) {
         // Recharger l'état le plus frais
-        got = await ghGetFile(PATH_JSON);
+        got = await ghGetFile(STATE_PATH);
         sha = got.sha;
         let st2 = parseState(got.content);
         st2.locks = pruneLocks(st2.locks);
@@ -189,7 +189,7 @@ exports.handler = async (event) => {
 
         if (changed2) {
           const content2 = JSON.stringify(st2, null, 2);
-          await ghPutFile(PATH_JSON, content2, sha, `unlock(retry) ${blocks.length} by ${uid}`);
+          await ghPutFile(STATE_PATH, content2, sha, `unlock(retry) ${blocks.length} by ${uid}`);
         }
         // Renvoyer l'état frais (qu'il ait changé ou pas)
         return jres(200, { ok:true, locks: st2.locks });
