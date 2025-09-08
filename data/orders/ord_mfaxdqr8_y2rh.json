@@ -1,5 +1,5 @@
 {
-  "status": "pending",
+  "status": "completed",
   "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
   "name": "tata",
   "linkUrl": "https://tata.insta.com/",
@@ -1570,5 +1570,7 @@
   "amount": null,
   "currency": "USD",
   "createdAt": 1757324076122,
-  "expiresAt": 1757325276122
+  "expiresAt": 1757325276122,
+  "updatedAt": 1757324079914,
+  "finalImageUrl": "https://raw.githubusercontent.com/GRBUZ/infwallau/main/assets/images/r_mfaxdqr8_xqib/Capture-d__cran-2024-07-22-160340_1757324074983_gah8z2.png"
 }
