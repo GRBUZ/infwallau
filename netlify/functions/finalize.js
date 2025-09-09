@@ -46,13 +46,6 @@ function genRegionId(uid, blocks){
   return crypto.createHash('sha1').update(seed).digest('hex').slice(0, 12);
 }
 
-//new
-function _countSold(s){ return Object.keys((s && s.sold) || {}).length; }
-function _soldShrank(oldState, nextState){
-  return _countSold(nextState) < _countSold(oldState);
-}
-//new
-
 async function ghGetJson(path){
   const r = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${GH_BRANCH}`, {
     headers: { "Authorization": `Bearer ${GH_TOKEN}`, "Accept":"application/vnd.github+json" }
@@ -161,21 +154,9 @@ exports.handler = async (event) => {
 
     // 5) Commit (avec retry 409)
     try {
-      //new
-      const oldState = state0 || { sold:{}, locks:{}, regions:{} };
-      if (_soldShrank(oldState, state)) {
-        return bad(409, "SOLD_SHRANK_ABORT");
-      }
-      //new
       await ghPutJson(STATE_PATH, state, sha, `finalize ${validatedBlocks.length} -> ${regionId}`);
     } catch (error) {
       if (String(error.message || error).includes('409')) {
-        //new
-        const oldState2 = freshState || { sold:{}, locks:{}, regions:{} };
-        if (_soldShrank(oldState2, merged)) {
-          return bad(409, "SOLD_SHRANK_ABORT");
-        }
-        //new
         const { json: freshState, sha: freshSha } = await ghGetJson(STATE_PATH);
         const merged = freshState || { sold:{}, locks:{}, regions:{} };
         merged.locks   = pruneLocks(merged.locks || {});
@@ -205,12 +186,6 @@ exports.handler = async (event) => {
           merged.sold[idx] = { name: validatedName, linkUrl: validatedLinkUrl, ts: ts2, regionId };
           if (merged.locks) delete merged.locks[idx];
         }
-        //new
-       const oldState = state0 || { sold:{}, locks:{}, regions:{} };
-        if (_soldShrank(oldState, state)) {
-          return bad(409, "SOLD_SHRANK_ABORT");
-        }
-        //new
         await ghPutJson(STATE_PATH, merged, freshSha, `finalize(retry) ${validatedBlocks.length} -> ${regionId}`);
       } else {
         throw error;

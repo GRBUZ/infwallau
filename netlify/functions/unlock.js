@@ -15,79 +15,97 @@ function jres(status, obj) {
   };
 }
 
-/*async function ghGetFile(path) {
-  const url = `${API_BASE}/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(GH_BRANCH)}`;
-  const r = await fetch(url, {
-    headers: {
-      'Authorization': `token ${GH_TOKEN}`,
-      'User-Agent': 'netlify-fn',
-      'Accept': 'application/vnd.github+json'
-    }
-  });
-  if (r.status === 404) return { sha: null, content: null, status: 404 };
-  if (!r.ok) throw new Error(`GITHUB_GET_FAILED ${r.status}`);
-  const data = await r.json();
-  const buf = Buffer.from(data.content, data.encoding || 'base64');
-  return { sha: data.sha, content: buf.toString('utf8'), status: 200 };
-}*/
 async function ghGetFile(path) {
-  const url = `${API_BASE}/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(GH_BRANCH)}`;
+  const baseUrl = `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(GH_BRANCH)}`;
   const headers = {
     'Authorization': `token ${GH_TOKEN}`,
-    'User-Agent'   : 'netlify-fn',
-    'Accept'       : 'application/vnd.github+json'
+    'User-Agent': 'netlify-fn',
+    'Accept': 'application/vnd.github+json'
   };
 
-  const r = await fetch(url, { headers });
-  if (r.status === 404) return { sha: null, content: null, status: 404 };
-  if (!r.ok) throw new Error(`GITHUB_GET_FAILED ${r.status}`);
+  try {
+    // 1) D'abord, essayer l'API Contents classique
+    const r = await fetch(baseUrl, { headers });
+    if (r.status === 404) return { sha: null, content: null, status: 404 };
+    if (!r.ok) throw new Error(`GITHUB_GET_FAILED ${r.status}`);
 
-  const data = await r.json();
+    const data = await r.json();
 
-  // Cas normal: content + base64
-  if (typeof data.content === 'string' && String(data.encoding).toLowerCase() === 'base64') {
-    const buf = Buffer.from(data.content, 'base64');
-    return { sha: data.sha, content: buf.toString('utf8'), status: 200 };
-  }
-
-  // Fallback 1: Git Blob API (fiable pour gros fichiers)
-  if (data.sha) {
-    const r2 = await fetch(`${API_BASE}/repos/${GH_REPO}/git/blobs/${data.sha}`, { headers });
-    if (r2.ok) {
-      const blob = await r2.json(); // { content, encoding: 'base64' | ... }
-      const txt = String(blob.encoding).toLowerCase() === 'base64'
-        ? Buffer.from(blob.content || '', 'base64').toString('utf8')
-        : String(blob.content || '');
-      return { sha: data.sha, content: txt, status: 200 };
+    // 2) Si le fichier est petit et en base64, décoder directement
+    if (typeof data.content === 'string' && 
+        String(data.encoding).toLowerCase() === 'base64' &&
+        Number(data.size || 0) < 800000) { // 800KB limite sécurisée
+      const buf = Buffer.from(data.content, 'base64');
+      return { sha: data.sha, content: buf.toString('utf8'), status: 200 };
     }
-  }
 
-  // Fallback 2: download_url (suffit souvent pour repo public)
-  if (data.download_url) {
-    const r3 = await fetch(data.download_url, { headers: { 'User-Agent': 'netlify-fn' } });
-    if (!r3.ok) throw new Error(`GITHUB_RAW_FAILED ${r3.status}`);
-    const text = await r3.text();
-    return { sha: data.sha || null, content: text, status: 200 };
-  }
+    // 3) Pour gros fichiers : utiliser l'API RAW directement
+    console.log(`[ghGetFile] File too large (${data.size} bytes), using RAW API`);
+    const rawUrl = baseUrl.replace('/contents/', '/contents/') + '&raw=1';
+    const rawHeaders = {
+      ...headers,
+      'Accept': 'application/vnd.github.raw'
+    };
+    
+    const rawRes = await fetch(rawUrl, { headers: rawHeaders });
+    if (!rawRes.ok) {
+      // Fallback vers download_url si disponible
+      if (data.download_url) {
+        console.log('[ghGetFile] Using download_url fallback');
+        const dlRes = await fetch(data.download_url, { 
+          headers: { 'User-Agent': 'netlify-fn' }
+        });
+        if (dlRes.ok) {
+          const text = await dlRes.text();
+          return { sha: data.sha || null, content: text, status: 200 };
+        }
+      }
+      throw new Error(`GITHUB_RAW_FAILED ${rawRes.status}`);
+    }
 
-  // Ultime: si on a quand même un string, on le prend tel quel
-  if (typeof data.content === 'string') {
-    return { sha: data.sha || null, content: data.content, status: 200 };
-  }
+    const text = await rawRes.text();
+    return { sha: data.sha, content: text, status: 200 };
 
-  throw new Error('GITHUB_GET_FAILED unknown content encoding');
+  } catch (error) {
+    console.error(`[ghGetFile] Error loading ${path}:`, error);
+    
+    // 4) Ultime fallback : essayer l'URL RAW GitHub directe
+    try {
+      console.log('[ghGetFile] Trying direct RAW URL fallback');
+      const directRawUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${path}`;
+      const directRes = await fetch(directRawUrl, { 
+        headers: { 'User-Agent': 'netlify-fn' }
+      });
+      
+      if (directRes.ok) {
+        const text = await directRes.text();
+        return { sha: null, content: text, status: 200 }; // Pas de SHA avec cette méthode
+      }
+    } catch (fallbackError) {
+      console.error('[ghGetFile] All fallbacks failed:', fallbackError);
+    }
+    
+    throw error; // Remonter l'erreur originale
+  }
 }
-
 
 async function ghPutFile(path, content, sha, message) {
   const url = `${API_BASE}/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`;
+  
+  // Vérifier la taille du contenu
+  const contentSize = Buffer.from(content, 'utf8').length;
+  if (contentSize > 1048576) { // 1MB
+    console.warn(`[WARNING] File ${path} is ${contentSize} bytes - may fail`);
+  }
+  
   const body = {
-    message,
+    message: message || `Update ${path}`,
     content: Buffer.from(content, 'utf8').toString('base64'),
     branch: GH_BRANCH
   };
   if (sha) body.sha = sha;
-  const r = await fetch(url, {
+  
+  const options = {
     method: 'PUT',
     headers: {
       'Authorization': `token ${GH_TOKEN}`,
@@ -95,11 +113,18 @@ async function ghPutFile(path, content, sha, message) {
       'Accept': 'application/vnd.github+json',
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(body)
-  });
-  if (!r.ok) throw new Error(`GITHUB_PUT_FAILED ${r.status}`);
+    body: JSON.stringify(body),
+    timeout: 60000 // 60s timeout pour gros fichiers
+  };
+  
+  const r = await fetch(url, options);
+  if (!r.ok) {
+    const errorText = await r.text().catch(() => 'unknown');
+    throw new Error(`GITHUB_PUT_FAILED ${r.status}: ${errorText}`);
+  }
+  
   const data = await r.json();
-  return data.content.sha;
+  return data.content?.sha || sha;
 }
 
 function parseState(raw) {
