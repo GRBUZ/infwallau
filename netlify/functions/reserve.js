@@ -25,71 +25,55 @@ async function ghGetFile(path) {
   };
 
   try {
-    // 1) D'abord, essayer l'API Contents classique
+    // 1) Essayer l'API Contents d'abord
     const r = await fetch(baseUrl, { headers });
     if (r.status === 404) return { sha: null, content: null, status: 404 };
     if (!r.ok) throw new Error(`GITHUB_GET_FAILED ${r.status}`);
 
     const data = await r.json();
+    const fileSize = Number(data.size || 0);
 
-    // 2) Si le fichier est petit et en base64, décoder directement
-    if (typeof data.content === 'string' && 
-        String(data.encoding).toLowerCase() === 'base64' &&
-        Number(data.size || 0) < 800000) { // 800KB limite sécurisée
+    // 2) Si le fichier est gros, utiliser l'URL RAW
+    if (fileSize > 800000) {
+      console.log(`[RESERVE] Large file detected (${Math.round(fileSize/1024)}KB), using RAW URL`);
+      const rawUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${path}`;
+      const rawRes = await fetch(rawUrl, { 
+        headers: { 'User-Agent': 'netlify-fn' },
+        timeout: 60000
+      });
+      if (rawRes.ok) {
+        const text = await rawRes.text();
+        return { sha: data.sha, content: text, status: 200 };
+      } else {
+        console.error(`[RESERVE] RAW URL failed: ${rawRes.status}`);
+      }
+    }
+
+    // 3) Fichier normal via base64
+    if (typeof data.content === 'string' && data.encoding === 'base64') {
       const buf = Buffer.from(data.content, 'base64');
       return { sha: data.sha, content: buf.toString('utf8'), status: 200 };
     }
 
-    // 3) Pour gros fichiers : utiliser l'API RAW directement
-    console.log(`[ghGetFile] File too large (${data.size} bytes), using RAW API`);
-    const rawUrl = baseUrl.replace('/contents/', '/contents/') + '&raw=1';
-    const rawHeaders = {
-      ...headers,
-      'Accept': 'application/vnd.github.raw'
-    };
-    
-    const rawRes = await fetch(rawUrl, { headers: rawHeaders });
-    if (!rawRes.ok) {
-      // Fallback vers download_url si disponible
-      if (data.download_url) {
-        console.log('[ghGetFile] Using download_url fallback');
-        const dlRes = await fetch(data.download_url, { 
-          headers: { 'User-Agent': 'netlify-fn' }
-        });
-        if (dlRes.ok) {
-          const text = await dlRes.text();
-          return { sha: data.sha || null, content: text, status: 200 };
-        }
-      }
-      throw new Error(`GITHUB_RAW_FAILED ${rawRes.status}`);
-    }
-
-    const text = await rawRes.text();
-    return { sha: data.sha, content: text, status: 200 };
-
-  } catch (error) {
-    console.error(`[ghGetFile] Error loading ${path}:`, error);
-    
-    // 4) Ultime fallback : essayer l'URL RAW GitHub directe
-    try {
-      console.log('[ghGetFile] Trying direct RAW URL fallback');
-      const directRawUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${path}`;
-      const directRes = await fetch(directRawUrl, { 
+    // 4) Fallback vers download_url si disponible
+    if (data.download_url) {
+      console.log('[RESERVE] Using download_url fallback');
+      const dlRes = await fetch(data.download_url, { 
         headers: { 'User-Agent': 'netlify-fn' }
       });
-      
-      if (directRes.ok) {
-        const text = await directRes.text();
-        return { sha: null, content: text, status: 200 }; // Pas de SHA avec cette méthode
+      if (dlRes.ok) {
+        const text = await dlRes.text();
+        return { sha: data.sha, content: text, status: 200 };
       }
-    } catch (fallbackError) {
-      console.error('[ghGetFile] All fallbacks failed:', fallbackError);
     }
-    
-    throw error; // Remonter l'erreur originale
+
+    throw new Error('GITHUB_GET_FAILED - no valid content method worked');
+
+  } catch (error) {
+    console.error(`[RESERVE] Error loading ${path}:`, error.message);
+    throw error;
   }
 }
-
 
 async function ghPutFile(path, content, sha, message) {
   const url = `${API_BASE}/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`;

@@ -16,7 +16,7 @@ function jres(status, obj) {
 }
 
 async function ghGetFile(path) {
-  const baseUrl = `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(GH_BRANCH)}`;
+  const url = `${API_BASE}/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(GH_BRANCH)}`;
   const headers = {
     'Authorization': `token ${GH_TOKEN}`,
     'User-Agent': 'netlify-fn',
@@ -24,68 +24,43 @@ async function ghGetFile(path) {
   };
 
   try {
-    // 1) D'abord, essayer l'API Contents classique
-    const r = await fetch(baseUrl, { headers });
+    const r = await fetch(url, { headers });
     if (r.status === 404) return { sha: null, content: null, status: 404 };
     if (!r.ok) throw new Error(`GITHUB_GET_FAILED ${r.status}`);
 
     const data = await r.json();
+    const fileSize = Number(data.size || 0);
 
-    // 2) Si le fichier est petit et en base64, décoder directement
-    if (typeof data.content === 'string' && 
-        String(data.encoding).toLowerCase() === 'base64' &&
-        Number(data.size || 0) < 800000) { // 800KB limite sécurisée
+    // Pour gros fichiers, utiliser RAW
+    if (fileSize > 800000) {
+      console.log(`[UNLOCK] Large file (${Math.round(fileSize/1024)}KB), using RAW`);
+      const rawUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${path}`;
+      const rawRes = await fetch(rawUrl, { headers: { 'User-Agent': 'netlify-fn' } });
+      if (rawRes.ok) {
+        const text = await rawRes.text();
+        return { sha: data.sha, content: text, status: 200 };
+      }
+    }
+
+    // Fichier normal
+    if (typeof data.content === 'string' && data.encoding === 'base64') {
       const buf = Buffer.from(data.content, 'base64');
       return { sha: data.sha, content: buf.toString('utf8'), status: 200 };
     }
 
-    // 3) Pour gros fichiers : utiliser l'API RAW directement
-    console.log(`[ghGetFile] File too large (${data.size} bytes), using RAW API`);
-    const rawUrl = baseUrl.replace('/contents/', '/contents/') + '&raw=1';
-    const rawHeaders = {
-      ...headers,
-      'Accept': 'application/vnd.github.raw'
-    };
-    
-    const rawRes = await fetch(rawUrl, { headers: rawHeaders });
-    if (!rawRes.ok) {
-      // Fallback vers download_url si disponible
-      if (data.download_url) {
-        console.log('[ghGetFile] Using download_url fallback');
-        const dlRes = await fetch(data.download_url, { 
-          headers: { 'User-Agent': 'netlify-fn' }
-        });
-        if (dlRes.ok) {
-          const text = await dlRes.text();
-          return { sha: data.sha || null, content: text, status: 200 };
-        }
+    // Fallback download_url
+    if (data.download_url) {
+      const dlRes = await fetch(data.download_url, { headers: { 'User-Agent': 'netlify-fn' } });
+      if (dlRes.ok) {
+        const text = await dlRes.text();
+        return { sha: data.sha, content: text, status: 200 };
       }
-      throw new Error(`GITHUB_RAW_FAILED ${rawRes.status}`);
     }
 
-    const text = await rawRes.text();
-    return { sha: data.sha, content: text, status: 200 };
-
+    throw new Error('No valid content method worked');
   } catch (error) {
-    console.error(`[ghGetFile] Error loading ${path}:`, error);
-    
-    // 4) Ultime fallback : essayer l'URL RAW GitHub directe
-    try {
-      console.log('[ghGetFile] Trying direct RAW URL fallback');
-      const directRawUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${path}`;
-      const directRes = await fetch(directRawUrl, { 
-        headers: { 'User-Agent': 'netlify-fn' }
-      });
-      
-      if (directRes.ok) {
-        const text = await directRes.text();
-        return { sha: null, content: text, status: 200 }; // Pas de SHA avec cette méthode
-      }
-    } catch (fallbackError) {
-      console.error('[ghGetFile] All fallbacks failed:', fallbackError);
-    }
-    
-    throw error; // Remonter l'erreur originale
+    console.error(`[UNLOCK] Error loading ${path}:`, error);
+    throw error;
   }
 }
 
