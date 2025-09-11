@@ -122,16 +122,6 @@
     }
   }
   function paintAll(){
-      // Vérification défensive
-    if (!sold || typeof sold !== 'object') {
-      console.error('[paintAll] CRITICAL: sold is invalid:', sold);
-      sold = {};
-    }
-    if (!locks || typeof locks !== 'object') {
-      console.warn('[paintAll] locks is invalid, resetting:', locks);
-      locks = {};
-    }
-
     for(let i=0;i<N*N;i++) paintCell(i);
     refreshTopbar();
   }
@@ -220,36 +210,6 @@
     toggleCell(idx);
   });
 
-  window.__debugState = function() {
-  const soldCount = Object.keys(window.sold || {}).length;
-  const regionsCount = Object.keys(window.regions || {}).length;
-  const locksCount = Object.keys(window.locks || {}).length;
-  
-  console.group('[DEBUG] Current State');
-  console.log('Sold blocks:', soldCount, window.sold);
-  console.log('Regions:', regionsCount, window.regions);
-  console.log('Locks:', locksCount, window.locks);
-  console.log('Selected:', Array.from(selected));
-  console.log('Current lock:', currentLock);
-  console.log('UID:', uid);
-  console.groupEnd();
-  
-  // Vérifier la cohérence
-  const warnings = [];
-  if (soldCount === 0 && regionsCount > 0) {
-    warnings.push('No sold blocks but regions exist');
-  }
-  if (soldCount > 0 && regionsCount === 0) {
-    warnings.push('Sold blocks exist but no regions');
-  }
-  
-  if (warnings.length > 0) {
-    console.warn('[DEBUG] Data inconsistencies detected:', warnings);
-  }
-  
-  return { soldCount, regionsCount, locksCount, warnings };
-};
-
   // === Garde-fous d’expiration côté client ===
   function haveMyValidLocks(arr, graceMs = 500){
     if (!arr || !arr.length) return false;
@@ -273,6 +233,14 @@
       confirmBtn.disabled = !ok;
       confirmBtn.textContent = ok ? 'Confirm' : 'Reservation expired — reselect';
     }, 1500);
+
+    /*modalLockTimer = setInterval(()=>{
+      const blocks = currentLock.length ? currentLock : Array.from(selected);
+      const ok = haveMyValidLocks(blocks);
+      confirmBtn.disabled = !ok;
+      if (!ok) confirmBtn.textContent = 'Reservation expired — reselect';
+      else     confirmBtn.textContent = 'Confirm';
+    }, 1500);*/
   }
   function stopModalMonitor(){
     if (modalLockTimer){ clearInterval(modalLockTimer); modalLockTimer = null; }
@@ -413,13 +381,13 @@
       const s = await apiCall('/status');
       if (!s || !s.ok) return;
 
-      if (s && s.ok) {
-        // Toujours prendre les données du serveur (c'est la vérité)
-        sold = s.sold || {};
-        window.sold = sold;
-        
-        // Log pour diagnostiquer
-        console.log(`[loadStatus] Loaded ${Object.keys(sold).length} sold blocks from server`);
+      //sold = s.sold || {};
+      if (s && s.sold && typeof s.sold === 'object') {
+        const isEmpty = Object.keys(s.sold).length === 0;
+        const hasRegions = s.regions && Object.keys(s.regions).length > 0;
+        if (!isEmpty || !hasRegions) {
+          sold = s.sold;
+        }
       }
 
       window.sold = sold;
@@ -430,6 +398,13 @@
       window.regions = s.regions || {};
       if (typeof window.renderRegions === 'function') window.renderRegions();
 
+      // Si le modal est ouvert et que mes locks ont sauté → désactiver confirm
+      /*if (!modal.classList.contains('hidden')) {
+        const blocks = currentLock.length ? currentLock : Array.from(selected);
+        const ok = haveMyValidLocks(blocks);
+        confirmBtn.disabled = !ok;
+        if (!ok) confirmBtn.textContent = 'Reservation expired — reselect';
+      }*/
       // If the modal is open and my locks expired, disable confirm
       if (!modal.classList.contains('hidden')) {
         // 👉 Don't touch while finalize flow is running
@@ -441,15 +416,11 @@
           else     confirmBtn.textContent = 'Confirm';
         }
       }
+
+
       paintAll();
     } catch (e) {
       console.warn('[status] failed', e);
-      console.error('[loadStatus] CRITICAL ERROR:', e);
-    
-      // En cas d'erreur critique, diagnostiquer
-      if (typeof window.Errors !== 'undefined' && window.Errors.notifyError) {
-        window.Errors.notifyError(e, 'Load Status');
-      }
     }
   }
 

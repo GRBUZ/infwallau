@@ -5,8 +5,8 @@
   // ===================
   // Helpers robustes d'erreurs (non-breaking)
   // ===================
-  const CORE_TIMEOUT_MS = 60000;   // Mettre 0 pour désactiver le timeout
-  const CORE_RETRIES    = 1;       // Retries sur erreurs transitoires (en plus du refresh 401)
+  const CORE_TIMEOUT_MS = 20000;   // Mettre 0 pour désactiver le timeout
+  const CORE_RETRIES    = 2;       // Retries sur erreurs transitoires (en plus du refresh 401)
 
   // --- NEW: anti-spam + offline awareness (léger, auto-contenu)
   const NOTIFY_COOLDOWN_MS = 8000;           // évite les toasts répétés pendant X ms
@@ -24,15 +24,10 @@
     __offlineFirstNotified = false;
   });
 
-  /*function cm_isRetriableStatus(status){
-    return status === 0 || status === 408 || status === 429 || status === 502 || status === 503 || status === 504;
-  }*/
   function cm_isRetriableStatus(status){
-    // ✅ Plus conservateur : éviter de retry sur 409 côté client
+    // (on laisse 409 en non-retriable ici côté client, pour éviter le spam)
     return status === 0 || status === 408 || status === 429 || status === 502 || status === 503 || status === 504;
-    // Note: 409 retiré pour éviter les conflits en boucle
   }
-
   function cm_guessCode(status){
     if (status === 401) return 'AUTH_REQUIRED';
     if (status === 403) return 'FORBIDDEN';
@@ -230,108 +225,76 @@
     }
 
     async call(endpoint, options = {}) {
-  const url = `${this.BASE_URL}${endpoint}`;
-  const headers = await this._buildHeaders(options);
-  const baseConfig = {
-    ...options,
-    headers,
-    credentials: 'same-origin'
-  };
+      const url = `${this.BASE_URL}${endpoint}`;
+      const headers = await this._buildHeaders(options);
+      const baseConfig = {
+        ...options,
+        headers,
+        credentials: 'same-origin'
+      };
 
-  let attempt = 0;
-  let refreshedOnce = false;
-  const maxAttempts = Math.max(this.MAX_RETRIES, CORE_RETRIES);
+      let attempt = 0;
+      let refreshedOnce = false;
 
-  while (attempt <= maxAttempts) {
-    try {
-      // ✅ Log pour diagnostiquer
-      if (attempt > 0) {
-        console.warn(`[API] ${endpoint} retry attempt ${attempt}`);
-      }
-      
-      const response = await this._fetchWithTimeout(url, baseConfig);
-
-      // 401 → tenter un refresh une seule fois
-      if (response.status === 401 && !refreshedOnce && window.AuthUtils) {
-        console.warn('[API] Token expired, refreshing...');
+      while (attempt <= Math.max(this.MAX_RETRIES, CORE_RETRIES)) {
         try {
-          localStorage.removeItem('iw_jwt');
-          const newAuthHeaders = await this.getAuthHeaders();
-          baseConfig.headers = { ...baseConfig.headers, ...newAuthHeaders };
-          refreshedOnce = true;
-          continue; // Ne pas compter comme un attempt
+          const response = await this._fetchWithTimeout(url, baseConfig);
+
+          // 401 → tenter un refresh une seule fois avant de continuer les retries transitoires
+          if (response.status === 401 && !refreshedOnce && window.AuthUtils) {
+            console.warn('[API] Token expired, refreshing...');
+            try {
+              localStorage.removeItem('iw_jwt');
+              const newAuthHeaders = await this.getAuthHeaders();
+              baseConfig.headers = { ...baseConfig.headers, ...newAuthHeaders };
+              refreshedOnce = true;
+              // on ne compte pas ce cas comme un "attempt" de transport; on re-tente immédiatement
+              continue;
+            } catch (e) {
+              console.error('[API] Auth refresh failed:', e);
+              // On laisse passer vers la gestion générique ci-dessous
+            }
+          }
+
+          const contentType = response.headers.get && response.headers.get('content-type') || '';
+          const isJson = contentType.includes('application/json');
+
+          // Tenter de parser quoi qu'il arrive (même si !ok, on renvoie payload pour rester compatible)
+          let payload = null;
+          try { payload = isJson ? await response.json() : await response.text(); } catch {}
+
+          if (!response.ok) {
+            // Erreur HTTP: si transitoire, retry avec backoff
+            if (cm_isRetriableStatus(response.status) && attempt < CORE_RETRIES) {
+              attempt++;
+              await cm_backoff(attempt);
+              continue;
+            }
+            // Notifier (dernier échec), puis conserver l'ancien comportement: renvoyer payload si dispo, sinon null
+            const httpErr = cm_httpError(response.status, isJson ? (payload || {}) : { error: String(payload || `HTTP ${response.status}`) });
+            cm_notifyOnce(httpErr, endpoint);
+            return isJson ? (payload || null) : null;
+          }
+
+          // OK: renvoyer le JSON (ou texte) comme avant
+          return payload !== undefined ? payload : null;
         } catch (e) {
-          console.error('[API] Auth refresh failed:', e);
+          const ne = cm_normalizeNetworkError(e);
+          if (cm_isRetriableStatus(ne.status || 0) && attempt < CORE_RETRIES) {
+            attempt++;
+            console.error(`[API] Attempt ${attempt} failed (transient):`, ne);
+            await cm_backoff(attempt);
+            continue;
+          }
+          // Dernier échec ou non-retriable → notifier et retourner null (comportement historique)
+          cm_notifyOnce(ne, endpoint);
+          return null;
         }
       }
 
-      const contentType = response.headers.get && response.headers.get('content-type') || '';
-      const isJson = contentType.includes('application/json');
-
-      let payload = null;
-      try { 
-        payload = isJson ? await response.json() : await response.text(); 
-      } catch (parseErr) {
-        console.error(`[API] Failed to parse response from ${endpoint}:`, parseErr);
-      }
-
-      if (!response.ok) {
-        // ✅ Log détaillé pour diagnostiquer
-        console.error(`[API] ${endpoint} failed:`, {
-          status: response.status,
-          statusText: response.statusText,
-          payload,
-          attempt,
-          url
-        });
-        
-        // Si transitoire et on peut retry
-        if (cm_isRetriableStatus(response.status) && attempt < maxAttempts) {
-          attempt++;
-          await cm_backoff(attempt);
-          continue;
-        }
-        
-        // Notifier (dernier échec)
-        const httpErr = cm_httpError(response.status, isJson ? (payload || {}) : { error: String(payload || `HTTP ${response.status}`) });
-        cm_notifyOnce(httpErr, endpoint);
-        return isJson ? (payload || null) : null;
-      }
-
-      // ✅ Succès - log si c'était un retry
-      if (attempt > 0) {
-        console.log(`[API] ${endpoint} succeeded after ${attempt} retries`);
-      }
-
-      return payload !== undefined ? payload : null;
-      
-    } catch (e) {
-      const ne = cm_normalizeNetworkError(e);
-      
-      // ✅ Log détaillé pour diagnostiquer
-      console.error(`[API] ${endpoint} network error:`, {
-        error: ne.message,
-        status: ne.status,
-        attempt,
-        maxAttempts
-      });
-      
-      if (cm_isRetriableStatus(ne.status || 0) && attempt < maxAttempts) {
-        attempt++;
-        await cm_backoff(attempt);
-        continue;
-      }
-      
-      // Dernier échec
-      cm_notifyOnce(ne, endpoint);
+      // Exhausted (ne devrait pas arriver)
       return null;
     }
-  }
-
-  // Ne devrait jamais arriver
-  console.error(`[API] ${endpoint} exhausted all attempts`);
-  return null;
-}
 
     async callMultipart(endpoint, formData, options = {}) {
       const url = `${this.BASE_URL}${endpoint}`;
