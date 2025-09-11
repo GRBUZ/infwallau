@@ -143,6 +143,126 @@
       "linkUrl": "https://tota2t.com/",
       "ts": 1757606224831,
       "regionId": "r_mffld3la_aovv"
+    },
+    "847": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "848": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "849": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "850": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "947": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "948": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "949": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "950": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "1047": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "1048": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "1049": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "1050": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "1147": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "1148": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "1149": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "1150": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "1247": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "1248": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "1249": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
+    },
+    "1250": {
+      "name": "bouzzydd",
+      "linkUrl": "https://tota2t.com/",
+      "ts": 1757607149837,
+      "regionId": "r_mfflwy0w_d3b8"
     }
   },
   "locks": {},
@@ -155,6 +275,15 @@
         "h": 4
       },
       "imageUrl": "https://hdrexzoojlugivozfapo.supabase.co/storage/v1/object/public/images/regions/r_mffld3la_aovv/Capture-d__cran-2024-06-20-230224_1757606220532_r5a0x4.png"
+    },
+    "r_mfflwy0w_d3b8": {
+      "rect": {
+        "x": 47,
+        "y": 8,
+        "w": 4,
+        "h": 5
+      },
+      "imageUrl": "https://hdrexzoojlugivozfapo.supabase.co/storage/v1/object/public/images/regions/r_mfflwy0w_d3b8/Capture-d__cran-2025-08-17-124837_1757607146484_vxaatu.png"
     }
   }
 }
