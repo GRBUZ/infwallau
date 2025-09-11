@@ -1,32 +1,38 @@
 // netlify/functions/paypal-webhook.js
-// Webhook PayPal -> finalisation server-side (tout ou rien)
+// Webhook PayPal -> finalisation server-side (prix serveur, tout ou rien, via Supabase RPC)
+// Vérif simplifiée par secret, puis:
+//  1) charge la commande (GitHub JSON)
+//  2) vérifie pas déjà vendus / pas lockés par autre
+//  3) (ré)applique des locks pour uid (courte durée)
+//  4) calcule PRIX SERVEUR & (option) compare à paidTotal
+//  5) appelle RPC finalize_paid_order (_amount = prix serveur)
+//  6) marque la commande "completed" dans GitHub + journal prix
 
-const STATE_PATH = process.env.STATE_PATH || "data/state.json";
-const ORDERS_DIR = process.env.ORDERS_DIR || "data/orders";
+const PAYPAL_WEBHOOK_SECRET = process.env.PAYPAL_WEBHOOK_SECRET;
+
 const GH_REPO    = process.env.GH_REPO;
 const GH_TOKEN   = process.env.GH_TOKEN;
-const GH_BRANCH  = process.env.GH_BRANCH || "main";
-const PAYPAL_WEBHOOK_SECRET = process.env.PAYPAL_WEBHOOK_SECRET; // simplifié
+const GH_BRANCH  = process.env.GH_BRANCH || 'main';
+const ORDERS_DIR = process.env.ORDERS_DIR || 'data/orders';
 
-function bad(status, error, extra = {}) {
+const SUPABASE_URL     = process.env.SUPABASE_URL;
+const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const { verifyPayPalWebhook } = require('./_paypal-verify');
+
+function json(status, obj){
   return {
     statusCode: status,
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
-    body: JSON.stringify({ ok: false, error, ...extra, signature: "paypal-webhook.v1" })
+    headers: { 'content-type':'application/json', 'cache-control':'no-store' },
+    body: JSON.stringify(obj)
   };
 }
-function ok(body) {
-  return {
-    statusCode: 200,
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
-    body: JSON.stringify({ ok: true, signature: "paypal-webhook.v1", ...body })
-  };
-}
+const bad = (s,e,extra={}) => json(s, { ok:false, error:e, ...extra, signature:'paypal-webhook.v2' });
+const ok  = (b)         => json(200,{ ok:true,  signature:'paypal-webhook.v2', ...b });
 
-// ---- GitHub helpers
 async function ghGetJson(path){
   const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${GH_BRANCH}`,
+    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(GH_BRANCH)}`,
     { headers: { "Authorization": `Bearer ${GH_TOKEN}`, "Accept":"application/vnd.github+json" } }
   );
   if (r.status === 404) return { json:null, sha:null };
@@ -58,174 +64,183 @@ async function ghPutJson(path, jsonData, sha, message){
   if (!r.ok) throw new Error(`GH_PUT_JSON_FAILED:${r.status}`);
   return r.json();
 }
-async function ghGetFile(path){
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${GH_BRANCH}`,
-    { headers: { "Authorization": `Bearer ${GH_TOKEN}`, "Accept":"application/vnd.github+json" } }
-  );
-  if (!r.ok) throw new Error(`GH_GET_FILE_FAILED:${r.status}`);
-  return r.json(); // { content (b64), sha, ... }
+
+function isUuid(v){
+  return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
-async function ghDeletePath(path, sha, message){
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`,
-    {
-      method: "DELETE",
-      headers: {
-        "Authorization": `Bearer ${GH_TOKEN}`,
-        "Accept":"application/vnd.github+json",
-        "Content-Type":"application/json"
-      },
-      body: JSON.stringify({ message: message || `chore: delete ${path}`, sha, branch: GH_BRANCH })
-    }
-  );
-  if (!r.ok) throw new Error(`GH_DELETE_FAILED:${r.status}`);
-  return r.json();
-}
-function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
-async function ghPutBinary(path, buffer, message){
-  const baseURL = `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`;
-  const headers = {
-    "Authorization": `Bearer ${GH_TOKEN}`,
-    "Accept": "application/vnd.github+json",
-    "Content-Type": "application/json"
-  };
-  // probe
-  let sha = null;
-  const probe = await fetch(`${baseURL}?ref=${GH_BRANCH}`, { headers });
-  if (probe.ok) {
-    const j = await probe.json();
-    sha = j.sha || null;
-  } else if (probe.status !== 404) {
-    throw new Error(`GH_GET_PROBE_FAILED:${probe.status}`);
-  }
-  const body = {
-    message: message || `feat: upload ${path}`,
-    content: Buffer.from(buffer).toString("base64"),
-    branch: GH_BRANCH
-  };
-  if (sha) body.sha = sha;
-  const put = await fetch(baseURL, { method: "PUT", headers, body: JSON.stringify(body) });
-  if (!put.ok) throw new Error(`GH_PUT_BIN_FAILED:${put.status}`);
-  return put.json();
-}
-async function ghPutBinaryWithRetry(path, buffer, message, maxAttempts = 4){
-  let last;
-  for (let i=0;i<maxAttempts;i++){
-    try { return await ghPutBinary(path, buffer, message); }
-    catch(e){
-      last = e;
-      const msg = String(e?.message || e);
-      if (msg.includes('GH_PUT_BIN_FAILED:409') && i < maxAttempts-1){
-        await sleep(120*(i+1)); continue;
-      }
-      throw e;
-    }
-  }
-  throw last || new Error('UPLOAD_MAX_RETRIES_EXCEEDED');
-}
-function toRawUrl(path){ return `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${path}`; }
 
 exports.handler = async (event) => {
   try {
     if (event.httpMethod !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
     if (!GH_REPO || !GH_TOKEN) return bad(500, "GITHUB_CONFIG_MISSING");
+    if (!SUPABASE_URL || !SUPA_SERVICE_KEY) return bad(500, "SUPABASE_CONFIG_MISSING");
 
-    // Vérif hyper simple (à durcir avec la vérif PayPal officielle)
+    // Vérif (simplifiée) du secret — à remplacer plus tard par la validation officielle PayPal
     const sig = event.headers['x-webhook-secret'] || event.headers['X-Webhook-Secret'];
     if (!sig || sig !== PAYPAL_WEBHOOK_SECRET) return bad(401, "UNAUTHORIZED");
 
-    const body = JSON.parse(event.body || '{}');
-    const orderId = String(body.orderId || "").trim();
+    let body = {};
+    try { body = JSON.parse(event.body || '{}'); } catch { return bad(400, "BAD_JSON"); }
+
+    // Payload minimal attendu: { orderId, paidTotal?, currency? }
+    const orderId   = String(body.orderId || "").trim();
+    const paidTotal = (body.paidTotal != null) ? Number(body.paidTotal) : null;
+    const currency  = (body.currency || 'USD').toUpperCase();
     if (!orderId) return bad(400, "MISSING_ORDER_ID");
 
-    // Charger l'ordre
+    // 1) Charger la commande (GitHub JSON)
     const orderPath = `${ORDERS_DIR}/${orderId}.json`;
     const { json: order, sha: orderSha } = await ghGetJson(orderPath);
     if (!order) return bad(404, "ORDER_NOT_FOUND");
 
     // Idempotence
-    if (order.status === "completed") return ok({ orderId, status: "completed" });
-
-    // --- RESOLVE image URL (Supabase ou GitHub staging)
-    let finalUrl = null;
-    const stagingPath = order.image?.repoPath;
-
-    if (stagingPath) {
-      // Legacy: promotion staging -> assets
-      const stageFile = await ghGetFile(stagingPath);
-      const contentB64 = stageFile?.content || "";
-      if (!contentB64) return bad(500, "STAGING_READ_FAILED");
-
-      const buffer = Buffer.from(contentB64, "base64");
-      const filename = stagingPath.split('/').pop();
-      const destPath = `assets/images/${order.regionId}/${filename}`;
-
-      await ghPutBinaryWithRetry(destPath, buffer, `feat: promote image for ${order.regionId}`);
-      finalUrl = toRawUrl(destPath);
-
-      try { await ghDeletePath(stagingPath, stageFile.sha, `chore: cleanup staging for ${orderId}`); } catch(_){}
-    } else {
-      // Supabase: l'image est déjà publique, prendre l'URL fournie
-      finalUrl = order.image?.url;
-      if (!finalUrl) return bad(400, "ORDER_NO_IMAGE_URL");
+    if (order.status === "completed") {
+      return ok({
+        orderId,
+        status: "completed",
+        regionId: order.regionId || order.regionDbId,
+        imageUrl: order.finalImageUrl || order.image?.url,
+        unitPrice: order.unitPrice || null,
+        total: order.total || null,
+        currency: order.currency || currency
+      });
     }
 
-    // --- ECRITURE state.json (sold + regions) avec retry 409
-    let attempts = 0, delay = 150;
-    while (attempts < 4) {
-      attempts++;
+    const uid      = String(order.uid || '').trim();
+    const name     = String(order.name || '').trim();
+    const linkUrl  = String(order.linkUrl || '').trim();
+    const blocks   = Array.isArray(order.blocks) ? order.blocks.map(n=>parseInt(n,10)).filter(Number.isFinite) : [];
+    const regionIn = String(order.regionId || '').trim();
+    const imageUrl = order.image?.url || '';
 
-      const { json: st0, sha: stSha } = await ghGetJson(STATE_PATH);
-      const st = st0 || { sold:{}, locks:{}, regions:{} };
-      st.sold   ||= {};
-      st.locks  ||= {};
-      st.regions||= {};
+    if (!uid || !name || !linkUrl || !blocks.length || !imageUrl) {
+      return bad(400, "ORDER_INVALID");
+    }
+    const regionUuid = isUuid(regionIn) ? regionIn : (await import('node:crypto')).randomUUID();
 
-      // dernière vérif dispo
-      const now = Date.now();
-      for (const idx of (order.blocks || [])) {
-        if (st.sold[idx]) {
-          const failed = { ...order, status:"failed", updatedAt: Date.now(), failReason:"ALREADY_SOLD" };
-          await ghPutJson(orderPath, failed, orderSha, `chore: order ${orderId} failed (already sold)`);
-          return bad(409, "ALREADY_SOLD");
-        }
-        const L = st.locks[idx];
-        if (L && L.until > now && L.uid && order.uid && L.uid !== order.uid) {
-          const failed = { ...order, status:"failed", updatedAt: Date.now(), failReason:"LOCKED_BY_OTHER" };
-          await ghPutJson(orderPath, failed, orderSha, `chore: order ${orderId} failed (locked by other)`);
-          return bad(409, "LOCKED_BY_OTHER");
-        }
-      }
+    // 2) Supabase client
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession:false } });
 
-      // Appliquer la vente
-      const ts = Date.now();
-      for (const idx of (order.blocks || [])) {
-        st.sold[idx] = { name: order.name, linkUrl: order.linkUrl, ts, regionId: order.regionId };
-        if (st.locks[idx]) delete st.locks[idx];
-      }
+    // 3) Conflits immédiats: déjà vendu ?
+    const { data: soldRows, error: soldErr } = await supabase
+      .from('cells').select('idx')
+      .in('idx', blocks)
+      .not('sold_at', 'is', null);
+    if (soldErr) return bad(500, 'CELLS_QUERY_FAILED', { message: soldErr.message });
+    if (soldRows && soldRows.length) {
+      const updated = { ...order, status:'failed', updatedAt: Date.now(), failReason:'ALREADY_SOLD' };
+      try { await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} failed (already sold)`); } catch {}
+      return bad(409, 'ALREADY_SOLD', { idx: Number(soldRows[0].idx) });
+    }
 
-      // Région (préserver imageUrl existante)
-      const existing = st.regions[order.regionId] || {};
-      st.regions[order.regionId] = { rect: order.rect, imageUrl: existing.imageUrl || finalUrl };
+    // 4) Conflits locks par un autre UID ?
+    const nowIso = new Date().toISOString();
+    const { data: lockRows, error: lockErr } = await supabase
+      .from('locks').select('idx, uid, until')
+      .in('idx', blocks)
+      .gt('until', nowIso)
+      .neq('uid', uid);
+    if (lockErr) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr.message });
+    if (lockRows && lockRows.length) {
+      const updated = { ...order, status:'failed', updatedAt: Date.now(), failReason:'LOCKED_BY_OTHER' };
+      try { await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} failed (locked by other)`); } catch {}
+      return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
+    }
 
-      try {
-        await ghPutJson(STATE_PATH, st, stSha, `feat: finalize order ${orderId} (${(order.blocks||[]).length} blocks)`);
-        break;
-      } catch (e) {
-        const msg = String(e?.message || e);
-        if (msg.includes('GH_PUT_JSON_FAILED:409') && attempts < 3) {
-          await sleep(delay); delay *= 2; continue;
-        }
-        return bad(500, "SERVER_ERROR", { message: msg });
+    // 5) (Ré)appliquer des locks pour l'UID de l'ordre (2 minutes)
+    //    - on ignore si déjà locké par uid (upsert écrase le until)
+    const until = new Date(Date.now() + 2*60*1000).toISOString();
+    const upsertRows = blocks.map(idx => ({ idx, uid, until }));
+    const { error: upsertErr } = await supabase.from('locks').upsert(upsertRows, { onConflict: 'idx' });
+    if (upsertErr) return bad(500, 'LOCKS_UPSERT_FAILED', { message: upsertErr.message });
+
+    // 6) PRIX SERVEUR juste avant finaliser
+    const { count, error: countErr } = await supabase
+      .from('cells')
+      .select('idx', { count:'exact', head:true })
+      .not('sold_at', 'is', null);
+    if (countErr) return bad(500, 'PRICE_QUERY_FAILED', { message: countErr.message });
+
+    const blocksSold  = count || 0;
+    const tier        = Math.floor(blocksSold / 10);                   // floor(pixelsSold/1000)
+    const unitPrice   = Math.round((1 + tier * 0.01) * 100) / 100;     // 2 décimales
+    const totalPixels = blocks.length * 100;
+    const total       = Math.round(unitPrice * totalPixels * 100) / 100;
+    const usedCurrency= (order.currency || currency || 'USD').toUpperCase();
+
+    // 7) (Option) Vérification de paiement si fourni
+    if (paidTotal != null) {
+      // Refuse si montant payé < total serveur (anti-sous-paiement)
+      if (!(Number.isFinite(paidTotal)) || paidTotal + 1e-9 < total) {
+        const updated = { ...order, status:'failed', updatedAt: Date.now(), failReason:'UNDERPAID', serverTotal: total, paidTotal, currency: usedCurrency };
+        try { await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} failed (underpaid)`); } catch {}
+        return bad(409, 'UNDERPAID', { serverTotal: total, paidTotal, currency: usedCurrency });
       }
     }
 
-    // Marquer la commande completed
-    const completed = { ...order, status:"completed", updatedAt: Date.now(), finalImageUrl: finalUrl };
-    await ghPutJson(orderPath, completed, orderSha, `chore: order ${orderId} completed`);
+    // 8) Appeler la RPC autoritaire (recalcule et refusera si PRICE_CHANGED)
+    const orderUuid = (await import('node:crypto')).randomUUID();
+    const { error: rpcErr } = await supabase.rpc('finalize_paid_order', {
+      _order_id:  orderUuid,
+      _uid:       uid,
+      _name:      name,
+      _link_url:  linkUrl,
+      _blocks:    blocks,
+      _region_id: regionUuid,
+      _image_url: imageUrl,
+      _amount:    unitPrice   // on fournit le prix serveur calculé juste avant
+    });
 
-    return ok({ orderId, status: "completed", regionId: order.regionId, imageUrl: finalUrl });
+    if (rpcErr) {
+      const msg = (rpcErr.message || '').toUpperCase();
+
+      if (msg.includes('PRICE_CHANGED')) {
+        // Recalcule et retourne le prix serveur actuel pour que le back-office/cron rejoue si besoin
+        const { count: c2 } = await supabase
+          .from('cells').select('idx', { count:'exact', head:true })
+          .not('sold_at', 'is', null);
+        const bs2   = c2 || 0;
+        const tier2 = Math.floor(bs2 / 10);
+        const up2   = Math.round((1 + tier2 * 0.01) * 100) / 100;
+        const tot2  = Math.round(up2 * totalPixels * 100) / 100;
+
+        const updated = { ...order, status:'failed', updatedAt: Date.now(), failReason:'PRICE_CHANGED', serverUnitPrice: up2, serverTotal: tot2, currency: usedCurrency };
+        try { await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} price_changed`); } catch {}
+        return bad(409, 'PRICE_CHANGED', { serverUnitPrice: up2, serverTotal: tot2, currency: usedCurrency });
+      }
+
+      if (msg.includes('LOCKS_INVALID')) {
+        const updated = { ...order, status:'failed', updatedAt: Date.now(), failReason:'LOCKS_INVALID' };
+        try { await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} failed (locks invalid)`); } catch {}
+        return bad(409, 'LOCK_MISSING_OR_EXPIRED');
+      }
+      if (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) {
+        const updated = { ...order, status:'failed', updatedAt: Date.now(), failReason:'ALREADY_SOLD' };
+        try { await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} failed (already sold)`); } catch {}
+        return bad(409, 'ALREADY_SOLD');
+      }
+      if (msg.includes('NO_BLOCKS')) return bad(400, 'NO_BLOCKS');
+
+      return bad(500, 'RPC_FINALIZE_FAILED', { message: rpcErr.message });
+    }
+
+    // 9) Succès — marquer completed + journaliser le prix utilisé
+    try {
+      const updated = {
+        ...order,
+        status: 'completed',
+        updatedAt: Date.now(),
+        finalImageUrl: imageUrl,
+        regionDbId: regionUuid,
+        unitPrice,
+        total,
+        currency: usedCurrency
+      };
+      await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} completed (supabase)`);
+    } catch(_) { /* non bloquant */ }
+
+    return ok({ orderId, status:'completed', regionId: regionUuid, imageUrl, unitPrice, total, currency: usedCurrency });
 
   } catch (e) {
     return bad(500, "SERVER_ERROR", { message: String(e?.message || e) });

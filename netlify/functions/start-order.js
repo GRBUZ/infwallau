@@ -1,5 +1,5 @@
-// netlify/functions/start-order.js — Supabase validations + upload (plus de state.json pour les checks)
-// Garde la même API: 409 ALREADY_SOLD / LOCKED_BY_OTHER, et { ok, orderId, regionId, imageUrl } en 200.
+// netlify/functions/start-order.js — Supabase validations + upload + prix serveur
+// Garde la même API et ajoute { unitPrice, total, currency } dans la réponse.
 
 const { requireAuth } = require('./auth-middleware');
 const { guardFinalizeInput } = require('./_validation');
@@ -17,14 +17,14 @@ function bad(status, error, extra = {}) {
   return {
     statusCode: status,
     headers: { "content-type": "application/json", "cache-control": "no-store" },
-    body: JSON.stringify({ ok: false, error, ...extra, signature: "start-order.supabase.v1" })
+    body: JSON.stringify({ ok: false, error, ...extra, signature: "start-order.supabase.v2" })
   };
 }
 function ok(body) {
   return {
     statusCode: 200,
     headers: { "content-type": "application/json", "cache-control": "no-store" },
-    body: JSON.stringify({ ok: true, signature: "start-order.supabase.v1", ...body })
+    body: JSON.stringify({ ok: true, signature: "start-order.supabase.v2", ...body })
   };
 }
 
@@ -52,7 +52,7 @@ function computeRect(blocks){
   return { x:minC, y:minR, w:(maxC-minC+1), h:(maxR-minR+1) };
 }
 
-// --- GitHub helpers (on garde pour journaliser l'ordre JSON comme avant)
+// --- GitHub helpers (journalise l'ordre JSON comme avant)
 async function ghPutJson(path, jsonData, sha, message){
   const pretty = JSON.stringify(jsonData, null, 2) + "\n";
   const body = {
@@ -120,7 +120,7 @@ exports.handler = async (event) => {
     const m = b64.match(/^data:[^;]+;base64,(.*)$/i);
     if (m) b64 = m[1];
 
-    // ==== Vérifs Supabase (plus de state.json) ====
+    // ==== Supabase client ====
     const { createClient } = await import('@supabase/supabase-js');
     const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession: false } });
 
@@ -150,9 +150,24 @@ exports.handler = async (event) => {
       return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
     }
 
+    // ==== (NOUVEAU) Prix côté serveur ====
+    // prix unitaire = 1 + floor(blocksSold/10)*0.01 (2 décimales)
+    const { count, error: countErr } = await supabase
+      .from('cells')
+      .select('idx', { count: 'exact', head: true })
+      .not('sold_at', 'is', null);
+    if (countErr) return bad(500, 'PRICE_QUERY_FAILED', { message: countErr.message });
+
+    const blocksSold  = count || 0;
+    const tier        = Math.floor(blocksSold / 10); // = floor(pixelsSold/1000)
+    const unitPrice   = Math.round((1 + tier * 0.01) * 100) / 100; // 2 décimales
+    const totalPixels = blocks.length * 100;
+    const total       = Math.round((unitPrice * totalPixels) * 100) / 100;
+    const currency    = 'USD';
+
     // ==== Upload image Supabase (final, pas de staging) ====
     const buffer = Buffer.from(b64, "base64");
-    const regionId = (await import('node:crypto')).randomUUID(); // aligne sur DB (uuid)
+    const regionId = (await import('node:crypto')).randomUUID(); // UUID DB
     const objectPath = `regions/${regionId}/${filename}`;
 
     const { data: upRes, error: upErr } = await supabase
@@ -165,9 +180,9 @@ exports.handler = async (event) => {
     const { data: pub } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(objectPath);
     const imageUrl = pub?.publicUrl || `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_BUCKET}/${objectPath}`;
 
-    // ==== Journaliser l'ordre pending (compat GitHub)
-    const orderId  = makeId("ord");
-    const rect     = computeRect(blocks);
+    // ==== Journaliser l'ordre pending (compat GitHub) ====
+    const orderId   = makeId("ord");
+    const rect      = computeRect(blocks);
     const orderPath = `${ORDERS_DIR}/${orderId}.json`;
     const orderJson = {
       status: "pending",
@@ -178,15 +193,19 @@ exports.handler = async (event) => {
       rect,
       regionId, // uuid DB-friendly
       image: { storage:"supabase", bucket: SUPABASE_BUCKET, path: objectPath, url: imageUrl, contentType },
+      // anciens champs (compat)
       amount: payload.amount || null,
-      currency: payload.currency || "USD",
+      currency,
+      // nouveaux champs prix serveur
+      unitPrice,
+      total,
       createdAt: Date.now(),
       expiresAt: Date.now() + 20*60*1000
     };
     await ghPutJsonWithRetry(orderPath, orderJson, null, `feat: create order ${orderId}`);
 
-    // Réponse (identique à avant)
-    return ok({ orderId, regionId, imageUrl });
+    // ==== Réponse ====
+    return ok({ orderId, regionId, imageUrl, unitPrice, total, currency });
 
   } catch (e) {
     return bad(500, "SERVER_ERROR", { message: String(e?.message || e) });
