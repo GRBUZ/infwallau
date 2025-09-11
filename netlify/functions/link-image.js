@@ -1,121 +1,85 @@
-// netlify/functions/link-image.js
-// POST JSON: { regionId, imageUrl }  // imageUrl peut être absolu (https://...)
-//                                        ou un chemin repo ("assets/images/...")
+// netlify/functions/link-image.js — Supabase version (plus de GitHub/state.json)
+// POST JSON: { regionId, imageUrl } → { ok:true, regionId, imageUrl }
 
 const { requireAuth } = require('./auth-middleware');
 
-const STATE_PATH = process.env.STATE_PATH || "data/state.json";
-const GH_REPO    = process.env.GH_REPO;
-const GH_TOKEN   = process.env.GH_TOKEN;
-const GH_BRANCH  = process.env.GH_BRANCH || "main";
+const SUPABASE_URL     = process.env.SUPABASE_URL;
+const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-function bad(status, error, extra = {}) {
+// Compat legacy: si on nous envoie un chemin "assets/images/…", on fabrique l'URL RAW GitHub
+const GH_REPO   = process.env.GH_REPO;
+const GH_BRANCH = process.env.GH_BRANCH || "main";
+
+function json(status, obj){
   return {
     statusCode: status,
     headers: { "content-type":"application/json", "cache-control":"no-store" },
-    body: JSON.stringify({ ok:false, error, ...extra })
+    body: JSON.stringify(obj)
   };
 }
-
-async function ghGetJson(path){
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${GH_BRANCH}`,
-    { headers: { "Authorization":`Bearer ${GH_TOKEN}`, "Accept":"application/vnd.github+json" } }
-  );
-  if (r.status === 404) return { json:null, sha:null };
-  if (!r.ok) throw new Error(`GH_GET_FAILED:${r.status}`);
-  const data = await r.json();
-  const content = Buffer.from(data.content || "", "base64").toString("utf-8");
-  return { json: JSON.parse(content || "{}"), sha: data.sha };
-}
-
-async function ghPutJson(path, jsonData, sha, msg){
-  const pretty = JSON.stringify(jsonData, null, 2) + "\n";
-  const body = {
-    message: msg || "chore: set regions[regionId].imageUrl",
-    content: Buffer.from(pretty, "utf-8").toString("base64"),
-    branch: GH_BRANCH
-  };
-  if (sha) body.sha = sha;  // ajoute sha seulement s'il existe
-  const r = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`, {
-    method: "PUT",
-    headers: { "Authorization": `Bearer ${GH_TOKEN}`, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-  if (!r.ok) throw new Error(`GH_PUT_FAILED:${r.status}`);
-  return r.json();
-}
+const bad = (s,e,extra={}) => json(s, { ok:false, error:e, ...extra, signature:"link-image.supabase.v1" });
+const ok  = (b)           => json(200,{ ok:true,  signature:"link-image.supabase.v1", ...b });
 
 function toAbsoluteUrl(imageUrl){
-  // Si on reçoit "assets/images/…", on fabrique l'URL RAW GitHub
-  if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
-  const p = String(imageUrl).replace(/^\/+/, ""); // enlève /
-  return `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${p}`;
+  const u = String(imageUrl || "").trim();
+  if (!u) return "";
+  if (/^https?:\/\//i.test(u)) return u;
+  // compat vieux front: "assets/images/..." -> RAW GitHub
+  const p = u.replace(/^\/+/, "");
+  if (p.startsWith("assets/images/") && GH_REPO) {
+    return `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${p}`;
+  }
+  // sinon, refuse les chemins relatifs non supportés (évite d'écrire n'importe quoi en DB)
+  return "";
 }
 
-async function linkImageWithRetry(regionId, url, maxAttempts = 3) {
-  let attempt = 0;
-  let delay = 150; // ms
-
-  while (attempt < maxAttempts) {
-    attempt++;
-    // 1) lire l'état FRAIS
-    const { json: state0, sha } = await ghGetJson(STATE_PATH);
-    const state = state0 || { sold:{}, locks:{}, regions:{} };
-    state.regions ||= {};
-    const existing = state.regions[regionId] || {};
-
-    // 2) appliquer SANS perdre les autres champs
-    state.regions[regionId] = { ...existing, imageUrl: url };
-
-    // 3) tenter le PUT
-    try {
-      await ghPutJson(STATE_PATH, state, sha, `chore: link imageUrl for ${regionId}`);
-      return; // ✅ succès
-    } catch (err) {
-      const msg = String(err?.message || err);
-      // 409 => re-lire + re-tenter (backoff)
-      if (msg.includes('409') && attempt < maxAttempts) {
-        await new Promise(r => setTimeout(r, delay));
-        delay *= 2;
-        continue;
-      }
-      // autre erreur -> remonter
-      throw err;
-    }
-  }
-
-  throw new Error('LINK_IMAGE_MAX_RETRIES_EXCEEDED');
+function isUuid(v){
+  return typeof v === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
 
 exports.handler = async (event) => {
-  try {
-    // Authentification requise
+  try{
+    // Auth
     const auth = requireAuth(event);
-    if (auth.statusCode) return auth; // Erreur d'auth
-    
-    const authenticatedUID = auth.uid;
-    
+    if (auth.statusCode) return auth;
+    const uid = auth.uid;
+
     if (event.httpMethod !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
-    if (!GH_REPO || !GH_TOKEN) return bad(500, "GITHUB_CONFIG_MISSING");
+    if (!SUPABASE_URL || !SUPA_SERVICE_KEY) return bad(500, "SUPABASE_CONFIG_MISSING");
 
-    const body = JSON.parse(event.body || '{}');
-    if (!body.regionId || !body.imageUrl) return bad(400, "MISSING_FIELDS");
+    let body={}; try { body = JSON.parse(event.body || "{}"); } catch { return bad(400, "BAD_JSON"); }
+    const regionId = String(body.regionId || "").trim();
+    const rawUrl   = String(body.imageUrl || "").trim();
+    const imageUrl = toAbsoluteUrl(rawUrl);
 
-    const regionId = String(body.regionId).trim();
-    const url = toAbsoluteUrl(String(body.imageUrl).trim());
+    if (!regionId || !isUuid(regionId)) return bad(400, "INVALID_REGION_ID");
+    if (!imageUrl) return bad(400, "INVALID_IMAGE_URL");
 
-    // Optionnel: vérifier que l'utilisateur authentifié possède cette région
-    // (si vous avez cette logique dans votre business model)
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession:false } });
 
-    // url absolutisée (tu as déjà toAbsoluteUrl), validations faites…
-    await linkImageWithRetry(regionId, url);
+    // 1) Vérifier que la région existe et appartient bien à l'utilisateur
+    const { data: regionRows, error: regErr } = await supabase
+      .from('regions')
+      .select('id, uid')
+      .eq('id', regionId)
+      .limit(1);
 
-    return {
-      statusCode: 200,
-      headers: { "content-type": "application/json", "cache-control": "no-store" },
-      body: JSON.stringify({ ok: true, regionId, imageUrl: url })
-    };
+    if (regErr) return bad(500, "DB_READ_FAILED", { message: regErr.message });
+    const region = (regionRows && regionRows[0]) || null;
+    if (!region) return bad(404, "REGION_NOT_FOUND");
+    if (region.uid && region.uid !== uid) return bad(403, "FORBIDDEN");
+
+    // 2) Mettre à jour l'image (simple, idempotent)
+    const { error: updErr } = await supabase
+      .from('regions')
+      .update({ image_url: imageUrl })
+      .eq('id', regionId);
+
+    if (updErr) return bad(500, "DB_UPDATE_FAILED", { message: updErr.message });
+
+    return ok({ regionId, imageUrl });
 
   } catch (e) {
     return bad(500, "SERVER_ERROR", { message: String(e?.message || e) });

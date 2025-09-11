@@ -1,226 +1,94 @@
-// netlify/functions/finalize.js — regions-aware finalize (patch)
-// Garde la compatibilité de l’API de réponse actuelle.
+// netlify/functions/finalize.js — Supabase version (plus de state.json)
+// Compat réponse: { ok:true, regionId, rect, soldCount }
+// Contrainte: locks en DB (table locks), vente atomique via RPC finalize_paid_order
 
 const { requireAuth } = require('./auth-middleware');
 const { guardFinalizeInput } = require('./_validation');
-const crypto = require('crypto');
 
-const STATE_PATH = process.env.STATE_PATH || "data/state.json";
-const GH_REPO = process.env.GH_REPO;
-const GH_TOKEN = process.env.GH_TOKEN;
-const GH_BRANCH = process.env.GH_BRANCH || "main";
+const SUPABASE_URL     = process.env.SUPABASE_URL;
+const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const N = 100;
-
-function bad(status, error, extra = {}){
+function respond(status, obj) {
   return {
     statusCode: status,
     headers: { "content-type":"application/json", "cache-control":"no-store" },
-    body: JSON.stringify({ ok:false, error, ...extra })
+    body: JSON.stringify(obj),
   };
 }
+const bad = (s,e,extra={}) => respond(s, { ok:false, error:e, ...extra, signature:"finalize.supabase.v1" });
+const ok  = (b)           => respond(200, { ok:true,  signature:"finalize.supabase.v1", ...b });
 
-function ok(payload = {}){
-  return {
-    statusCode: 200,
-    headers: { "content-type":"application/json", "cache-control":"no-store" },
-    body: JSON.stringify({ ok:true, ...payload })
-  };
-}
-
-function idxToXY(idx){ return { x: idx % N, y: (idx / N) | 0 }; }
-
-function boundsFromIndices(indices){
-  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
-  for(const i of indices){
-    const p = idxToXY(i);
-    if (p.x<x0) x0=p.x; if (p.x>x1) x1=p.x;
-    if (p.y<y0) y0=p.y; if (p.y>y1) y1=p.y;
+function computeRect(blocks){
+  let minR=Infinity, maxR=-Infinity, minC=Infinity, maxC=-Infinity;
+  for (const idx of blocks) {
+    const r = Math.floor(idx / 100);
+    const c = idx % 100;
+    if (r < minR) minR = r;
+    if (r > maxR) maxR = r;
+    if (c < minC) minC = c;
+    if (c > maxC) maxC = c;
   }
-  return { x:x0, y:y0, w:(x1-x0+1), h:(y1-y0+1) };
+  return { x: minC, y: minR, w: (maxC - minC + 1), h: (maxR - minR + 1) };
 }
-
-function genRegionId(uid, blocks){
-  const arr = Array.from(new Set(blocks)).sort((a,b)=>a-b);
-  const seed = `${uid}|${arr.join(',')}`;
-  return crypto.createHash('sha1').update(seed).digest('hex').slice(0, 12);
-}
-
-//new
-function _countSold(s){ return Object.keys((s && s.sold) || {}).length; }
-function _soldShrank(oldState, nextState){
-  return _countSold(nextState) < _countSold(oldState);
-}
-//new
-
-async function ghGetJson(path){
-  const r = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${GH_BRANCH}`, {
-    headers: { "Authorization": `Bearer ${GH_TOKEN}`, "Accept":"application/vnd.github+json" }
-  });
-  if (r.status === 404) return { json: null, sha: null };
-  if (!r.ok) throw new Error(`GH_GET_FAILED:${r.status}`);
-  const data = await r.json();
-  const content = Buffer.from(data.content || "", "base64").toString("utf-8");
-  return { json: JSON.parse(content || "{}"), sha: data.sha };
-}
-
-async function ghPutJson(path, jsonData, sha, message = "chore: update state (pretty JSON)"){
-  const pretty = JSON.stringify(jsonData, null, 2) + "\n";
-  const content = Buffer.from(pretty, "utf-8").toString("base64");
-  const body = { message, content, branch: GH_BRANCH, sha };
-  const r = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`, {
-    method: "PUT",
-    headers: {
-      "Authorization": `Bearer ${GH_TOKEN}`,
-      "Accept": "application/vnd.github+json",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
-  });
-  if (!r.ok) throw new Error(`GH_PUT_FAILED:${r.status}`);
-  return r.json();
-}
-
-function pruneLocks(locks){
-  const now = Date.now();
-  const out = {};
-  for (const [k, v] of Object.entries(locks || {})){
-    if (v && typeof v.until === 'number' && v.until > now) out[k] = v;
-  }
-  return out;
+function isUuid(v){
+  return typeof v === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
 
 exports.handler = async (event) => {
   try {
-    // Auth obligatoire
+    // Auth
     const auth = requireAuth(event);
     if (auth.statusCode) return auth;
-    const authenticatedUID = auth.uid;
+    const uid = auth.uid;
 
     if (event.httpMethod !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
-    if (!GH_REPO || !GH_TOKEN) return bad(500, "GITHUB_CONFIG_MISSING");
+    if (!SUPABASE_URL || !SUPA_SERVICE_KEY) return bad(500, "SUPABASE_CONFIG_MISSING");
 
-    // Validation via _validation (renvoie { name, linkUrl, blocks })
-    const { name: validatedName, linkUrl: validatedLinkUrl, blocks: validatedBlocks } = await guardFinalizeInput(event);
-    if (!Array.isArray(validatedBlocks) || validatedBlocks.length === 0) {
-      return bad(400, "NO_BLOCKS");
+    // Valide et normalise (name, linkUrl, blocks)
+    const { name, linkUrl, blocks } = await guardFinalizeInput(event);
+    if (!Array.isArray(blocks) || blocks.length === 0) return bad(400, "NO_BLOCKS");
+
+    // RegionId DB = UUID (on génère si absent/non-UUID)
+    let reqBody = {};
+    try { reqBody = event.body ? JSON.parse(event.body) : {}; } catch {}
+    const candidateRegion = String(reqBody.regionId || "").trim();
+    const regionId = isUuid(candidateRegion) ? candidateRegion : (await import('node:crypto')).randomUUID();
+
+    // Rect pour le retour (UI)
+    const rect = computeRect(blocks);
+
+    // Appel Supabase RPC (tout-ou-rien)
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession:false } });
+
+    // order_id DB détaché de ton id front (utile pour traces/facturation ultérieure)
+    const orderUuid = (await import('node:crypto')).randomUUID();
+
+    // Ici pas de paiement → _amount:null, _image_url:null (l’image peut être liée ensuite via /link-image DB)
+    const { error: rpcErr } = await supabase.rpc('finalize_paid_order', {
+      _order_id:  orderUuid,
+      _uid:       uid,
+      _name:      name,
+      _link_url:  linkUrl,
+      _blocks:    blocks,
+      _region_id: regionId,
+      _image_url: null,
+      _amount:    null
+    });
+
+    if (rpcErr) {
+      const msg = (rpcErr.message || '').toUpperCase();
+      if (msg.includes('LOCKS_INVALID'))           return bad(409, 'LOCK_MISSING_OR_EXPIRED');
+      if (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) return bad(409, 'ALREADY_SOLD');
+      if (msg.includes('NO_BLOCKS'))               return bad(400, 'NO_BLOCKS');
+      return bad(500, 'RPC_FINALIZE_FAILED', { message: rpcErr.message });
     }
 
-    // Charger l'état
-    const { json: state0, sha } = await ghGetJson(STATE_PATH);
-    const state = state0 || { sold:{}, locks:{}, regions:{} };
-    state.locks   = pruneLocks(state.locks || {});
-    state.regions = state.regions || {};
+    // Succès → le front rafraîchit /status (DB) et voit sold + regions
+    return ok({ regionId, rect, soldCount: blocks.length });
 
-    const now = Date.now();
-
-    // 1) Vérifier que chaque bloc est encore locké par cet utilisateur et non expiré
-    const regionIdsSeen = new Set();
-    for (const idx of validatedBlocks){
-      if (state.sold[idx]) return bad(409, "ALREADY_SOLD", { idx });
-      const lk = state.locks[idx];
-      if (!lk || lk.uid !== authenticatedUID || !(lk.until > now)) {
-        return bad(409, "LOCK_MISSING_OR_EXPIRED", { idx });
-      }
-      if (lk.regionId) regionIdsSeen.add(lk.regionId);
-    }
-
-    // 2) Déterminer le regionId à utiliser (depuis les locks si présent, sinon hash stable)
-    let regionId = null;
-    if (regionIdsSeen.size === 1) {
-      regionId = Array.from(regionIdsSeen)[0];
-    } else {
-      // soit absent (anciennes réservations), soit multiple → on reconstitue un ID stable
-      regionId = genRegionId(authenticatedUID, validatedBlocks);
-    }
-
-    // 3) Vérifier la région + expiration côté région (si disponible)
-    const rect = boundsFromIndices(validatedBlocks);
-    const reg0 = state.regions[regionId];
-    if (reg0 && reg0.reservedUntil && reg0.reservedUntil <= now) {
-      return bad(409, "RESERVATION_EXPIRED", { regionId });
-    }
-
-    // Créer/mettre à jour la région sans écraser imageUrl si elle existe déjà
-    const prevImage = (reg0 && reg0.imageUrl) || "";
-    state.regions[regionId] = {
-      imageUrl: prevImage,              // NE PAS ECRASER une image déjà téléversée
-      rect,
-      uid: authenticatedUID,
-      // On peut garder reservedUntil à titre informatif, mais la vente confirme, donc plus pertinent
-      // reservedUntil: undefined,
-      blocks: Array.from(new Set(validatedBlocks)).sort((a,b)=>a-b)
-    };
-
-    // 4) Marquer les blocs vendus + supprimer les locks correspondants
-    const ts = now;
-    for (const idx of validatedBlocks){
-      state.sold[idx] = { name: validatedName, linkUrl: validatedLinkUrl, ts, regionId };
-      if (state.locks) delete state.locks[idx];
-    }
-
-    // 5) Commit (avec retry 409)
-    try {
-      //new
-      const oldState = state0 || { sold:{}, locks:{}, regions:{} };
-      if (_soldShrank(oldState, state)) {
-        return bad(409, "SOLD_SHRANK_ABORT");
-      }
-      //new
-      await ghPutJson(STATE_PATH, state, sha, `finalize ${validatedBlocks.length} -> ${regionId}`);
-    } catch (error) {
-      if (String(error.message || error).includes('409')) {
-        //new
-        const oldState2 = freshState || { sold:{}, locks:{}, regions:{} };
-        if (_soldShrank(oldState2, merged)) {
-          return bad(409, "SOLD_SHRANK_ABORT");
-        }
-        //new
-        const { json: freshState, sha: freshSha } = await ghGetJson(STATE_PATH);
-        const merged = freshState || { sold:{}, locks:{}, regions:{} };
-        merged.locks   = pruneLocks(merged.locks || {});
-        merged.regions = merged.regions || {};
-
-        // Re-valider côté merged avant d’appliquer (toujours même règles)
-        for (const idx of validatedBlocks){
-          if (merged.sold[idx]) return bad(409, "ALREADY_SOLD", { idx });
-          const lk = merged.locks[idx];
-          if (!lk || lk.uid !== authenticatedUID || !(lk.until > Date.now())) {
-            return bad(409, "LOCK_MISSING_OR_EXPIRED", { idx });
-          }
-        }
-
-        // Préserver imageUrl s’il existe
-        const existingImg = (merged.regions[regionId] && merged.regions[regionId].imageUrl) || (state.regions[regionId] && state.regions[regionId].imageUrl) || "";
-        merged.regions[regionId] = {
-          imageUrl: existingImg,
-          rect,
-          uid: authenticatedUID,
-          blocks: Array.from(new Set(validatedBlocks)).sort((a,b)=>a-b)
-        };
-
-        // Appliquer sold + purge locks
-        const ts2 = Date.now();
-        for (const idx of validatedBlocks){
-          merged.sold[idx] = { name: validatedName, linkUrl: validatedLinkUrl, ts: ts2, regionId };
-          if (merged.locks) delete merged.locks[idx];
-        }
-        //new
-       const oldState = state0 || { sold:{}, locks:{}, regions:{} };
-        if (_soldShrank(oldState, state)) {
-          return bad(409, "SOLD_SHRANK_ABORT");
-        }
-        //new
-        await ghPutJson(STATE_PATH, merged, freshSha, `finalize(retry) ${validatedBlocks.length} -> ${regionId}`);
-      } else {
-        throw error;
-      }
-    }
-
-    return ok({ regionId, rect, soldCount: validatedBlocks.length });
-
-  } catch (err) {
-    if (err && err.statusCode) return err; // erreurs formatées (ex: guardFinalizeInput)
-    return bad(500, "FINALIZE_FAILED", { message: String(err && err.message || err) });
+  } catch (e) {
+    return bad(500, "FINALIZE_FAILED", { message: String(e?.message || e) });
   }
 };
