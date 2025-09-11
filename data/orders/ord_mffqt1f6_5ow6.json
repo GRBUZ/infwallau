@@ -1,5 +1,5 @@
 {
-  "status": "pending",
+  "status": "completed",
   "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
   "name": "tata",
   "linkUrl": "https://tata.insta.com/",
@@ -94,5 +94,8 @@
   "amount": null,
   "currency": "USD",
   "createdAt": 1757615362674,
-  "expiresAt": 1757616562674
+  "expiresAt": 1757616562674,
+  "updatedAt": 1757615364863,
+  "finalImageUrl": "https://hdrexzoojlugivozfapo.supabase.co/storage/v1/object/public/images/regions/d43359f7-fab6-495c-a674-a1a7b85e3c80/Capture-d__cran-2024-06-20-231733_1757615361143_m5izrb.png",
+  "regionDbId": "d43359f7-fab6-495c-a674-a1a7b85e3c80"
 }
