@@ -1,36 +1,20 @@
-// netlify/functions/dev-complete-order.js
+// netlify/functions/dev-complete-order.js — Supabase (ne touche plus state.json)
 // DEV ONLY: finalise immédiatement une commande sans PayPal.
-// ⚠️ Activé seulement si process.env.ALLOW_DEV_COMPLETE === "true".
-// JWT requis, et l'order doit appartenir au user.
+// Requiert: ALLOW_DEV_COMPLETE=true
 
 const { requireAuth } = require('./auth-middleware');
 
-const STATE_PATH = process.env.STATE_PATH || "data/state.json";
-const ORDERS_DIR = process.env.ORDERS_DIR || "data/orders";
+const ALLOW_DEV_COMPLETE = String(process.env.ALLOW_DEV_COMPLETE || '').toLowerCase() === 'true';
+
+// --- GitHub (on garde juste pour lire l'order JSON existant)
 const GH_REPO    = process.env.GH_REPO;
 const GH_TOKEN   = process.env.GH_TOKEN;
-const GH_BRANCH  = process.env.GH_BRANCH || "main";
-const ALLOW_DEV_COMPLETE = String(process.env.ALLOW_DEV_COMPLETE || "").toLowerCase() === "true";
+const GH_BRANCH  = process.env.GH_BRANCH || 'main';
+const ORDERS_DIR = process.env.ORDERS_DIR || 'data/orders';
 
-function bad(status, error, extra = {}) {
-  return {
-    statusCode: status,
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
-    body: JSON.stringify({ ok: false, error, ...extra, signature: "dev-complete-order.v2" })
-  };
-}
-function ok(body) {
-  return {
-    statusCode: 200,
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
-    body: JSON.stringify({ ok: true, signature: "dev-complete-order.v2", ...body })
-  };
-}
-
-// ---- GitHub helpers (identiques à ta base)
 async function ghGetJson(path){
   const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${GH_BRANCH}`,
+    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(GH_BRANCH)}`,
     { headers: { "Authorization": `Bearer ${GH_TOKEN}`, "Accept":"application/vnd.github+json" } }
   );
   if (r.status === 404) return { json:null, sha:null };
@@ -53,8 +37,8 @@ async function ghPutJson(path, jsonData, sha, message){
       method: "PUT",
       headers: {
         "Authorization": `Bearer ${GH_TOKEN}`,
-        "Accept":"application/vnd.github+json",
-        "Content-Type":"application/json"
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json"
       },
       body: JSON.stringify(body)
     }
@@ -62,185 +46,108 @@ async function ghPutJson(path, jsonData, sha, message){
   if (!r.ok) throw new Error(`GH_PUT_JSON_FAILED:${r.status}`);
   return r.json();
 }
-async function ghGetFile(path){
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${GH_BRANCH}`,
-    { headers: { "Authorization": `Bearer ${GH_TOKEN}`, "Accept":"application/vnd.github+json" } }
-  );
-  if (!r.ok) throw new Error(`GH_GET_FILE_FAILED:${r.status}`);
-  return r.json(); // { content (b64), sha, ... }
-}
-async function ghDeletePath(path, sha, message){
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`,
-    {
-      method: "DELETE",
-      headers: {
-        "Authorization": `Bearer ${GH_TOKEN}`,
-        "Accept":"application/vnd.github+json",
-        "Content-Type":"application/json"
-      },
-      body: JSON.stringify({ message: message || `chore: delete ${path}`, sha, branch: GH_BRANCH })
-    }
-  );
-  if (!r.ok) throw new Error(`GH_DELETE_FAILED:${r.status}`);
-  return r.json();
-}
-async function ghPutBinary(path, buffer, message){
-  const baseURL = `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`;
-  const headers = {
-    "Authorization": `Bearer ${GH_TOKEN}`,
-    "Accept": "application/vnd.github+json",
-    "Content-Type": "application/json"
+
+function json(status, obj){
+  return {
+    statusCode: status,
+    headers: { 'content-type':'application/json', 'cache-control':'no-store' },
+    body: JSON.stringify(obj)
   };
-  // probe
-  let sha = null;
-  const probe = await fetch(`${baseURL}?ref=${GH_BRANCH}`, { headers });
-  if (probe.ok) {
-    const j = await probe.json();
-    sha = j.sha || null;
-  } else if (probe.status !== 404) {
-    throw new Error(`GH_GET_PROBE_FAILED:${probe.status}`);
-  }
-  const body = {
-    message: message || `feat: upload ${path}`,
-    content: Buffer.from(buffer).toString("base64"),
-    branch: GH_BRANCH
-  };
-  if (sha) body.sha = sha;
-  const put = await fetch(baseURL, { method: "PUT", headers, body: JSON.stringify(body) });
-  if (!put.ok) throw new Error(`GH_PUT_BIN_FAILED:${put.status}`);
-  return put.json();
 }
-function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
-async function ghPutBinaryWithRetry(path, buffer, message, maxAttempts = 4){
-  let last;
-  for (let i=0;i<maxAttempts;i++){
-    try { return await ghPutBinary(path, buffer, message); }
-    catch(e){
-      last = e;
-      const msg = String(e?.message || e);
-      if (msg.includes('GH_PUT_BIN_FAILED:409') && i < maxAttempts-1){
-        await sleep(120*(i+1)); continue;
-      }
-      throw e;
-    }
-  }
-  throw last || new Error('UPLOAD_MAX_RETRIES_EXCEEDED');
-}
-function toRawUrl(path){
-  return `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${path}`;
+const bad = (s,e,extra={}) => json(s, { ok:false, error:e, ...extra, signature:'dev-complete.supabase.v1' });
+const ok  = (b)         => json(200,{ ok:true,  signature:'dev-complete.supabase.v1', ...b });
+
+function isUuid(v){
+  return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
 
 exports.handler = async (event) => {
-  try {
-    if (event.httpMethod !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
-    if (!ALLOW_DEV_COMPLETE) return bad(403, "DEV_COMPLETE_DISABLED");
-    if (!GH_REPO || !GH_TOKEN) return bad(500, "GITHUB_CONFIG_MISSING", { GH_REPO, GH_BRANCH });
+  try{
+    if (event.httpMethod !== 'POST') return bad(405, 'METHOD_NOT_ALLOWED');
+    if (!ALLOW_DEV_COMPLETE)        return bad(403, 'DEV_COMPLETE_DISABLED');
 
-    // JWT (dev-complete est appelé par le client)
     const auth = requireAuth(event);
     if (auth.statusCode) return auth;
     const uid = auth.uid;
 
-    const body = JSON.parse(event.body || '{}');
-    const orderId = String(body.orderId || "").trim();
-    if (!orderId) return bad(400, "MISSING_ORDER_ID");
+    let body={}; try{ body = JSON.parse(event.body||'{}'); }catch{ return bad(400,'BAD_JSON'); }
+    const orderId = String(body.orderId || '').trim();
+    if (!orderId) return bad(400, 'MISSING_ORDER_ID');
 
-    // Lire l'ordre
+    if (!GH_REPO || !GH_TOKEN) return bad(500, 'GITHUB_CONFIG_MISSING');
+
+    // 1) Charger la commande (JSON GitHub)
     const orderPath = `${ORDERS_DIR}/${orderId}.json`;
     const { json: order, sha: orderSha } = await ghGetJson(orderPath);
-    if (!order) return bad(404, "ORDER_NOT_FOUND");
-    if (order.uid && order.uid !== uid) return bad(403, "FORBIDDEN");
-    if (order.status === "completed") return ok({ orderId, status: "completed" });
+    if (!order) return bad(404, 'ORDER_NOT_FOUND');
+    if (order.uid && order.uid !== uid) return bad(403, 'FORBIDDEN');
 
-    // --- Résoudre l'URL finale de l'image ---
-    // Cas 1: Supabase (nouveau start-order) => image.url (pas de "promotion")
-    // Cas 2: Legacy GitHub staging => promouvoir staging -> assets puis finalUrl = raw URL
-    let finalUrl = null;
-
-    const isSupabase =
-      (order.image && order.image.storage === 'supabase') ||
-      (!!order.image && !!order.image.url && !order.image.repoPath);
-
-    if (isSupabase) {
-      finalUrl = order.image?.url;
-      if (!finalUrl) return bad(400, "ORDER_NO_IMAGE_URL");
-    } else {
-      const stagingPath = order.image?.repoPath;
-      if (!stagingPath) return bad(400, "ORDER_NO_STAGING_IMAGE");
-
-      const stageFile = await ghGetFile(stagingPath);
-      const contentB64 = stageFile?.content || "";
-      if (!contentB64) return bad(500, "STAGING_READ_FAILED");
-      const buffer = Buffer.from(contentB64, "base64");
-
-      const filename = stagingPath.split('/').pop();
-      const destPath = `assets/images/${order.regionId}/${filename}`;
-      await ghPutBinaryWithRetry(destPath, buffer, `feat: promote image for ${order.regionId}`);
-      finalUrl = toRawUrl(destPath);
-
-      // cleanup staging (optionnel)
-      try { await ghDeletePath(stagingPath, stageFile.sha, `chore: cleanup staging for ${orderId}`); } catch(_){}
+    // Idempotence (si déjà complétée côté GitHub, on répond OK pour compat)
+    if (order.status === 'completed') {
+      return ok({ orderId, status: 'completed', regionId: order.regionId || order.regionDbId, imageUrl: order.finalImageUrl || order.image?.url });
     }
 
-    // --- Ecrire state.json (sold + regions) avec retry 409
-    let attempts = 0, delay = 150;
-    while (attempts < 4) {
-      attempts++;
+    // 2) Résoudre l’URL image (Supabase attendu ; legacy non supporté ici)
+    const imageUrl = order.image?.url || '';
+    if (!imageUrl) return bad(400, 'ORDER_NO_IMAGE_URL');
 
-      const { json: st0, sha: stSha } = await ghGetJson(STATE_PATH);
-      const st = st0 || { sold:{}, locks:{}, regions:{} };
-      st.sold   ||= {};
-      st.locks  ||= {};
-      st.regions||= {};
+    // 3) Préparer les champs pour la RPC
+    const name    = String(order.name || '').trim();
+    const linkUrl = String(order.linkUrl || '').trim();
+    const blocks  = Array.isArray(order.blocks) ? order.blocks.map(n => parseInt(n,10)).filter(Number.isFinite) : [];
 
-      // Vérifier disponibilité
-      const now = Date.now();
-      for (const idx of (order.blocks || [])) {
-        if (st.sold[idx]) {
-          const failed = { ...order, status:"failed", updatedAt: Date.now(), failReason:"ALREADY_SOLD" };
-          await ghPutJson(orderPath, failed, orderSha, `chore: order ${orderId} failed (already sold)`);
-          return bad(409, "ALREADY_SOLD");
-        }
-        const L = st.locks[idx];
-        if (L && L.until > now && L.uid && order.uid && L.uid !== order.uid) {
-          const failed = { ...order, status:"failed", updatedAt: Date.now(), failReason:"LOCKED_BY_OTHER" };
-          await ghPutJson(orderPath, failed, orderSha, `chore: order ${orderId} failed (locked by other)`);
-          return bad(409, "LOCKED_BY_OTHER");
-        }
-      }
+    if (!name || !linkUrl || !blocks.length) return bad(400, 'MISSING_FIELDS');
 
-      // Appliquer la vente
-      const ts = Date.now();
-      for (const idx of (order.blocks || [])) {
-        st.sold[idx] = { name: order.name, linkUrl: order.linkUrl, ts, regionId: order.regionId };
-        if (st.locks[idx]) delete st.locks[idx];
-      }
+    // region_id en UUID (si l’existant n’est pas un UUID, on en génère un nouveau)
+    const regionIdInput = String(order.regionId || '').trim();
+    const regionUuid = isUuid(regionIdInput) ? regionIdInput : (await import('node:crypto')).randomUUID();
 
-      // Région (préserver imageUrl existante)
-      const existing = st.regions[order.regionId] || {};
-      st.regions[order.regionId] = { rect: order.rect, imageUrl: existing.imageUrl || finalUrl };
+    // order uuid pour la DB (indépendant de ton id GitHub)
+    const orderUuid = (await import('node:crypto')).randomUUID();
 
-      try {
-        await ghPutJson(STATE_PATH, st, stSha, `feat: finalize order ${orderId} (dev)`);
-        break;
-      } catch (e) {
-        const msg = String(e?.message || e);
-        if (msg.includes('409') && attempts < 4) { await sleep(delay); delay *= 2; continue; }
-        const failed = { ...order, status:"failed", updatedAt: Date.now(), failReason: msg };
-        await ghPutJson(orderPath, failed, orderSha, `chore: order ${orderId} failed (write state, dev)`);
-        return bad(500, "SERVER_ERROR", { message: msg });
-      }
+    // 4) Appeler Supabase RPC: finalize_paid_order
+    const SUPABASE_URL     = process.env.SUPABASE_URL;
+    const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!SUPABASE_URL || !SUPA_SERVICE_KEY) return bad(500, 'SUPABASE_CONFIG_MISSING');
+
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession:false } });
+
+    const { error: rpcErr } = await supabase.rpc('finalize_paid_order', {
+      _order_id:  orderUuid,   // UUID DB (pas celui du fichier GitHub)
+      _uid:       uid,
+      _name:      name,
+      _link_url:  linkUrl,
+      _blocks:    blocks,
+      _region_id: regionUuid,  // ID de région DB
+      _image_url: imageUrl,
+      _amount:    null
+    });
+
+    if (rpcErr) {
+      const msg = (rpcErr.message || '').toUpperCase();
+      if (msg.includes('LOCKS_INVALID'))           return bad(409, 'LOCKS_INVALID');
+      if (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) return bad(409, 'ALREADY_SOLD');
+      if (msg.includes('NO_BLOCKS'))               return bad(400, 'NO_BLOCKS');
+      return bad(500, 'RPC_FINALIZE_FAILED', { message: rpcErr.message });
     }
 
-    // Marquer completed
-    const completed = { ...order, status:"completed", updatedAt: Date.now(), finalImageUrl: finalUrl };
-    await ghPutJson(orderPath, completed, orderSha, `chore: order ${orderId} completed (dev)`);
+    // 5) Marquer l’order JSON comme completed (compat, non bloquant)
+    try {
+      const updated = {
+        ...order,
+        status: 'completed',
+        updatedAt: Date.now(),
+        finalImageUrl: imageUrl,
+        regionDbId: regionUuid
+      };
+      await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} completed (supabase)`);
+    } catch(_){ /* pas bloquant */ }
 
-    return ok({ orderId, status: "completed", regionId: order.regionId, imageUrl: finalUrl });
+    // 6) Réponse (le front rafraîchira /status → DB)
+    return ok({ orderId, status: 'completed', regionId: regionUuid, imageUrl });
 
   } catch (e) {
-    return bad(500, "SERVER_ERROR", { message: String(e?.message || e) });
+    return bad(500, 'SERVER_ERROR', { message: String(e?.message || e) });
   }
 };
