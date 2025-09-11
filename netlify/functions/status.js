@@ -1,119 +1,98 @@
-// netlify/functions/status.js — returns sold, locks, regions (avec parseState identique au backend)
-const STATE_PATH = process.env.STATE_PATH || "data/state.json";
-const GH_REPO = process.env.GH_REPO;
-const GH_TOKEN = process.env.GH_TOKEN;
-const GH_BRANCH = process.env.GH_BRANCH || "main";
+// netlify/functions/status.js — Supabase version (remplace GitHub/state.json)
+// Renvoie le même shape que l'ancien /status :
+// { ok, sold, locks, regions }
+//
+// sold   : { [idx]: { name, linkUrl, ts, regionId } }
+// locks  : { [idx]: { uid, until } }     // until en ms epoch
+// regions: { [regionId]: { rect:{x,y,w,h}, imageUrl } }
+//
+// Auth: on accepte ton JWT anonyme via requireAuth (comme les autres endpoints)
 
-function bad(status, error){
-  return {
-    statusCode: status,
-    headers: { "content-type":"application/json", "cache-control":"no-store" },
-    body: JSON.stringify({ ok: false, error })
-  };
-}
+const { requireAuth } = require('./auth-middleware');
 
-function ok(body){
-  return {
-    statusCode: 200,
-    headers: { "content-type":"application/json", "cache-control":"no-store" },
-    body: JSON.stringify({ ok: true, ...body })
-  };
-}
+const SUPABASE_URL     = process.env.SUPABASE_URL;
+const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-function pruneLocks(locks) {
-  const now = Date.now();
-  const out = {};
-  for (const [k, v] of Object.entries(locks || {})) {
-    if (v && typeof v.until === 'number' && v.until > now) {
-      out[k] = v;
-    }
-  }
-  return out;
-}
+function j(status, obj){ return {
+  statusCode: status,
+  headers: { 'content-type':'application/json', 'cache-control':'no-store' },
+  body: JSON.stringify(obj)
+};}
+const bad = (s,e,extra={}) => j(s, { ok:false, error:e, ...extra, signature:'status.supabase.v1' });
+const ok  = (b)         => j(200,{ ok:true, signature:'status.supabase.v1', ...b });
 
-// === parseState calqué sur ton backend (reserve.js) ===
-function parseState(raw) {
-  if (!raw) return { sold:{}, locks:{}, regions:{} };
-  try {
-    const obj = JSON.parse(raw);
+exports.handler = async (event) => {
+  try{
+    // Auth (tolérant et rapide)
+    const auth = requireAuth(event);
+    if (auth.statusCode) return auth; // garde la même politique que tes autres fn
 
-    // Back-compat: si ancien format { artCells: {...} } et pas de "sold"
-    if (obj.artCells && !obj.sold) {
-      const sold = {};
-      for (const [k, v] of Object.entries(obj.artCells)) {
-        sold[k] = {
-          name:    v.name    || v.n  || '',
-          linkUrl: v.linkUrl || v.u  || '',
-          ts:      v.ts      || Date.now(),
-          // si ton ancien format véhiculait d'autres champs:
-          // regionId/imageUrl (optionnels, on les prend si présents)
-          ...(v.regionId ? { regionId: v.regionId } : {}),
-          ...(v.imageUrl ? { imageUrl: v.imageUrl } : {})
-        };
+    if (!SUPABASE_URL || !SUPA_SERVICE_KEY)
+      return bad(500, 'SUPABASE_CONFIG_MISSING');
+
+    // Import ESM dynamique (compatible CommonJS)
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, {
+      auth: { persistSession: false }
+    });
+
+    // ===== 1) SOLD: cells vendues + métadonnées région
+    // idx, region_id, sold_at (joint aux regions pour name/link_url)
+    const { data: soldRows, error: soldErr } = await supabase
+      .from('cells')
+      .select('idx, region_id, sold_at, regions!inner ( id, name, link_url )', { count: 'exact' })
+      .not('sold_at', 'is', null);
+
+    if (soldErr) return bad(500, 'DB_SOLD_QUERY_FAILED', { message: soldErr.message });
+
+    const sold = {};
+    for (const row of (soldRows || [])) {
+      const idx       = Number(row.idx);
+      const rid       = row.region_id;
+      const soldAt    = row.sold_at ? new Date(row.sold_at).getTime() : Date.now();
+      const r         = row.regions || {};
+      const name      = r.name || '';
+      const linkUrl   = r.link_url || '';
+
+      if (Number.isFinite(idx) && rid) {
+        sold[idx] = { name, linkUrl, ts: soldAt, regionId: rid };
       }
-      return {
-        sold,
-        locks:   obj.locks   || {},
-        regions: obj.regions || {}
+    }
+
+    // ===== 2) LOCKS: verrous non expirés
+    const nowIso = new Date().toISOString();
+    const { data: lockRows, error: lockErr } = await supabase
+      .from('locks')
+      .select('idx, uid, until')
+      .gt('until', nowIso);
+
+    if (lockErr) return bad(500, 'DB_LOCKS_QUERY_FAILED', { message: lockErr.message });
+
+    const locks = {};
+    for (const r of (lockRows || [])) {
+      const k = String(r.idx);
+      const untilMs = r.until ? new Date(r.until).getTime() : 0;
+      locks[k] = { uid: r.uid, until: untilMs };
+    }
+
+    // ===== 3) REGIONS: rectangles + image_url
+    const { data: regionRows, error: regErr } = await supabase
+      .from('regions')
+      .select('id, x, y, w, h, image_url');
+
+    if (regErr) return bad(500, 'DB_REGIONS_QUERY_FAILED', { message: regErr.message });
+
+    const regions = {};
+    for (const r of (regionRows || [])) {
+      regions[r.id] = {
+        rect: { x: Number(r.x)||0, y: Number(r.y)||0, w: Number(r.w)||0, h: Number(r.h)||0 },
+        imageUrl: r.image_url || ''
       };
     }
 
-    // Format déjà nouveau
-    if (!obj.sold)    obj.sold    = {};
-    if (!obj.locks)   obj.locks   = {};
-    if (!obj.regions) obj.regions = {};
-    return obj;
-  } catch {
-    return { sold:{}, locks:{}, regions:{} };
-  }
-}
-
-async function ghGetStateJson() {
-  const baseUrl = `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(STATE_PATH)}?ref=${GH_BRANCH}`;
-  const baseHeaders = {
-    "Authorization": `Bearer ${GH_TOKEN}`,
-    "Accept": "application/vnd.github+json",
-    "User-Agent": "netlify-fn"
-  };
-
-  // 1) Récupérer le "contents" (donne size/encoding/content)
-  const metaRes = await fetch(baseUrl, { headers: baseHeaders });
-  if (metaRes.status === 404) return { sold:{}, locks:{}, regions:{} };
-  if (!metaRes.ok) throw new Error(`GH_GET_FAILED:${metaRes.status}`);
-
-  const meta = await metaRes.json();
-
-  // 2) Si content base64 raisonnable, décodons directement
-  if (typeof meta.content === 'string' && meta.encoding === 'base64' && Number(meta.size || 0) < 900000) {
-    const buf = Buffer.from(meta.content, 'base64');
-    return parseState(buf.toString('utf-8') || "{}");
-  }
-
-  // 3) Sinon, redemander en RAW (via l’API, pas le CDN)
-  const rawHeaders = {
-    ...baseHeaders,
-    "Accept": "application/vnd.github.raw"
-  };
-  const rawRes = await fetch(baseUrl, { headers: rawHeaders });
-  if (rawRes.status === 404) return { sold:{}, locks:{}, regions:{} };
-  if (!rawRes.ok) throw new Error(`GH_GET_RAW_FAILED:${rawRes.status}`);
-
-  const txt = await rawRes.text();
-  return parseState(txt || "{}");
-}
-
-exports.handler = async (event) => {
-  try {
-    if (!GH_REPO || !GH_TOKEN) return bad(500, "GITHUB_CONFIG_MISSING");
-
-    const state = await ghGetStateJson();
-
-    const sold    = state.sold    || {};
-    const locks   = pruneLocks(state.locks || {});
-    const regions = state.regions || {};
-
     return ok({ sold, locks, regions });
+
   } catch (e) {
-    return bad(500, "SERVER_ERROR");
+    return bad(500, 'SERVER_ERROR', { message: String(e?.message || e) });
   }
 };
