@@ -16,18 +16,18 @@ function bad(status, error, extra = {}) {
   return {
     statusCode: status,
     headers: { "content-type": "application/json", "cache-control": "no-store" },
-    body: JSON.stringify({ ok: false, error, ...extra, signature: "dev-complete-order.v1" })
+    body: JSON.stringify({ ok: false, error, ...extra, signature: "dev-complete-order.v2" })
   };
 }
 function ok(body) {
   return {
     statusCode: 200,
     headers: { "content-type": "application/json", "cache-control": "no-store" },
-    body: JSON.stringify({ ok: true, signature: "dev-complete-order.v1", ...body })
+    body: JSON.stringify({ ok: true, signature: "dev-complete-order.v2", ...body })
   };
 }
 
-// ---- GitHub helpers (même style que tes autres fonctions)
+// ---- GitHub helpers (identiques à ta base)
 async function ghGetJson(path){
   const r = await fetch(
     `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${GH_BRANCH}`,
@@ -128,7 +128,6 @@ async function ghPutBinaryWithRetry(path, buffer, message, maxAttempts = 4){
   }
   throw last || new Error('UPLOAD_MAX_RETRIES_EXCEEDED');
 }
-
 function toRawUrl(path){
   return `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${path}`;
 }
@@ -155,24 +154,37 @@ exports.handler = async (event) => {
     if (order.uid && order.uid !== uid) return bad(403, "FORBIDDEN");
     if (order.status === "completed") return ok({ orderId, status: "completed" });
 
-    // Promouvoir l'image (staging -> assets)
-    const stagingPath = order.image?.repoPath;
-    if (!stagingPath) return bad(400, "ORDER_NO_STAGING_IMAGE");
+    // --- Résoudre l'URL finale de l'image ---
+    // Cas 1: Supabase (nouveau start-order) => image.url (pas de "promotion")
+    // Cas 2: Legacy GitHub staging => promouvoir staging -> assets puis finalUrl = raw URL
+    let finalUrl = null;
 
-    const stageFile = await ghGetFile(stagingPath);
-    const contentB64 = stageFile?.content || "";
-    if (!contentB64) return bad(500, "STAGING_READ_FAILED");
-    const buffer = Buffer.from(contentB64, "base64");
+    const isSupabase =
+      (order.image && order.image.storage === 'supabase') ||
+      (!!order.image && !!order.image.url && !order.image.repoPath);
 
-    const filename = stagingPath.split('/').pop();
-    const destPath = `assets/images/${order.regionId}/${filename}`;
-    await ghPutBinaryWithRetry(destPath, buffer, `feat: promote image for ${order.regionId}`);
-    const finalUrl = toRawUrl(destPath);
+    if (isSupabase) {
+      finalUrl = order.image?.url;
+      if (!finalUrl) return bad(400, "ORDER_NO_IMAGE_URL");
+    } else {
+      const stagingPath = order.image?.repoPath;
+      if (!stagingPath) return bad(400, "ORDER_NO_STAGING_IMAGE");
 
-    // cleanup staging (optionnel)
-    try { await ghDeletePath(stagingPath, stageFile.sha, `chore: cleanup staging for ${orderId}`); } catch(_){}
+      const stageFile = await ghGetFile(stagingPath);
+      const contentB64 = stageFile?.content || "";
+      if (!contentB64) return bad(500, "STAGING_READ_FAILED");
+      const buffer = Buffer.from(contentB64, "base64");
 
-    // Ecrire state.json avec retry 409
+      const filename = stagingPath.split('/').pop();
+      const destPath = `assets/images/${order.regionId}/${filename}`;
+      await ghPutBinaryWithRetry(destPath, buffer, `feat: promote image for ${order.regionId}`);
+      finalUrl = toRawUrl(destPath);
+
+      // cleanup staging (optionnel)
+      try { await ghDeletePath(stagingPath, stageFile.sha, `chore: cleanup staging for ${orderId}`); } catch(_){}
+    }
+
+    // --- Ecrire state.json (sold + regions) avec retry 409
     let attempts = 0, delay = 150;
     while (attempts < 4) {
       attempts++;
@@ -199,12 +211,14 @@ exports.handler = async (event) => {
         }
       }
 
+      // Appliquer la vente
       const ts = Date.now();
       for (const idx of (order.blocks || [])) {
         st.sold[idx] = { name: order.name, linkUrl: order.linkUrl, ts, regionId: order.regionId };
         if (st.locks[idx]) delete st.locks[idx];
       }
 
+      // Région (préserver imageUrl existante)
       const existing = st.regions[order.regionId] || {};
       st.regions[order.regionId] = { rect: order.rect, imageUrl: existing.imageUrl || finalUrl };
 
