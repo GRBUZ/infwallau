@@ -47,7 +47,7 @@ function computeRect(blocks){
   return { x:minC, y:minR, w:(maxC-minC+1), h:(maxR-minR+1) };
 }
 
-// ---- GitHub helpers (alignés sur ton style)
+// ---- GitHub helpers (inchangés)
 async function ghGetJson(path){
   const r = await fetch(
     `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${GH_BRANCH}`,
@@ -73,8 +73,8 @@ async function ghPutJson(path, jsonData, sha, message){
       method: "PUT",
       headers: {
         "Authorization": `Bearer ${GH_TOKEN}`,
-        "Accept":"application/vnd.github+json",
-        "Content-Type":"application/json"
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json"
       },
       body: JSON.stringify(body)
     }
@@ -82,8 +82,6 @@ async function ghPutJson(path, jsonData, sha, message){
   if (!r.ok) throw new Error(`GH_PUT_JSON_FAILED:${r.status}`);
   return r.json();
 }
-
-// ✅ retry 409 pour l’écriture JSON d’ordre (concurrence)
 function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
 async function ghPutJsonWithRetry(path, jsonData, sha, message, maxAttempts = 4){
   let last;
@@ -101,72 +99,6 @@ async function ghPutJsonWithRetry(path, jsonData, sha, message, maxAttempts = 4)
   throw last || new Error('GH_PUT_JSON_MAX_RETRIES');
 }
 
-async function ghGetFile(path){
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${GH_BRANCH}`,
-    { headers: { "Authorization": `Bearer ${GH_TOKEN}`, "Accept":"application/vnd.github+json" } }
-  );
-  if (!r.ok) throw new Error(`GH_GET_FILE_FAILED:${r.status}`);
-  return r.json(); // { content (b64), sha, ... }
-}
-async function ghDeletePath(path, sha, message){
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`,
-    {
-      method: "DELETE",
-      headers: {
-        "Authorization": `Bearer ${GH_TOKEN}`,
-        "Accept":"application/vnd.github+json",
-        "Content-Type":"application/json"
-      },
-      body: JSON.stringify({ message: message || `chore: delete ${path}`, sha, branch: GH_BRANCH })
-    }
-  );
-  if (!r.ok) throw new Error(`GH_DELETE_FAILED:${r.status}`);
-  return r.json();
-}
-async function ghPutBinary(path, buffer, message){
-  const baseURL = `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`;
-  const headers = {
-    "Authorization": `Bearer ${GH_TOKEN}`,
-    "Accept": "application/vnd.github+json",
-    "Content-Type": "application/json"
-  };
-  // probe
-  let sha = null;
-  const probe = await fetch(`${baseURL}?ref=${GH_BRANCH}`, { headers });
-  if (probe.ok) {
-    const j = await probe.json();
-    sha = j.sha || null;
-  } else if (probe.status !== 404) {
-    throw new Error(`GH_GET_PROBE_FAILED:${probe.status}`);
-  }
-  const body = {
-    message: message || `feat: upload ${path}`,
-    content: Buffer.from(buffer).toString("base64"),
-    branch: GH_BRANCH
-  };
-  if (sha) body.sha = sha;
-  const put = await fetch(baseURL, { method: "PUT", headers, body: JSON.stringify(body) });
-  if (!put.ok) throw new Error(`GH_PUT_BIN_FAILED:${put.status}`);
-  return put.json();
-}
-async function ghPutBinaryWithRetry(path, buffer, message, maxAttempts = 4){
-  let last;
-  for (let i=0;i<maxAttempts;i++){
-    try { return await ghPutBinary(path, buffer, message); }
-    catch(e){
-      last = e;
-      const msg = String(e?.message || e);
-      if (msg.includes('GH_PUT_BIN_FAILED:409') && i < maxAttempts-1){
-        await sleep(120*(i+1)); continue;
-      }
-      throw e;
-    }
-  }
-  throw last || new Error('UPLOAD_MAX_RETRIES_EXCEEDED');
-}
-
 exports.handler = async (event) => {
   try {
     const auth = requireAuth(event);
@@ -174,9 +106,11 @@ exports.handler = async (event) => {
     const uid = auth.uid;
 
     if (event.httpMethod !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
-    if (!GH_REPO || !GH_TOKEN) return bad(500, "GITHUB_CONFIG_MISSING", { GH_REPO, GH_BRANCH });
+    if (!GH_REPO || !GH_TOKEN) return bad(500, "GITHUB_CONFIG_MISSING");
 
-    const payload = JSON.parse(event.body || '{}');
+    // Payload JSON (image obligatoire)
+    let payload = {};
+    try { payload = JSON.parse(event.body || '{}'); } catch { return bad(400, "BAD_JSON"); }
 
     // Valide et normalise name/linkUrl/blocks via ton validateur
     const { name, linkUrl, blocks } = await guardFinalizeInput(event);
@@ -188,11 +122,11 @@ exports.handler = async (event) => {
     let   b64         = String(payload.contentBase64 || "");
     if (!contentType.startsWith("image/")) return bad(400, "NOT_IMAGE");
     if (!b64) return bad(400, "NO_FILE_BASE64");
-    // ✅ tolère "data:image/png;base64,...."
+    // tolère "data:image/png;base64,...."
     const m = b64.match(/^data:[^;]+;base64,(.*)$/i);
     if (m) b64 = m[1];
 
-    // Vérifier disponibilité des blocs et locks actuels (lecture seule)
+    // Vérifier disponibilité des blocs et locks actuels (lecture state.json)
     const { json: state } = await ghGetJson(STATE_PATH);
     const st = state || { sold:{}, locks:{}, regions:{} };
     const now = Date.now();
@@ -209,13 +143,28 @@ exports.handler = async (event) => {
     const regionId = makeId("r");
     const rect     = computeRect(blocks);
 
-    // Upload staging (avec retry 409)
-    const buffer = Buffer.from(b64, "base64");
-    const repoPath = `staging/${orderId}/${filename}`;
-    await ghPutBinaryWithRetry(repoPath, buffer, `feat: staging upload ${filename} for ${orderId}`);
-    const imageUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${repoPath}`;
+    // ====== ⬇️ CHANGEMENT : upload direct Supabase (final), pas de staging GitHub
+    const { createClient } = await import('@supabase/supabase-js');
+    const SUPABASE_URL     = process.env.SUPABASE_URL;
+    const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const SUPABASE_BUCKET  = process.env.SUPABASE_BUCKET || 'images';
+    if (!SUPABASE_URL || !SUPA_SERVICE_KEY) return bad(500, "SUPABASE_CONFIG_MISSING");
 
-    // Enregistrer ordre pending (avec retry 409)
+    const buffer = Buffer.from(b64, "base64");
+    const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession: false } });
+
+    const objectPath = `regions/${regionId}/${filename}`;
+    const { error: upErr } = await supabase
+      .storage
+      .from(SUPABASE_BUCKET)
+      .upload(objectPath, buffer, { contentType, upsert: true });
+    if (upErr) return bad(500, "STORAGE_UPLOAD_FAILED", { message: upErr.message });
+
+    const { data: pub } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(objectPath);
+    const imageUrl = pub?.publicUrl || `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_BUCKET}/${objectPath}`;
+    // ====== ⬆️ FIN CHANGEMENT
+
+    // Enregistrer ordre pending (toujours dans data/orders/*.json pour compat)
     const orderPath = `${ORDERS_DIR}/${orderId}.json`;
     const orderJson = {
       status: "pending",
@@ -225,7 +174,7 @@ exports.handler = async (event) => {
       blocks,
       rect,
       regionId,
-      image: { repoPath, url: imageUrl, contentType },
+      image: { storage:"supabase", bucket: SUPABASE_BUCKET, path: objectPath, url: imageUrl, contentType },
       amount: payload.amount || null,
       currency: payload.currency || "USD",
       createdAt: Date.now(),

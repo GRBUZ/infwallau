@@ -1,13 +1,12 @@
 // netlify/functions/paypal-webhook.js
 // Webhook PayPal -> finalisation server-side (tout ou rien)
-// Vérification simple par secret partagé (PAYPAL_WEBHOOK_SECRET). Remplaçable par l'API officielle.
 
 const STATE_PATH = process.env.STATE_PATH || "data/state.json";
 const ORDERS_DIR = process.env.ORDERS_DIR || "data/orders";
 const GH_REPO    = process.env.GH_REPO;
 const GH_TOKEN   = process.env.GH_TOKEN;
 const GH_BRANCH  = process.env.GH_BRANCH || "main";
-const PAYPAL_WEBHOOK_SECRET = process.env.PAYPAL_WEBHOOK_SECRET || ""; // secret partagé simple (recommandation: switcher vers verify-webhook-signature)
+const PAYPAL_WEBHOOK_SECRET = process.env.PAYPAL_WEBHOOK_SECRET; // simplifié
 
 function bad(status, error, extra = {}) {
   return {
@@ -50,8 +49,8 @@ async function ghPutJson(path, jsonData, sha, message){
       method: "PUT",
       headers: {
         "Authorization": `Bearer ${GH_TOKEN}`,
-        "Accept":"application/vnd.github+json",
-        "Content-Type":"application/json"
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json"
       },
       body: JSON.stringify(body)
     }
@@ -83,6 +82,7 @@ async function ghDeletePath(path, sha, message){
   if (!r.ok) throw new Error(`GH_DELETE_FAILED:${r.status}`);
   return r.json();
 }
+function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
 async function ghPutBinary(path, buffer, message){
   const baseURL = `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`;
   const headers = {
@@ -109,7 +109,6 @@ async function ghPutBinary(path, buffer, message){
   if (!put.ok) throw new Error(`GH_PUT_BIN_FAILED:${put.status}`);
   return put.json();
 }
-function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
 async function ghPutBinaryWithRetry(path, buffer, message, maxAttempts = 4){
   let last;
   for (let i=0;i<maxAttempts;i++){
@@ -125,58 +124,54 @@ async function ghPutBinaryWithRetry(path, buffer, message, maxAttempts = 4){
   }
   throw last || new Error('UPLOAD_MAX_RETRIES_EXCEEDED');
 }
-
-// ---- Domain helpers
-function toRawUrl(path){
-  return `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${path}`;
-}
+function toRawUrl(path){ return `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/${path}`; }
 
 exports.handler = async (event) => {
   try {
     if (event.httpMethod !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
-    if (!GH_REPO || !GH_TOKEN) return bad(500, "GITHUB_CONFIG_MISSING", { GH_REPO, GH_BRANCH });
+    if (!GH_REPO || !GH_TOKEN) return bad(500, "GITHUB_CONFIG_MISSING");
 
-    // --- Vérif simple par secret partagé (à remplacer par verify-webhook-signature PayPal)
-    const secret = event.headers['x-webhook-secret'] || event.headers['X-Webhook-Secret'];
-    if (!PAYPAL_WEBHOOK_SECRET || secret !== PAYPAL_WEBHOOK_SECRET) {
-      return bad(401, "UNAUTHORIZED_WEBHOOK");
-    }
+    // Vérif hyper simple (à durcir avec la vérif PayPal officielle)
+    const sig = event.headers['x-webhook-secret'] || event.headers['X-Webhook-Secret'];
+    if (!sig || sig !== PAYPAL_WEBHOOK_SECRET) return bad(401, "UNAUTHORIZED");
 
-    // Payload attendu: { orderId, paypal:{...} }
     const body = JSON.parse(event.body || '{}');
     const orderId = String(body.orderId || "").trim();
     if (!orderId) return bad(400, "MISSING_ORDER_ID");
 
-    // Lire l'ordre
+    // Charger l'ordre
     const orderPath = `${ORDERS_DIR}/${orderId}.json`;
     const { json: order, sha: orderSha } = await ghGetJson(orderPath);
     if (!order) return bad(404, "ORDER_NOT_FOUND");
 
-    // Idempotence: si déjà completed, OK
+    // Idempotence
     if (order.status === "completed") return ok({ orderId, status: "completed" });
 
-    // (Optionnel) vérifier autres critères PayPal dans "body.paypal" (montant, currency...)
-    // if (order.amount && body?.paypal?.amount !== order.amount) { ... mark failed ... }
-
-    // --- PROMOTE image (staging -> final assets)
+    // --- RESOLVE image URL (Supabase ou GitHub staging)
+    let finalUrl = null;
     const stagingPath = order.image?.repoPath;
-    if (!stagingPath) return bad(400, "ORDER_NO_STAGING_IMAGE");
 
-    const stageFile = await ghGetFile(stagingPath); // content (b64), sha
-    const contentB64 = stageFile?.content || "";
-    if (!contentB64) return bad(500, "STAGING_READ_FAILED");
+    if (stagingPath) {
+      // Legacy: promotion staging -> assets
+      const stageFile = await ghGetFile(stagingPath);
+      const contentB64 = stageFile?.content || "";
+      if (!contentB64) return bad(500, "STAGING_READ_FAILED");
 
-    const buffer = Buffer.from(contentB64, "base64");
-    const filename = stagingPath.split('/').pop();
-    const destPath = `assets/images/${order.regionId}/${filename}`;
+      const buffer = Buffer.from(contentB64, "base64");
+      const filename = stagingPath.split('/').pop();
+      const destPath = `assets/images/${order.regionId}/${filename}`;
 
-    await ghPutBinaryWithRetry(destPath, buffer, `feat: promote image for ${order.regionId}`);
-    const finalUrl = toRawUrl(destPath);
+      await ghPutBinaryWithRetry(destPath, buffer, `feat: promote image for ${order.regionId}`);
+      finalUrl = toRawUrl(destPath);
 
-    // (optionnel) supprimer staging
-    try { await ghDeletePath(stagingPath, stageFile.sha, `chore: cleanup staging for ${orderId}`); } catch(_){}
+      try { await ghDeletePath(stagingPath, stageFile.sha, `chore: cleanup staging for ${orderId}`); } catch(_){}
+    } else {
+      // Supabase: l'image est déjà publique, prendre l'URL fournie
+      finalUrl = order.image?.url;
+      if (!finalUrl) return bad(400, "ORDER_NO_IMAGE_URL");
+    }
 
-    // --- ECRITURE state.json (sold + regions[regionId]) avec retry 409
+    // --- ECRITURE state.json (sold + regions) avec retry 409
     let attempts = 0, delay = 150;
     while (attempts < 4) {
       attempts++;
@@ -187,11 +182,10 @@ exports.handler = async (event) => {
       st.locks  ||= {};
       st.regions||= {};
 
-      // Check disponibilité (si devenu sold entre temps -> order failed)
+      // dernière vérif dispo
       const now = Date.now();
       for (const idx of (order.blocks || [])) {
         if (st.sold[idx]) {
-          // marquer order failed puis sortir
           const failed = { ...order, status:"failed", updatedAt: Date.now(), failReason:"ALREADY_SOLD" };
           await ghPutJson(orderPath, failed, orderSha, `chore: order ${orderId} failed (already sold)`);
           return bad(409, "ALREADY_SOLD");
@@ -211,24 +205,23 @@ exports.handler = async (event) => {
         if (st.locks[idx]) delete st.locks[idx];
       }
 
-      // Région
+      // Région (préserver imageUrl existante)
       const existing = st.regions[order.regionId] || {};
       st.regions[order.regionId] = { rect: order.rect, imageUrl: existing.imageUrl || finalUrl };
 
       try {
         await ghPutJson(STATE_PATH, st, stSha, `feat: finalize order ${orderId} (${(order.blocks||[]).length} blocks)`);
-        break; // success
+        break;
       } catch (e) {
         const msg = String(e?.message || e);
-        if (msg.includes('409') && attempts < 4) { await sleep(delay); delay *= 2; continue; }
-        // autre erreur -> order failed
-        const failed = { ...order, status:"failed", updatedAt: Date.now(), failReason: msg };
-        await ghPutJson(orderPath, failed, orderSha, `chore: order ${orderId} failed (write state)`);
+        if (msg.includes('GH_PUT_JSON_FAILED:409') && attempts < 3) {
+          await sleep(delay); delay *= 2; continue;
+        }
         return bad(500, "SERVER_ERROR", { message: msg });
       }
     }
 
-    // --- Marquer la commande comme completed
+    // Marquer la commande completed
     const completed = { ...order, status:"completed", updatedAt: Date.now(), finalImageUrl: finalUrl };
     await ghPutJson(orderPath, completed, orderSha, `chore: order ${orderId} completed`);
 
