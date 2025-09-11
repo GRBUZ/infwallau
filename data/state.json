@@ -14503,7 +14503,92 @@
       "regionId": "r_mffi5d07_kz6p"
     }
   },
-  "locks": {},
+  "locks": {
+    "160": {
+      "uid": "adba65a0-932b-4aaf-aac4-3fcd648a352f",
+      "first": 1757602584953,
+      "until": 1757602764953,
+      "capUntil": 1757602764953,
+      "regionId": "0677c1333759"
+    },
+    "161": {
+      "uid": "adba65a0-932b-4aaf-aac4-3fcd648a352f",
+      "first": 1757602584953,
+      "until": 1757602764953,
+      "capUntil": 1757602764953,
+      "regionId": "0677c1333759"
+    },
+    "162": {
+      "uid": "adba65a0-932b-4aaf-aac4-3fcd648a352f",
+      "first": 1757602584953,
+      "until": 1757602764953,
+      "capUntil": 1757602764953,
+      "regionId": "0677c1333759"
+    },
+    "163": {
+      "uid": "adba65a0-932b-4aaf-aac4-3fcd648a352f",
+      "first": 1757602584953,
+      "until": 1757602764953,
+      "capUntil": 1757602764953,
+      "regionId": "0677c1333759"
+    },
+    "260": {
+      "uid": "adba65a0-932b-4aaf-aac4-3fcd648a352f",
+      "first": 1757602584953,
+      "until": 1757602764953,
+      "capUntil": 1757602764953,
+      "regionId": "0677c1333759"
+    },
+    "261": {
+      "uid": "adba65a0-932b-4aaf-aac4-3fcd648a352f",
+      "first": 1757602584953,
+      "until": 1757602764953,
+      "capUntil": 1757602764953,
+      "regionId": "0677c1333759"
+    },
+    "262": {
+      "uid": "adba65a0-932b-4aaf-aac4-3fcd648a352f",
+      "first": 1757602584953,
+      "until": 1757602764953,
+      "capUntil": 1757602764953,
+      "regionId": "0677c1333759"
+    },
+    "263": {
+      "uid": "adba65a0-932b-4aaf-aac4-3fcd648a352f",
+      "first": 1757602584953,
+      "until": 1757602764953,
+      "capUntil": 1757602764953,
+      "regionId": "0677c1333759"
+    },
+    "360": {
+      "uid": "adba65a0-932b-4aaf-aac4-3fcd648a352f",
+      "first": 1757602584953,
+      "until": 1757602764953,
+      "capUntil": 1757602764953,
+      "regionId": "0677c1333759"
+    },
+    "361": {
+      "uid": "adba65a0-932b-4aaf-aac4-3fcd648a352f",
+      "first": 1757602584953,
+      "until": 1757602764953,
+      "capUntil": 1757602764953,
+      "regionId": "0677c1333759"
+    },
+    "362": {
+      "uid": "adba65a0-932b-4aaf-aac4-3fcd648a352f",
+      "first": 1757602584953,
+      "until": 1757602764953,
+      "capUntil": 1757602764953,
+      "regionId": "0677c1333759"
+    },
+    "363": {
+      "uid": "adba65a0-932b-4aaf-aac4-3fcd648a352f",
+      "first": 1757602584953,
+      "until": 1757602764953,
+      "capUntil": 1757602764953,
+      "regionId": "0677c1333759"
+    }
+  },
   "regions": {
     "r_mffi5d07_kz6p": {
       "rect": {
@@ -14607,6 +14692,33 @@
         "h": 5
       },
       "imageUrl": "https://hdrexzoojlugivozfapo.supabase.co/storage/v1/object/public/images/regions/r_mffiw9f3_wte1/Capture-d__cran-2024-07-04-121021_1757602075637_8caxv1.png"
+    },
+    "0677c1333759": {
+      "rect": {
+        "x": 60,
+        "y": 1,
+        "w": 4,
+        "h": 3
+      },
+      "blocks": [
+        160,
+        161,
+        162,
+        163,
+        260,
+        261,
+        262,
+        263,
+        360,
+        361,
+        362,
+        363
+      ],
+      "imageUrl": "",
+      "name": "",
+      "linkUrl": "",
+      "uid": "adba65a0-932b-4aaf-aac4-3fcd648a352f",
+      "reservedUntil": 1757602764953
     }
   }
 }
