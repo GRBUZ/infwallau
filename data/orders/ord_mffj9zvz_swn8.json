@@ -1,5 +1,5 @@
 {
-  "status": "pending",
+  "status": "completed",
   "uid": "adba65a0-932b-4aaf-aac4-3fcd648a352f",
   "name": "bouzzydd",
   "linkUrl": "https://tota2t.com/",
@@ -763,5 +763,7 @@
   "amount": null,
   "currency": "USD",
   "createdAt": 1757602717825,
-  "expiresAt": 1757603917825
+  "expiresAt": 1757603917825,
+  "updatedAt": 1757602719770,
+  "finalImageUrl": "https://hdrexzoojlugivozfapo.supabase.co/storage/v1/object/public/images/regions/r_mffj9zvz_ubt2/Capture-d__cran-2025-02-01-213031_1757602716695_u0qxh7.png"
 }
