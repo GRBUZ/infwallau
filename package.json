@@ -5,6 +5,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "@supabase/supabase-js": "^2.0.0"
   }
 }
