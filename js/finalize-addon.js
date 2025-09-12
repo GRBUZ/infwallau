@@ -221,63 +221,47 @@
       return;
     }
 
-    window.PayPalIntegration.initAndRender({
-      orderId,
-      currency: currency || 'USD',
-      /*onApproved: async () => {
-        try {
-          msg.textContent = 'Paiement confirmé. Finalisation en cours…';
-          const ok = await waitForCompleted(orderId, 45); // ~90s
-          if (ok) {
-            msg.textContent = 'Commande finalisée.';
-            try { await unlockSelection(); } catch {}
-            await refreshStatus();
-            try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
-          } else {
-            msg.textContent = 'Paiement en attente / timeout. Vous pouvez vérifier plus tard.';
-            resumeHB();
-          }
-        } catch (e) {
-          uiError(e, 'PayPal');
-          resumeHB();
-        } finally {
-          btnBusy(false);
-        }
-      },*/
-      //new onapprouv
-      onApproved: async (data) => {
-      setStatus('Paiement confirmé. Finalisation en cours…');
-      const r = await apiCall('/.netlify/functions/paypal-capture-finalize', {
-        method: 'POST',
-        body: { orderId: localOrderId, paypalOrderId: data.orderID }
-      });
-      const j = await r.json();
-      if (!r.ok || !j.ok) {
-        throw new Error(j.error || j.message || 'FINALIZE_FAILED');
-      }
-      // succès
-      setStatus('Terminé ✅');
-      // ferme le modal / redirige:
-      // closeModal()
-      },
+  window.PayPalIntegration.initAndRender({
+  orderId,
+  currency: currency || 'USD',
 
-      //new onapprouv
-      onCancel: async () => {
-        const msg = ensureMsgEl();
-        msg.textContent = 'Paiement annulé.';
-        await unlockSelection();
-        btnBusy(false);
-        resumeHB();
-      },
-      onError: async (err) => {
-        uiError(err, 'PayPal');
-        const msg = ensureMsgEl();
-        msg.textContent = 'Erreur de paiement.';
-        await unlockSelection();
-        btnBusy(false);
-        resumeHB();
-      }
+  onApproved: async (data) => {
+    setStatus('Paiement confirmé. Finalisation en cours…');
+
+    const r = await apiCall('/.netlify/functions/paypal-capture-finalize', {
+      method: 'POST',
+      body: { orderId, paypalOrderId: data.orderID } // <— ici: orderId (pas localOrderId)
     });
+
+    const j = (r && typeof r.json === 'function') ? await r.json() : r;
+    if (!j || !j.ok) {
+      throw new Error(j?.error || j?.message || 'FINALIZE_FAILED');
+    }
+
+    setStatus('Terminé ✅');
+    try { await unlockSelection(); } catch {}
+    await refreshStatus();
+    try { closeModal?.(); } catch {}
+  },
+
+  onCancel: async () => {
+    const msg = ensureMsgEl();
+    msg.textContent = 'Paiement annulé.';
+    await unlockSelection();
+    btnBusy(false);
+    resumeHB();
+  },
+
+  onError: async (err) => {
+    uiError(err, 'PayPal');
+    const msg = ensureMsgEl();
+    msg.textContent = 'Erreur de paiement.';
+    await unlockSelection();
+    btnBusy(false);
+    resumeHB();
+  }
+});
+
   }
 
   // Finalize flow
