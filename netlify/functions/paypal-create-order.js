@@ -61,16 +61,24 @@ async function getPayPalAccessToken() {
   return j.access_token;
 }
 
-exports.handler = requireAuth(async (event) => {
+// Remplace TOUT ce bloc exports.handler par celui-ci :
+
+exports.handler = async (event) => {
+  // --- AUTH d'abord (utilise ton auth-middleware tel qu’on l’a fixé) ---
+  const auth = requireAuth(event);           // <- appelle le middleware avec l'event
+  if (!auth.authenticated) return auth;      // <- en cas d'échec, c'est déjà un {statusCode:401,...}
+  const { uid } = auth;                      // <- récupère l'UID du token
+  event.auth = auth;                         // (optionnel) si d'autres utilitaires lisent event.auth
+
+  // --- le reste est ta logique inchangée ---
   if (event.httpMethod !== 'POST') return bad(405, 'METHOD_NOT_ALLOWED');
   if (!GH_REPO || !GH_TOKEN)       return bad(500, 'GITHUB_CONFIG_MISSING');
   if (!SUPABASE_URL || !SUPA_SERVICE_KEY) return bad(500, 'SUPABASE_CONFIG_MISSING');
 
-  let body={}; try{ body = JSON.parse(event.body||'{}'); }catch{ return bad(400,'BAD_JSON'); }
+  let body = {};
+  try { body = JSON.parse(event.body || '{}'); } catch { return bad(400, 'BAD_JSON'); }
   const orderId = String(body.orderId || '').trim();
   if (!orderId) return bad(400, 'MISSING_ORDER_ID');
-
-  const { uid } = event.auth; // vient de requireAuth
 
   // 1) Charger l’ordre préparé par /start-order
   const orderPath = `${ORDERS_DIR}/${orderId}.json`;
@@ -78,12 +86,12 @@ exports.handler = requireAuth(async (event) => {
   if (!order) return bad(404, 'ORDER_NOT_FOUND');
   if (order.uid && order.uid !== uid) return bad(403, 'FORBIDDEN');
 
-  const blocks = Array.isArray(order.blocks) ? order.blocks.map(n=>parseInt(n,10)).filter(Number.isFinite) : [];
+  const blocks = Array.isArray(order.blocks) ? order.blocks.map(n => parseInt(n, 10)).filter(Number.isFinite) : [];
   if (!blocks.length) return bad(400, 'NO_BLOCKS');
 
   // 2) Vérifs Supabase: déjà vendus ? locks par autre ?
   const { createClient } = await import('@supabase/supabase-js');
-  const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession:false } });
+  const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession: false } });
 
   const { data: soldRows, error: soldErr } = await supabase
     .from('cells').select('idx')
@@ -101,36 +109,34 @@ exports.handler = requireAuth(async (event) => {
   if (lockErr) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr.message });
   if (lockRows && lockRows.length) return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
 
-  // 3) Prix serveur: recalcule → si différent de ce qui a été journalisé, on force PRICE_CHANGED
+  // 3) Prix serveur
   const { count, error: countErr } = await supabase
-    .from('cells').select('idx', { count:'exact', head:true })
+    .from('cells').select('idx', { count: 'exact', head: true })
     .not('sold_at', 'is', null);
   if (countErr) return bad(500, 'PRICE_QUERY_FAILED', { message: countErr.message });
 
-  const blocksSold  = count || 0;
-  const tier        = Math.floor(blocksSold / 10);
-  const unitPrice   = Math.round((1 + tier * 0.01) * 100) / 100;
+  const blocksSold = count || 0;
+  const tier = Math.floor(blocksSold / 10);
+  const unitPrice = Math.round((1 + tier * 0.01) * 100) / 100;
   const totalPixels = blocks.length * 100;
-  const total       = Math.round(unitPrice * totalPixels * 100) / 100;
-  const currency    = (order.currency || 'USD').toUpperCase();
+  const total = Math.round(unitPrice * totalPixels * 100) / 100;
+  const currency = (order.currency || 'USD').toUpperCase();
 
   if (order.unitPrice != null && Number(order.unitPrice) !== unitPrice) {
-    // Journaliser l’écart pour audit, demander refresh à l’UI si tu veux
     const patched = { ...order, priceChangedAt: Date.now(), serverUnitPrice: unitPrice, serverTotal: total };
     try { await ghPutJson(orderPath, patched, orderSha, `chore: price changed for ${orderId}`); } catch {}
     return bad(409, 'PRICE_CHANGED', { serverUnitPrice: unitPrice, serverTotal: total, currency });
   }
 
-  // 4) Créer la commande PayPal avec LE montant serveur
+  // 4) Créer la commande PayPal avec le montant serveur
   const accessToken = await getPayPalAccessToken();
   const ppOrderData = {
     intent: 'CAPTURE',
     purchase_units: [{
       amount: { currency_code: currency, value: total.toFixed(2) },
       description: `${blocks.length} blocks (${totalPixels} px)`,
-      // 🔗 Ajoute ces 2 lignes :
-      custom_id: orderId,      // <-- NOTRE orderId (clé indispensable pour le webhook)
-      invoice_id: orderId      // <-- optionnel, utile pour le backoffice PayPal
+      custom_id: orderId,
+      invoice_id: orderId
     }],
     application_context: {
       brand_name: 'Million Pixels',
@@ -144,21 +150,25 @@ exports.handler = requireAuth(async (event) => {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
-      'Prefer': 'return=minimal'
+      // Pour être sûr d'avoir le corps JSON complet :
+      'Prefer': 'return=representation'
     },
     body: JSON.stringify(ppOrderData)
   });
+
   if (!createResponse.ok) {
-    const err = await createResponse.json().catch(()=>({}));
+    const err = await createResponse.json().catch(() => ({}));
     return bad(500, 'PAYPAL_CREATE_FAILED', { details: err });
   }
+
   const ppOrder = await createResponse.json();
 
   // 5) Persister le paypalOrderId dans l’order JSON
   try {
     const updated = { ...order, paypalOrderId: ppOrder.id, unitPrice, total, currency, updatedAt: Date.now() };
     await ghPutJson(orderPath, updated, orderSha, `chore: paypal order created ${ppOrder.id}`);
-  } catch(_) {}
+  } catch (_) {}
 
   return ok({ id: ppOrder.id, status: ppOrder.status || 'CREATED' });
-});
+};
+

@@ -1,13 +1,37 @@
-// netlify/functions/auth-middleware.js — middleware JWT
+// netlify/functions/auth-middleware.js — middleware JWT (robuste)
 const crypto = require('crypto');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-in-production';
 
+// --- utils ---
 function base64UrlDecode(str) {
   str += '==='.slice(0, (4 - str.length % 4) % 4);
   return Buffer.from(str.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString();
 }
 
+function toLowerKeys(obj) {
+  const out = {};
+  if (!obj || typeof obj !== 'object') return out;
+  for (const [k, v] of Object.entries(obj)) out[String(k).toLowerCase()] = v;
+  return out;
+}
+
+function headersFrom(input) {
+  // Gère Netlify (event.headers), Express (req.headers) et rawHeaders (Array)
+  if (!input) return {};
+  if (input.headers) return toLowerKeys(input.headers);
+  if (input.req && input.req.headers) return toLowerKeys(input.req.headers);
+  if (Array.isArray(input.rawHeaders)) {
+    const map = {};
+    for (let i = 0; i < input.rawHeaders.length; i += 2) {
+      map[String(input.rawHeaders[i]).toLowerCase()] = input.rawHeaders[i + 1];
+    }
+    return map;
+  }
+  return {};
+}
+
+// --- JWT ---
 function verifyJWT(token) {
   try {
     const parts = token.split('.');
@@ -43,23 +67,26 @@ function verifyJWT(token) {
   }
 }
 
-function authenticate(event) {
-  const authHeader = event.headers.authorization || event.headers.Authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+// --- Auth ---
+function authenticate(eventOrReq) {
+  const headers = headersFrom(eventOrReq);
+  const authHeader = headers['authorization'] || ''; // insensible à la casse grâce à toLowerKeys
+
+  if (!authHeader.startsWith('Bearer ')) {
     return { authenticated: false, error: 'NO_TOKEN' };
   }
-  
-  const token = authHeader.slice(7);
+
+  const token = authHeader.slice(7).trim();
   const result = verifyJWT(token);
-  
+
   if (!result.valid) {
     return { authenticated: false, error: result.error };
   }
-  
-  return { 
-    authenticated: true, 
+
+  return {
+    authenticated: true,
     uid: result.payload.uid,
-    payload: result.payload 
+    payload: result.payload
   };
 }
 
@@ -68,15 +95,15 @@ function requireAuth(event) {
   if (!auth.authenticated) {
     return {
       statusCode: 401,
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ 
-        ok: false, 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ok: false,
         error: 'UNAUTHORIZED',
-        message: auth.error 
+        message: auth.error
       })
     };
   }
   return auth;
 }
 
-module.exports = { authenticate, requireAuth };
+module.exports = { authenticate, requireAuth, verifyJWT };
