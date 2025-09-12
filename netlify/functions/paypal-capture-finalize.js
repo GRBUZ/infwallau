@@ -88,6 +88,34 @@ async function getPayPalAccessToken() {
   return j.access_token;
 }
 
+// === PATCH AJOUTÉ: helper refund PayPal ===
+async function refundPayPalCapture(accessToken, captureId, amount, currency) {
+  try {
+    const resp = await fetch(`${PAYPAL_BASE_URL}/v2/payments/captures/${captureId}/refund`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ amount: { value: Number(amount).toFixed(2), currency_code: currency } })
+    });
+    const j = await resp.json().catch(()=> ({}));
+    if (!resp.ok) throw new Error(`PAYPAL_REFUND_FAILED:${resp.status}:${j?.name || ''}`);
+    return j; // { id, status, ... }
+  } catch (e) {
+    console.error('[PayPal] refund failed:', e);
+    return null; // best-effort
+  }
+}
+
+// === PATCH AJOUTÉ: helper libération des locks ===
+async function releaseLocks(supabase, blocks, uid) {
+  try {
+    if (!Array.isArray(blocks) || !blocks.length || !uid) return;
+    await supabase.from('locks').delete().in('idx', blocks).eq('uid', uid);
+  } catch (_) { /* best-effort */ }
+}
+
 function isUuid(v){
   return typeof v === 'string' &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
@@ -256,6 +284,32 @@ exports.handler = async (event) => {
     });
     if (rpcErr) {
       const msg = (rpcErr.message || '').toUpperCase();
+
+      // === PATCH: REFUND + libération des locks si la finalisation échoue après capture ===
+      try {
+        const refund = await refundPayPalCapture(accessToken, captureId, capValue, currency);
+        try { await releaseLocks(supabase, blocksOk, uid); } catch(_) {}
+
+        // journal best-effort
+        try {
+          const updated = {
+            ...order,
+            status: 'failed_refunded',
+            updatedAt: Date.now(),
+            failReason: msg.includes('LOCKS_INVALID') ? 'LOCKS_INVALID'
+                     : (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) ? 'ALREADY_SOLD'
+                     : (msg.includes('NO_BLOCKS') ? 'NO_BLOCKS' : 'FINALIZE_ERROR'),
+            refundId: refund?.id || null,
+            paypalOrderId,
+            paypalCaptureId: captureId,
+            serverUnitPrice: unitPrice,
+            serverTotal,
+            currency
+          };
+          await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} refunded (finalize failed)`);
+        } catch(_) {}
+      } catch(_) {}
+
       if (msg.includes('LOCKS_INVALID'))                          return bad(409, 'LOCK_MISSING_OR_EXPIRED');
       if (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) return bad(409, 'ALREADY_SOLD');
       if (msg.includes('NO_BLOCKS'))                              return bad(400, 'NO_BLOCKS');
@@ -278,6 +332,9 @@ exports.handler = async (event) => {
       };
       await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} completed (capture+rpc)`);
     } catch (_){}
+
+    // === PATCH: libération des locks en cas de succès (best-effort) ===
+    try { await releaseLocks(supabase, blocksOk, uid); } catch(_) {}
 
     return ok({ status:'completed', orderId, regionId, imageUrl: imageUrl || null, paypalOrderId, paypalCaptureId: captureId });
 
