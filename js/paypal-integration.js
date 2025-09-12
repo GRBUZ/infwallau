@@ -9,7 +9,6 @@
     if (!sdkPromise) {
       sdkPromise = new Promise((resolve, reject) => {
         const s = document.createElement('script');
-        // intent=capture pour Checkout (Orders v2)
         s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=${encodeURIComponent(currency)}&intent=capture`;
         s.onload = () => resolve();
         s.onerror = () => reject(new Error('PAYPAL_SDK_LOAD_FAILED'));
@@ -19,67 +18,16 @@
     return sdkPromise;
   }
 
-  // Appelle une Netlify Function en s'adaptant à l'environnement :
-  // - si w.apiCall ou w.CoreManager.apiCall existent, on les utilise (souvent ils gèrent l'auth)
-  // - sinon, fallback fetch direct vers /.netlify/functions/<name>
-  async function callFunction(name, { method = 'GET', body } = {}) {
-    // payload pour les wrappers éventuels
-    const payload = {
-      method,
-      // si le wrapper attend une string, laissons-le gérer;
-      // sinon on passe un objet (on gère dans fetch fallback ci-dessous)
-      body
-    };
-
+  // Récupère un éventuel JWT pour le fallback fetch
+  function getAuthToken() {
     try {
-      if (typeof w.apiCall === 'function') {
-        // Beaucoup de wrappers mappent "/xxx" -> "/.netlify/functions/xxx"
-        return await w.apiCall(`/${name}`, payload);
-      }
-      if (w.CoreManager?.apiCall) {
-        return await w.CoreManager.apiCall(`/${name}`, payload);
-      }
-    } catch (e) {
-      // Si le wrapper existe mais échoue avec un network error, on essaie le fallback
-      console.warn('[PayPalIntegration] wrapper apiCall failed, fallback to fetch', e);
-    }
-
-    // Fallback: fetch direct
-    const headers = { 'Content-Type': 'application/json' };
-    // On essaie de récupérer un token si dispo (optionnel)
-    const token =
-      (w.CoreManager?.getToken?.()) ||
-      (w.auth && w.auth.token) ||
-      (function () {
-        try {
-          return localStorage.getItem('jwt') || localStorage.getItem('token') || '';
-        } catch (_) { return ''; }
-      })();
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    const resp = await fetch(`/.netlify/functions/${name}`, {
-      method,
-      headers,
-      body: body && (typeof body === 'string' ? body : JSON.stringify(body))
-    });
-
-    const json = await resp.json().catch(() => ({}));
-    if (!resp.ok) {
-      const err = new Error(json?.error || json?.message || `FUNCTION_${name.toUpperCase()}_FAILED`);
-      err.response = resp;
-      err.body = json;
-      throw err;
-    }
-    return json;
+      if (typeof w.CoreManager?.getToken === 'function') return w.CoreManager.getToken() || '';
+      if (w.auth && w.auth.token) return w.auth.token;
+      return localStorage.getItem('jwt') || localStorage.getItem('token') || '';
+    } catch (_) { return ''; }
   }
 
-  async function initAndRender({
-    orderId,
-    currency = 'USD',
-    onApproved, // callback métier côté app
-    onCancel,
-    onError
-  } = {}) {
+  async function initAndRender({ orderId, currency = 'USD', onApproved, onCancel, onError } = {}) {
     try {
       const clientId = w.PAYPAL_CLIENT_ID;
       if (!clientId) throw new Error('MISSING_PAYPAL_CLIENT_ID');
@@ -96,37 +44,63 @@
         confirmBtn?.insertAdjacentElement('afterend', container);
       }
 
-      // Création d’ordre PayPal côté serveur (montant calculé côté serveur)
+      // --- Création d’ordre côté serveur (montant calculé serveur) ---
       const createOrder = async () => {
         try {
-          const res = await callFunction('paypal-create-order', {
+          // 1) Si ton wrapper existe, on l’utilise (et on STRINGIFIE le body)
+          if (w.CoreManager?.apiCall) {
+            const res = await w.CoreManager.apiCall('/paypal-create-order', {
+              method: 'POST',
+              body: JSON.stringify({ orderId, currency })
+            });
+            // Certains wrappers renvoient un Response, on gère les deux cas :
+            const data = (res && typeof res.json === 'function') ? await res.json() : res;
+            if (!data?.id) throw new Error(data?.error || 'PAYPAL_CREATE_FAILED');
+            return data.id;
+          }
+
+          // 2) Fallback: fetch direct Netlify
+          const headers = { 'Content-Type': 'application/json' };
+          const token = getAuthToken();
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+
+          const resp = await fetch('/.netlify/functions/paypal-create-order', {
             method: 'POST',
-            body: { orderId, currency }
+            headers,
+            body: JSON.stringify({ orderId, currency })
           });
-          if (!res?.id) throw new Error('PAYPAL_CREATE_FAILED');
-          return res.id; // renvoyer l'orderID PayPal au SDK
+          const j = await resp.json().catch(() => ({}));
+          if (!resp.ok || !j?.id) throw new Error(j?.error || 'PAYPAL_CREATE_FAILED');
+          return j.id;
         } catch (e) {
+          console.error('[PayPalIntegration] createOrder failed:', e);
           onError?.(e);
           throw e;
         }
       };
 
-      // IMPORTANT : ne pas capturer côté client.
-      // On laisse le serveur faire la capture + finalisation atomique.
+      // --- Ne PAS capturer côté client : la capture + finalisation est côté serveur ---
       const onApprove = async (data, actions) => {
         try {
           if (typeof onApproved === 'function') {
-            // on passe le même "data" que PayPal (contient orderID)
+            // On te refile le data PayPal complet (tu lis data.orderID)
             await onApproved(data, actions);
           } else {
-            // Fallback : finaliser côté serveur si l'app n'a pas fourni de callback
-            const r = await callFunction('paypal-capture-finalize', {
+            // Fallback : finaliser côté serveur si aucun callback fourni
+            const headers = { 'Content-Type': 'application/json' };
+            const token = getAuthToken();
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const resp = await fetch('/.netlify/functions/paypal-capture-finalize', {
               method: 'POST',
-              body: { orderId, paypalOrderId: data?.orderID }
+              headers,
+              body: JSON.stringify({ orderId, paypalOrderId: data?.orderID })
             });
-            if (!r?.ok) throw new Error(r?.error || 'FINALIZE_FAILED');
+            const j = await resp.json().catch(() => ({}));
+            if (!resp.ok || !j?.ok) throw new Error(j?.error || j?.message || 'FINALIZE_FAILED');
           }
         } catch (e) {
+          console.error('[PayPalIntegration] onApprove failed:', e);
           onError?.(e);
           throw e;
         }
@@ -148,6 +122,5 @@
     }
   }
 
-  // Expose global
   w.PayPalIntegration = { initAndRender };
 })(window);
