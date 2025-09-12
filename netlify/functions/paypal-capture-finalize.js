@@ -18,6 +18,7 @@ const ORDERS_DIR = process.env.ORDERS_DIR || 'data/orders';
 // --- PayPal
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
 const PAYPAL_SECRET    = process.env.PAYPAL_SECRET;
+// Sandbox par défaut; mets https://api-m.paypal.com en prod via la variable d'env
 const PAYPAL_BASE_URL  = process.env.PAYPAL_BASE_URL || 'https://api-m.sandbox.paypal.com';
 
 function json(status, obj){
@@ -91,19 +92,24 @@ function isUuid(v){
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
 
-exports.handler = requireAuth(async (event) => {
+exports.handler = async (event) => {
   try {
     if (event.httpMethod !== 'POST') return bad(405, 'METHOD_NOT_ALLOWED');
     if (!SUPABASE_URL || !SUPA_SERVICE_KEY) return bad(500,'SUPABASE_CONFIG_MISSING');
+    if (!GH_REPO || !GH_TOKEN) return bad(500,'GITHUB_CONFIG_MISSING');
+
+    // ✅ Ton requireAuth renvoie un objet (ou une réponse 401), ce n’est pas un wrapper.
+    const auth = requireAuth(event);
+    if (auth?.statusCode) return auth; // 401/JSON directement
+    event.auth = auth; // homogénéité avec le reste de ton code
+    const { uid } = auth;
+    if (!uid) return bad(401, 'UNAUTHORIZED');
 
     let body={}; try{ body = JSON.parse(event.body||'{}'); }catch{ return bad(400,'BAD_JSON'); }
-    const orderId      = String(body.orderId || '').trim();
-    const paypalOrderId= String(body.paypalOrderId || '').trim();
+    const orderId       = String(body.orderId || '').trim();
+    const paypalOrderId = String(body.paypalOrderId || '').trim();
     if (!orderId)       return bad(400, 'MISSING_ORDER_ID');
     if (!paypalOrderId) return bad(400, 'MISSING_PAYPAL_ORDER_ID');
-
-    const { uid } = (event.auth || {});
-    if (!uid) return bad(401, 'UNAUTHORIZED');
 
     // 1) Charger l’ordre GitHub et vérifier ownership
     const orderPath = `${ORDERS_DIR}/${orderId}.json`;
@@ -141,7 +147,7 @@ exports.handler = requireAuth(async (event) => {
     const totalPixels = blocks.length * 100;
     const serverTotal = Math.round(unitPrice * totalPixels * 100) / 100;
 
-    // Si l'order GitHub possède un total différent → on refuse de CAPTURE (le client doit refaire /create-order)
+    // Si l'order GitHub possède un total différent → on refuse la CAPTURE (le client doit refaire /create-order)
     if (order.total != null && Number(order.total) !== Number(serverTotal)) {
       const patched = { ...order, priceChangedAt: Date.now(), serverUnitPrice: unitPrice, serverTotal, currency };
       try { await ghPutJson(orderPath, patched, orderSha, `chore: price changed before capture for ${orderId}`); } catch {}
@@ -151,7 +157,7 @@ exports.handler = requireAuth(async (event) => {
     // 3) CAPTURE PayPal (serveur → serveur)
     const accessToken = await getPayPalAccessToken();
 
-    // (Optionnel) GET order pour contrôler l’amount prévu côté PayPal
+    // GET order pour contrôler l’amount prévu côté PayPal
     const getOrderRes = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders/${paypalOrderId}`, {
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type':'application/json' }
     });
@@ -178,7 +184,7 @@ exports.handler = requireAuth(async (event) => {
       return bad(409, 'PRICE_CHANGED', { serverUnitPrice: unitPrice, serverTotal, currency });
     }
     if (ppOrder.status === 'COMPLETED') {
-      // Déjà capturé (ex: retry) -> on saute la capture et on va finaliser
+      // Déjà capturé (ex: capture SDK front) -> on saute la capture et on va finaliser
     } else if (ppOrder.status !== 'APPROVED') {
       return bad(409, 'ORDER_NOT_APPROVED', { paypalStatus: ppOrder.status });
     }
@@ -193,11 +199,10 @@ exports.handler = requireAuth(async (event) => {
           'Content-Type': 'application/json',
           'Prefer': 'return=representation'
         },
-        body: JSON.stringify({}) // nothing required
+        body: JSON.stringify({})
       });
       const capJson = await captureRes.json().catch(()=>({}));
       if (!captureRes.ok) {
-        // Exemple d'erreur quand déjà capturé : "ORDER_ALREADY_CAPTURED"
         return bad(502, 'PAYPAL_CAPTURE_FAILED', { details: capJson });
       }
       capture = capJson;
@@ -205,7 +210,7 @@ exports.handler = requireAuth(async (event) => {
         return bad(502, 'PAYPAL_CAPTURE_NOT_COMPLETED', { paypalStatus: capture.status });
       }
     } else {
-      // Si déjà completed, re-GET pour récupérer la dernière représentation avec captures
+      // Si déjà completed, re-GET pour récupérer la représentation avec captures
       capture = ppOrder;
     }
 
@@ -222,7 +227,6 @@ exports.handler = requireAuth(async (event) => {
     if (!captureId) return bad(502, 'MISSING_CAPTURE_ID');
     if (capCurrency !== currency) return bad(409, 'CURRENCY_MISMATCH', { expected: currency, got: capCurrency });
     if (Number(capValue) !== Number(serverTotal)) {
-      // Théoriquement impossible si on a vérifié avant capture, mais on protège quand même.
       return bad(409, 'CAPTURE_AMOUNT_MISMATCH', { expected: serverTotal, got: capValue });
     }
 
@@ -279,4 +283,4 @@ exports.handler = requireAuth(async (event) => {
   } catch (e) {
     return bad(500, 'SERVER_ERROR', { message: String(e?.message || e) });
   }
-});
+};

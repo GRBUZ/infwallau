@@ -231,16 +231,22 @@
     const msg = ensureMsgEl();
     msg.textContent = 'Paiement confirmé. Finalisation en cours…';
 
-    // data.orderID vient de PayPal
+    // 1) tagguer paypalOrderId côté serveur (auth via apiCall)
     const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
       method: 'POST',
       body: JSON.stringify({ orderId, paypalOrderId: data.orderID })
     });
+    if (!res?.ok) throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
 
-    if (!res?.ok) {
-      throw new Error(res?.error || res?.message || 'FINALIZE_FAILED');
+    // 2) attendre la finalisation par le webhook
+    const ok = await waitForCompleted(orderId, 60); // augmente si besoin
+    if (!ok) {
+      msg.textContent = 'Paiement enregistré, finalisation en attente… Vous pourrez vérifier plus tard.';
+      resumeHB();
+      return;
     }
 
+    // 3) succès
     msg.textContent = 'Commande finalisée ✅';
     try { await unlockSelection(); } catch {}
     await refreshStatus();
