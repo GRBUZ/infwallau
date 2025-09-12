@@ -245,7 +245,7 @@
         }
       },*/
       //new onapprouv
-      onApprove: async (data) => {
+      onApproved: async (data) => {
       setStatus('Paiement confirmé. Finalisation en cours…');
       const r = await apiCall('/.netlify/functions/paypal-capture-finalize', {
         method: 'POST',
