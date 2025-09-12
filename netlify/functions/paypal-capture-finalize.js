@@ -17,7 +17,8 @@ const ORDERS_DIR = process.env.ORDERS_DIR || 'data/orders';
 
 // --- PayPal
 const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
-const PAYPAL_SECRET    = process.env.PAYPAL_SECRET;
+//const PAYPAL_SECRET    = process.env.PAYPAL_SECRET;
+const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
 // Sandbox par défaut; mets https://api-m.paypal.com en prod via la variable d'env
 const PAYPAL_BASE_URL  = process.env.PAYPAL_BASE_URL || 'https://api-m.sandbox.paypal.com';
 
@@ -69,8 +70,8 @@ async function ghPutJson(path, jsonData, sha, message){
 }
 
 async function getPayPalAccessToken() {
-  if (!PAYPAL_CLIENT_ID || !PAYPAL_SECRET) throw new Error('PAYPAL_CONFIG_MISSING');
-  const creds = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_SECRET}`).toString('base64');
+  if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) throw new Error('PAYPAL_CONFIG_MISSING');
+  const creds = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_CLIENT_SECRET}`).toString('base64');
   const r = await fetch(`${PAYPAL_BASE_URL}/v1/oauth2/token`, {
     method: 'POST',
     headers: {
