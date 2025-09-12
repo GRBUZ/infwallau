@@ -1,126 +1,86 @@
-// paypal-integration.js - Intégration PayPal frontend (alignée serveur)
-(function(window) {
+// /js/paypal-integration.js
+(function (w) {
   'use strict';
 
-  let paypalOrderId = null;
+  let sdkPromise = null;
 
-  function initPayPal(clientId, currency = 'USD') {
-    if (window.paypal) { setupPayPalButtons(currency); return; }
-    const script = document.createElement('script');
-    script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=${currency}`;
-    script.onload = () => setupPayPalButtons(currency);
-    document.head.appendChild(script);
-  }
-
-  function setupPayPalButtons(currency) {
-    if (!window.paypal) { console.error('PayPal SDK non chargé'); return; }
-
-    window.paypal.Buttons({
-      // Création de la commande côté serveur (montant fiable lu depuis l'orderId)
-      createOrder: async () => {
-        // ⚠️ On attend que /start-order ait produit window.currentOrderId
-        const orderId = window.currentOrderId;
-        if (!orderId) { throw new Error('Aucune commande préparée.'); }
-
-        const r = await window.fetchWithJWT('/.netlify/functions/paypal-create-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId })
-        });
-        if (!r.ok) {
-          const j = await r.json().catch(()=>({}));
-          throw new Error(j.error || 'Erreur création commande PayPal');
-        }
-        const j = await r.json();
-        paypalOrderId = j.id;
-        return paypalOrderId;
-      },
-
-      onApprove: async (data) => {
-        console.log('📋 [PAYPAL] Commande approuvée:', data.orderID);
-        showPaymentProcessing();
-
-        // Ici on attend que le webhook finalise la commande
-        const ord = window.currentOrderId;
-        const res = await waitForOrderCompleted(ord);
-        if (res.success) {
-          showPaymentSuccess();
-          try { window.selected?.clear?.(); } catch(_){}
-          try { window.closeModal?.(); } catch(_){}
-          setTimeout(async () => {
-            await window.loadStatus?.();
-            window.paintAll?.();
-          }, 600);
-        } else {
-          showPaymentError(res.error || 'Paiement non confirmé');
-        }
-      },
-
-      onCancel: () => {
-        console.log('⚠️ [PAYPAL] Paiement annulé');
-        releasePendingBlocks();
-        alert('Paiement annulé. Les blocs ont été libérés.');
-      },
-
-      onError: (err) => {
-        console.error('❌ [PAYPAL] Erreur:', err);
-        releasePendingBlocks();
-        showPaymentError(err?.message || 'Erreur inconnue');
-      }
-    }).render('#paypal-button-container');
-  }
-
-  async function waitForOrderCompleted(orderId, maxAttempts = 30) {
-    for (let i = 0; i < maxAttempts; i++) {
-      try {
-        const r = await window.fetchWithJWT(`/.netlify/functions/order-status?orderId=${encodeURIComponent(orderId)}`);
-        const j = await r.json();
-        if (j?.ok && String(j.status).toLowerCase() === 'completed') return { success: true };
-        if (j?.ok && String(j.status).toLowerCase() === 'failed')    return { success: false, error: j.failReason || 'FAILED' };
-        await new Promise(rs => setTimeout(rs, 2000));
-      } catch {}
+  function loadPayPalSdk(clientId, currency) {
+    if (w.paypal) return Promise.resolve();
+    if (!sdkPromise) {
+      sdkPromise = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=${encodeURIComponent(currency)}&intent=capture`;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('PAYPAL_SDK_LOAD_FAILED'));
+        document.head.appendChild(s);
+      });
     }
-    return { success: false, error: 'Timeout confirmation paiement' };
+    return sdkPromise;
   }
 
-  async function releasePendingBlocks() {
+  async function initAndRender({ orderId, currency = 'USD', onApproved, onCancel, onError } = {}) {
     try {
-      if (window.currentLock && window.currentLock.length) {
-        await window.unlock(window.currentLock);
-        window.currentLock = [];
+      const clientId = w.PAYPAL_CLIENT_ID;
+      if (!clientId) throw new Error('MISSING_PAYPAL_CLIENT_ID');
+      if (!orderId) throw new Error('MISSING_ORDER_ID');
+
+      await loadPayPalSdk(clientId, currency);
+
+      const containerId = 'paypal-button-container';
+      let container = document.getElementById(containerId);
+      if (!container) {
+        container = document.createElement('div');
+        container.id = containerId;
+        const confirmBtn = document.getElementById('confirm');
+        confirmBtn?.insertAdjacentElement('afterend', container);
       }
-    } catch (e) { console.warn('Erreur libération blocs:', e); }
-  }
 
-  function showPaymentProcessing() {
-    const btn = document.getElementById('confirm');
-    if (btn) { btn.disabled = true; btn.textContent = 'Traitement PayPal...'; }
-  }
-  function showPaymentSuccess() {
-    alert('✅ Paiement réussi ! Vos blocs sont actifs.');
-  }
-  function showPaymentError(message) {
-    const btn = document.getElementById('confirm');
-    if (btn) { btn.disabled = false; btn.textContent = 'Confirmer'; }
-    alert('❌ Erreur de paiement: ' + message);
-  }
+      const createOrder = async () => {
+        // Appel serveur => /paypal-create-order (montant calculé côté serveur)
+        try {
+          if (w.CoreManager?.apiCall) {
+            const r = await w.CoreManager.apiCall('/paypal-create-order', {
+              method: 'POST',
+              body: JSON.stringify({ orderId })
+            });
+            if (!r?.id) throw new Error('PAYPAL_CREATE_FAILED');
+            return r.id;
+          }
+          // Fallback si CoreManager.apiCall indisponible
+          const resp = await fetch('/.netlify/functions/paypal-create-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId })
+          });
+          const j = await resp.json().catch(() => ({}));
+          if (!resp.ok || !j?.id) throw new Error(j?.error || 'PAYPAL_CREATE_FAILED');
+          return j.id;
+        } catch (e) {
+          onError?.(e);
+          throw e;
+        }
+      };
 
-  function replaceConfirmButton() {
-    const confirmBtn = document.getElementById('confirm');
-    const paypalContainer = document.createElement('div');
-    paypalContainer.id = 'paypal-button-container';
-    paypalContainer.style.marginTop = '20px';
-    confirmBtn.parentNode.insertBefore(paypalContainer, confirmBtn.nextSibling);
-    confirmBtn.style.display = 'none';
-  }
+      const onApprove = async (data, actions) => {
+        try {
+          await actions.order.capture(); // webhook PAYMENT.CAPTURE.COMPLETED sera envoyé au backend
+          onApproved?.(data?.orderID);
+        } catch (e) {
+          onError?.(e);
+        }
+      };
 
-  function initPayPalIntegration(clientId, currency = 'USD') {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => { replaceConfirmButton(); initPayPal(clientId, currency); });
-    } else {
-      replaceConfirmButton(); initPayPal(clientId, currency);
+      const onCancelCb = () => onCancel?.();
+      const onErrorCb  = (err) => onError?.(err);
+
+      w.paypal.Buttons({ createOrder, onApprove, onCancel: onCancelCb, onError: onErrorCb })
+        .render('#' + containerId);
+    } catch (err) {
+      onError?.(err);
+      throw err;
     }
   }
 
-  window.PayPalIntegration = { init: initPayPalIntegration };
+  // Expose global
+  w.PayPalIntegration = { initAndRender };
 })(window);
