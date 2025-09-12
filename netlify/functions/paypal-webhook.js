@@ -76,11 +76,28 @@ exports.handler = async (event) => {
     if (!SUPABASE_URL || !SUPA_SERVICE_KEY) return bad(500, "SUPABASE_CONFIG_MISSING");
 
     // Vérif (simplifiée) du secret — à remplacer plus tard par la validation officielle PayPal
-    const sig = event.headers['x-webhook-secret'] || event.headers['X-Webhook-Secret'];
-    if (!sig || sig !== PAYPAL_WEBHOOK_SECRET) return bad(401, "UNAUTHORIZED");
+    //const sig = event.headers['x-webhook-secret'] || event.headers['X-Webhook-Secret'];
+    //if (!sig || sig !== PAYPAL_WEBHOOK_SECRET) return bad(401, "UNAUTHORIZED");
 
-    let body = {};
-    try { body = JSON.parse(event.body || '{}'); } catch { return bad(400, "BAD_JSON"); }
+    //new verif
+      // ⚠️ NE PAS parser event.body directement : on doit valider le "raw body"
+    const rawBody = event.isBase64Encoded
+      ? Buffer.from(event.body || '', 'base64').toString('utf8')
+      : (event.body || '');
+
+    // Vérification cryptographique officielle PayPal
+    const { verified } = await verifyPayPalWebhook(event.headers || {}, rawBody);
+    if (!verified) {
+      return bad(401, 'UNAUTHORIZED'); // stop net — signature invalide
+    }
+
+    // ✅ seulement maintenant on parse
+    const body = JSON.parse(rawBody);
+
+    //new verif
+
+    //let body = {};
+    //try { body = JSON.parse(event.body || '{}'); } catch { return bad(400, "BAD_JSON"); }
 
     // Payload minimal attendu: { orderId, paidTotal?, currency? }
     const orderId   = String(body.orderId || "").trim();
