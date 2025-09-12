@@ -1,14 +1,17 @@
 // netlify/functions/paypal-webhook.js
 // Webhook PayPal -> finalisation server-side (prix serveur, tout ou rien, via Supabase RPC)
-// Vérif simplifiée par secret, puis:
-//  1) charge la commande (GitHub JSON)
-//  2) vérifie pas déjà vendus / pas lockés par autre
-//  3) (ré)applique des locks pour uid (courte durée)
-//  4) calcule PRIX SERVEUR & (option) compare à paidTotal
-//  5) appelle RPC finalize_paid_order (_amount = prix serveur)
-//  6) marque la commande "completed" dans GitHub + journal prix
+// Étapes : vérif signature PayPal -> retrouver notre orderId (custom_id) -> contrôles -> prix serveur -> RPC -> marquer completed.
+//
+// Variables requises :
+//   GH_REPO, GH_TOKEN, [GH_BRANCH], [ORDERS_DIR]
+//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+//   PAYPAL_CLIENT_ID, PAYPAL_SECRET, [PAYPAL_BASE_URL] (défaut sandbox)
+//   PAYPAL_WEBHOOK_SECRET (plus utilisé ici), verifyPayPalWebhook (cryptographique officiel)
 
-const PAYPAL_WEBHOOK_SECRET = process.env.PAYPAL_WEBHOOK_SECRET;
+const PAYPAL_BASE_URL   = process.env.PAYPAL_BASE_URL || 'https://api-m.sandbox.paypal.com';
+const PAYPAL_CLIENT_ID  = process.env.PAYPAL_CLIENT_ID;
+const PAYPAL_SECRET     = process.env.PAYPAL_SECRET;
+// const PAYPAL_WEBHOOK_SECRET = process.env.PAYPAL_WEBHOOK_SECRET; // (non utilisé, on passe par verifyPayPalWebhook)
 
 const GH_REPO    = process.env.GH_REPO;
 const GH_TOKEN   = process.env.GH_TOKEN;
@@ -27,8 +30,8 @@ function json(status, obj){
     body: JSON.stringify(obj)
   };
 }
-const bad = (s,e,extra={}) => json(s, { ok:false, error:e, ...extra, signature:'paypal-webhook.v2' });
-const ok  = (b)         => json(200,{ ok:true,  signature:'paypal-webhook.v2', ...b });
+const bad = (s,e,extra={}) => json(s, { ok:false, error:e, ...extra, signature:'paypal-webhook.v3' });
+const ok  = (b)         => json(200,{ ok:true,  signature:'paypal-webhook.v3', ...b });
 
 async function ghGetJson(path){
   const r = await fetch(
@@ -69,71 +72,98 @@ function isUuid(v){
   return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
 
+async function getPayPalAccessToken() {
+  if (!PAYPAL_CLIENT_ID || !PAYPAL_SECRET) throw new Error('PAYPAL_CONFIG_MISSING');
+  const creds = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_SECRET}`).toString('base64');
+  const r = await fetch(`${PAYPAL_BASE_URL}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${creds}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: 'grant_type=client_credentials'
+  });
+  if (!r.ok) throw new Error(`PAYPAL_TOKEN_FAILED:${r.status}`);
+  const j = await r.json();
+  return j.access_token;
+}
+
+async function getOrderCustomId(accessToken, paypalOrderId){
+  const orderRes = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders/${paypalOrderId}`, {
+    headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type':'application/json' }
+  });
+  if (!orderRes.ok) return { customId:null };
+  const orderJson = await orderRes.json().catch(()=>({}));
+  const customId = orderJson?.purchase_units?.[0]?.custom_id || null;
+  return { customId, orderJson };
+}
+
 exports.handler = async (event) => {
   try {
     if (event.httpMethod !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
     if (!GH_REPO || !GH_TOKEN) return bad(500, "GITHUB_CONFIG_MISSING");
     if (!SUPABASE_URL || !SUPA_SERVICE_KEY) return bad(500, "SUPABASE_CONFIG_MISSING");
 
-    // Vérif (simplifiée) du secret — à remplacer plus tard par la validation officielle PayPal
-    //const sig = event.headers['x-webhook-secret'] || event.headers['X-Webhook-Secret'];
-    //if (!sig || sig !== PAYPAL_WEBHOOK_SECRET) return bad(401, "UNAUTHORIZED");
-
-    //new verif
-      // ⚠️ NE PAS parser event.body directement : on doit valider le "raw body"
+    // --- 1) Signature PayPal (raw body)
     const rawBody = event.isBase64Encoded
       ? Buffer.from(event.body || '', 'base64').toString('utf8')
       : (event.body || '');
 
-    // Vérification cryptographique officielle PayPal
     const { verified } = await verifyPayPalWebhook(event.headers || {}, rawBody);
-    if (!verified) {
-      return bad(401, 'UNAUTHORIZED'); // stop net — signature invalide
-    }
+    if (!verified) return bad(401, 'UNAUTHORIZED');
 
-    // ✅ seulement maintenant on parse
     const body = JSON.parse(rawBody);
-    // Filtrer les événements: on finalise seulement à la capture d'argent
     const eventType = String(body.event_type || '').toUpperCase();
+
+    // On agit uniquement à la capture d'argent
     if (eventType !== 'PAYMENT.CAPTURE.COMPLETED') {
       return ok({ ignored: true, event_type: eventType });
     }
-    //new verif
 
-    //let body = {};
-    //try { body = JSON.parse(event.body || '{}'); } catch { return bad(400, "BAD_JSON"); }
+    // --- 2) Extraire infos PayPal utiles
+    const resource   = body.resource || {};
+    const captureId  = resource.id || null;
+    const paidTotal  = Number(resource?.amount?.value ?? NaN);
+    const paidCurr   = (resource?.amount?.currency_code || 'USD').toUpperCase();
+    // Essayer d'obtenir le PayPal Order Id (lié à la capture)
+    const paypalOrderId = resource?.supplementary_data?.related_ids?.order_id || null;
 
-    // Payload minimal attendu: { orderId, paidTotal?, currency? }
-    //const orderId   = String(body.orderId || "").trim();
-    // IMPORTANT: on lit NOTRE orderId posé en custom_id par paypal-create-order
-    const orderId = String(
-      body?.resource?.purchase_units?.[0]?.custom_id || ''
-    ).trim();
+    // Notre orderId interne est censé être dans purchase_units[].custom_id.
+    // Suivant les events, il peut ne pas figurer dans le payload -> fallback GET order.
+    let orderId = String(resource?.purchase_units?.[0]?.custom_id || '').trim();
+    let orderJson = null;
+
+    if (!orderId && paypalOrderId) {
+      const accessToken = await getPayPalAccessToken();
+      const res = await getOrderCustomId(accessToken, paypalOrderId);
+      orderId = res.customId || '';
+      orderJson = res.orderJson || null;
+    }
+
     if (!orderId) {
       return bad(400, "MISSING_ORDER_ID", {
-        hint: "purchase_units[0].custom_id absent — assure-toi que paypal-create-order pose custom_id=orderId"
+        hint: "purchase_units[0].custom_id absent — vérifie que paypal-create-order pose custom_id=orderId"
       });
     }
 
-    const paidTotal = (body.paidTotal != null) ? Number(body.paidTotal) : null;
-    const currency  = (body.currency || 'USD').toUpperCase();
-    //if (!orderId) return bad(400, "MISSING_ORDER_ID");
-
-    // 1) Charger la commande (GitHub JSON)
+    // --- 3) Charger commande GH
     const orderPath = `${ORDERS_DIR}/${orderId}.json`;
     const { json: order, sha: orderSha } = await ghGetJson(orderPath);
     if (!order) return bad(404, "ORDER_NOT_FOUND");
 
     // Idempotence
-    if (order.status === "completed") {
+    if (order.status === "completed" && order.paypalCaptureId) {
       return ok({
         orderId,
+        already: true,
         status: "completed",
         regionId: order.regionId || order.regionDbId,
         imageUrl: order.finalImageUrl || order.image?.url,
         unitPrice: order.unitPrice || null,
         total: order.total || null,
-        currency: order.currency || currency
+        currency: order.currency || paidCurr,
+        paypalOrderId: order.paypalOrderId || paypalOrderId || null,
+        paypalCaptureId: order.paypalCaptureId
       });
     }
 
@@ -142,18 +172,18 @@ exports.handler = async (event) => {
     const linkUrl  = String(order.linkUrl || '').trim();
     const blocks   = Array.isArray(order.blocks) ? order.blocks.map(n=>parseInt(n,10)).filter(Number.isFinite) : [];
     const regionIn = String(order.regionId || '').trim();
-    const imageUrl = order.image?.url || '';
+    const imageUrl = order.image?.url || order.finalImageUrl || null;
 
-    if (!uid || !name || !linkUrl || !blocks.length || !imageUrl) {
+    if (!uid || !name || !linkUrl || !blocks.length) {
       return bad(400, "ORDER_INVALID");
     }
     const regionUuid = isUuid(regionIn) ? regionIn : (await import('node:crypto')).randomUUID();
 
-    // 2) Supabase client
+    // --- 4) Supabase + contrôles
     const { createClient } = await import('@supabase/supabase-js');
     const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession:false } });
 
-    // 3) Conflits immédiats: déjà vendu ?
+    // déjà vendu ?
     const { data: soldRows, error: soldErr } = await supabase
       .from('cells').select('idx')
       .in('idx', blocks)
@@ -165,7 +195,7 @@ exports.handler = async (event) => {
       return bad(409, 'ALREADY_SOLD', { idx: Number(soldRows[0].idx) });
     }
 
-    // 4) Conflits locks par un autre UID ?
+    // locks par autre UID ?
     const nowIso = new Date().toISOString();
     const { data: lockRows, error: lockErr } = await supabase
       .from('locks').select('idx, uid, until')
@@ -179,14 +209,13 @@ exports.handler = async (event) => {
       return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
     }
 
-    // 5) (Ré)appliquer des locks pour l'UID de l'ordre (2 minutes)
-    //    - on ignore si déjà locké par uid (upsert écrase le until)
+    // (Ré)appliquer locks 2 min pour uid
     const until = new Date(Date.now() + 2*60*1000).toISOString();
     const upsertRows = blocks.map(idx => ({ idx, uid, until }));
     const { error: upsertErr } = await supabase.from('locks').upsert(upsertRows, { onConflict: 'idx' });
     if (upsertErr) return bad(500, 'LOCKS_UPSERT_FAILED', { message: upsertErr.message });
 
-    // 6) PRIX SERVEUR juste avant finaliser
+    // --- 5) Prix serveur
     const { count, error: countErr } = await supabase
       .from('cells')
       .select('idx', { count:'exact', head:true })
@@ -194,23 +223,21 @@ exports.handler = async (event) => {
     if (countErr) return bad(500, 'PRICE_QUERY_FAILED', { message: countErr.message });
 
     const blocksSold  = count || 0;
-    const tier        = Math.floor(blocksSold / 10);                   // floor(pixelsSold/1000)
-    const unitPrice   = Math.round((1 + tier * 0.01) * 100) / 100;     // 2 décimales
+    const tier        = Math.floor(blocksSold / 10);
+    const unitPrice   = Math.round((1 + tier * 0.01) * 100) / 100;
     const totalPixels = blocks.length * 100;
     const total       = Math.round(unitPrice * totalPixels * 100) / 100;
-    const usedCurrency= (order.currency || currency || 'USD').toUpperCase();
+    const usedCurrency= (order.currency || paidCurr || 'USD').toUpperCase();
 
-    // 7) (Option) Vérification de paiement si fourni
-    if (paidTotal != null) {
-      // Refuse si montant payé < total serveur (anti-sous-paiement)
-      if (!(Number.isFinite(paidTotal)) || paidTotal + 1e-9 < total) {
-        const updated = { ...order, status:'failed', updatedAt: Date.now(), failReason:'UNDERPAID', serverTotal: total, paidTotal, currency: usedCurrency };
-        try { await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} failed (underpaid)`); } catch {}
-        return bad(409, 'UNDERPAID', { serverTotal: total, paidTotal, currency: usedCurrency });
-      }
+    // Vérif sous-paiement si on a un montant capturé
+    if (Number.isFinite(paidTotal) && paidTotal + 1e-9 < total) {
+      const updated = { ...order, status:'failed', updatedAt: Date.now(), failReason:'UNDERPAID', serverTotal: total, paidTotal, currency: usedCurrency };
+      try { await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} failed (underpaid)`); } catch {}
+      return bad(409, 'UNDERPAID', { serverTotal: total, paidTotal, currency: usedCurrency });
     }
 
-    // 8) Appeler la RPC autoritaire (recalcule et refusera si PRICE_CHANGED)
+    // --- 6) RPC (montant = payé si dispo, sinon total serveur)
+    const amountForDb = Number.isFinite(paidTotal) ? paidTotal : total;
     const orderUuid = (await import('node:crypto')).randomUUID();
     const { error: rpcErr } = await supabase.rpc('finalize_paid_order', {
       _order_id:  orderUuid,
@@ -219,15 +246,15 @@ exports.handler = async (event) => {
       _link_url:  linkUrl,
       _blocks:    blocks,
       _region_id: regionUuid,
-      _image_url: imageUrl,
-      _amount:    unitPrice   // on fournit le prix serveur calculé juste avant
+      _image_url: imageUrl || null,   // optionnel
+      _amount:    amountForDb
     });
 
     if (rpcErr) {
       const msg = (rpcErr.message || '').toUpperCase();
 
       if (msg.includes('PRICE_CHANGED')) {
-        // Recalcule et retourne le prix serveur actuel pour que le back-office/cron rejoue si besoin
+        // Recalcule pour retourner au caller
         const { count: c2 } = await supabase
           .from('cells').select('idx', { count:'exact', head:true })
           .not('sold_at', 'is', null);
@@ -256,22 +283,34 @@ exports.handler = async (event) => {
       return bad(500, 'RPC_FINALIZE_FAILED', { message: rpcErr.message });
     }
 
-    // 9) Succès — marquer completed + journaliser le prix utilisé
+    // --- 7) Succès — marquer completed + journaliser
     try {
       const updated = {
         ...order,
         status: 'completed',
         updatedAt: Date.now(),
-        finalImageUrl: imageUrl,
+        finalImageUrl: imageUrl || null,
         regionDbId: regionUuid,
         unitPrice,
         total,
-        currency: usedCurrency
+        currency: usedCurrency,
+        paypalOrderId: paypalOrderId || order.paypalOrderId || null,
+        paypalCaptureId: captureId || order.paypalCaptureId || null
       };
-      await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} completed (supabase)`);
+      await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} completed (webhook)`);
     } catch(_) { /* non bloquant */ }
 
-    return ok({ orderId, status:'completed', regionId: regionUuid, imageUrl, unitPrice, total, currency: usedCurrency });
+    return ok({
+      orderId,
+      status:'completed',
+      regionId: regionUuid,
+      imageUrl: imageUrl || null,
+      unitPrice,
+      total,
+      currency: usedCurrency,
+      paypalOrderId: paypalOrderId || null,
+      paypalCaptureId: captureId || null
+    });
 
   } catch (e) {
     return bad(500, "SERVER_ERROR", { message: String(e?.message || e) });

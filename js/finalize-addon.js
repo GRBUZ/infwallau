@@ -224,7 +224,7 @@
     window.PayPalIntegration.initAndRender({
       orderId,
       currency: currency || 'USD',
-      onApproved: async () => {
+      /*onApproved: async () => {
         try {
           msg.textContent = 'Paiement confirmé. Finalisation en cours…';
           const ok = await waitForCompleted(orderId, 45); // ~90s
@@ -243,7 +243,25 @@
         } finally {
           btnBusy(false);
         }
+      },*/
+      //new onapprouv
+      onApprove: async (data) => {
+      setStatus('Paiement confirmé. Finalisation en cours…');
+      const r = await apiCall('/.netlify/functions/paypal-capture-finalize', {
+        method: 'POST',
+        body: { orderId: localOrderId, paypalOrderId: data.orderID }
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) {
+        throw new Error(j.error || j.message || 'FINALIZE_FAILED');
+      }
+      // succès
+      setStatus('Terminé ✅');
+      // ferme le modal / redirige:
+      // closeModal()
       },
+
+      //new onapprouv
       onCancel: async () => {
         const msg = ensureMsgEl();
         msg.textContent = 'Paiement annulé.';
