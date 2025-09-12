@@ -1,10 +1,11 @@
 // finalize-addon.js — Finalize flow patched to use CoreManager + UploadManager (+ LockManager) with robust error handling
 // Responsibilities:
-// - Re-reserve selection just before finalize
-// - Call /finalize
-// - Upload image for the returned regionId (optional)
-// - Keep UI state in sync (sold/locks/regions), unlock on escape/blur
-// - Emit 'finalize:success' event for other modules (e.g., upload-addon.js)
+// - Re-reserve selection just before start-order
+// - Call /start-order (serveur = vérité: validations + upload image + order JSON + prix serveur)
+// - Render PayPal button; onApprove => webhook -> finalize via RPC; front poll /order-status jusqu'à completed
+// - Keep UI state in sync (sold/locks/regions), unlock on escape/cancel/error
+// - No dev-complete shortcut here
+
 (function(){
   'use strict';
 
@@ -143,7 +144,6 @@
       window.regions = d.regions || {};
       if (typeof window.renderRegions === 'function') window.renderRegions();
     } catch (e) {
-      // Silencieux pour éviter le spam; Errors.js notifie déjà sur l'échec API si nécessaire
       console.warn('[IW patch] refreshStatus failed', e);
     }
   }
@@ -178,12 +178,89 @@
     }catch(_){}
   }
 
-
   // Global listeners to avoid "lost locks"
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') unlockSelection();
   }, { passive:true });
 
+  // ---- PayPal helpers (front)
+  async function waitForCompleted(orderId, tries=30) {
+    for (let i=0;i<tries;i++){
+      const st = await apiCall('/order-status?orderId=' + encodeURIComponent(orderId));
+      if (st?.ok && String(st.status).toLowerCase() === 'completed') return true;
+      if (st?.ok && String(st.status).toLowerCase() === 'failed') return false;
+      await new Promise(rs=>setTimeout(rs, 2000));
+    }
+    return false;
+  }
+
+  function ensureMsgEl(){
+    let msg = document.getElementById('payment-msg');
+    if (!msg) {
+      msg = document.createElement('div');
+      msg.id = 'payment-msg';
+      const after = confirmBtn || form || modal;
+      (after ? after : document.body).insertAdjacentElement('afterend', msg);
+    }
+    return msg;
+  }
+
+  function removePaypalContainer(){
+    const c = document.getElementById('paypal-button-container');
+    if (c && c.parentNode) c.parentNode.removeChild(c);
+  }
+
+  function showPaypalButton(orderId, currency){
+    const msg = ensureMsgEl();
+    msg.textContent = 'Veuillez confirmer le paiement PayPal pour finaliser.';
+    if (confirmBtn) confirmBtn.style.display = 'none';
+    removePaypalContainer();
+
+    if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
+      uiWarn('Paiement: configuration PayPal manquante (PAYPAL_CLIENT_ID / PayPalIntegration).');
+      return;
+    }
+
+    window.PayPalIntegration.initAndRender({
+      orderId,
+      currency: currency || 'USD',
+      onApproved: async () => {
+        try {
+          msg.textContent = 'Paiement confirmé. Finalisation en cours…';
+          const ok = await waitForCompleted(orderId, 45); // ~90s
+          if (ok) {
+            msg.textContent = 'Commande finalisée.';
+            try { await unlockSelection(); } catch {}
+            await refreshStatus();
+            try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
+          } else {
+            msg.textContent = 'Paiement en attente / timeout. Vous pouvez vérifier plus tard.';
+            resumeHB();
+          }
+        } catch (e) {
+          uiError(e, 'PayPal');
+          resumeHB();
+        } finally {
+          btnBusy(false);
+        }
+      },
+      onCancel: async () => {
+        const msg = ensureMsgEl();
+        msg.textContent = 'Paiement annulé.';
+        await unlockSelection();
+        btnBusy(false);
+        resumeHB();
+      },
+      onError: async (err) => {
+        uiError(err, 'PayPal');
+        const msg = ensureMsgEl();
+        msg.textContent = 'Erreur de paiement.';
+        await unlockSelection();
+        btnBusy(false);
+        resumeHB();
+      }
+    });
+  }
 
   // Finalize flow
   async function doConfirm(){
@@ -198,19 +275,21 @@
     try {
       const file = fileInput && fileInput.files && fileInput.files[0];
       if (file) {
-        // Vérifie type MIME réel + taille
         await window.UploadManager.validateFile(file);
+      } else {
+        uiWarn("Veuillez sélectionner une image (PNG, JPG, GIF, WebP).");
+        return;
       }
     } catch (preErr) {
       uiError(preErr, 'Upload');
       uiWarn('Veuillez sélectionner une image valide (PNG, JPG, GIF, WebP).');
-      return; // ⛔️ on sort: PAS de /finalize
+      return;
     }
 
     pauseHB();
     btnBusy(true);
 
-    // Re-reserve just before finalize (defensive)
+    // Re-reserve just before start-order (defensive)
     try {
       if (window.LockManager) {
         const jr = await window.LockManager.lock(blocks, 180000);
@@ -232,24 +311,16 @@
         }
       }
     } catch (e) {
-      // Non fatal; server will re-check on finalize
       console.warn('[IW patch] pre-finalize reserve warning:', e);
     }
 
-    // === START-ORDER: on prépare la commande et on uploade l'image en staging ===
+    // === START-ORDER: le serveur prépare la commande et uploade l'image ===
     let start = null;
     try {
-      const file = fileInput && fileInput.files && fileInput.files[0];
-      if (!file) {
-        uiWarn("Veuillez sélectionner une image (PNG, JPG, GIF, WebP).");
-        btnBusy(false);
-        resumeHB(); 
-        return;
-      }
+      const file = fileInput.files[0];
       const contentType = await window.UploadManager.validateFile(file);
       const { base64Data } = await window.UploadManager.toBase64(file);
 
-      // Server: aucune vente ; image en staging + order record
       start = await apiCall('/start-order', {
         method: 'POST',
         body: JSON.stringify({
@@ -273,81 +344,23 @@
       return;
     }
 
-    // On a un orderId + regionId, l'image est en staging côté repo
-    const { orderId, regionId } = start;
+    // On a un orderId + regionId
+    const { orderId, regionId, currency } = start;
     if (fileInput && regionId) fileInput.dataset.regionId = regionId;
 
-    // === Ici tu déclencheras PayPal ===
     uiInfo('Commande créée. Veuillez finaliser le paiement…');
 
-    // === DEV SHORTCUT (pas de PayPal): finaliser tout de suite côté serveur
-    const USE_FAKE_PAYMENTS = true; // désactive-le quand tu branches PayPal
-    if (USE_FAKE_PAYMENTS) {
-      try {
-        const r = await apiCall('/dev-complete-order', {
-          method: 'POST',
-          body: JSON.stringify({ orderId })
-        });
-        if (!r || !r.ok) {
-          uiError(window.Errors ? window.Errors.create('DEV_COMPLETE_FAILED', r?.error || r?.message || 'Dev complete failed', { details: r }) : new Error('Dev complete failed'), 'Dev complete');
-          btnBusy(false);
-          return;
-        }
-      } catch (e) {
-        uiError(e, 'Dev complete');
-        btnBusy(false);
-        return;
-      }
+    // → Afficher le bouton PayPal et laisser l’utilisateur payer
+    showPaypalButton(orderId, currency);
 
-      // vente faite -> nettoyer UI
-      try { await unlockSelection(); } catch {}
-      await refreshStatus();
-      try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
-      btnBusy(false);
-      return; // ⛔️ on ne lance PAS le polling
-    }
-
-    // Exemple minimaliste de polling en attendant la confirmation via webhook
-    let tries = 0;
-    while (tries < 60) { // ~60s; ajuste selon ton webhook
-      await new Promise(r => setTimeout(r, 1000));
-      tries++;
-
-      try {
-        const st = await apiCall('/order-status?orderId=' + encodeURIComponent(orderId));
-        if (st && st.ok && st.status === 'completed') {
-          break;
-        }
-        if (st && st.ok && st.status === 'failed') {
-          uiWarn("Paiement échoué. Aucun bloc n'a été vendu.");
-          btnBusy(false);
-          resumeHB();
-          return;
-        }
-        // status: pending -> continue polling
-      } catch (pollErr) {
-        // ignore 1-2 erreurs réseau
-      }
-    }
-
-    // After finalize-by-webhook: refresh + unlock selection (verrouillage n'a plus d'intérêt)
-    try { await unlockSelection(); } catch {}
-    await refreshStatus();
-    try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
-    btnBusy(false);
-
+    // on laisse le bouton gérer la suite (onApproved / onCancel / onError)
   }
 
-  // Wire up UI
-  //if (confirmBtn) confirmBtn.addEventListener('click', (e)=>{ e.preventDefault(); doConfirm(); });
-  //if (form) form.addEventListener('submit', (e)=>{ e.preventDefault(); doConfirm(); });
-
   // Finalize déclenché UNIQUEMENT par app.js (après re-lock)
-document.addEventListener('finalize:submit', (e) => {
-  try { e.preventDefault && e.preventDefault(); } catch {}
-  doConfirm();
-});
-
+  document.addEventListener('finalize:submit', (e) => {
+    try { e.preventDefault && e.preventDefault(); } catch {}
+    doConfirm();
+  });
 
   // Expose for debugging if needed
   window.__iwPatch = { doConfirm, refreshStatus, unlockSelection, uid };

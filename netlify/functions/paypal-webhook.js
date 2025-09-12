@@ -93,17 +93,31 @@ exports.handler = async (event) => {
 
     // ✅ seulement maintenant on parse
     const body = JSON.parse(rawBody);
-
+    // Filtrer les événements: on finalise seulement à la capture d'argent
+    const eventType = String(body.event_type || '').toUpperCase();
+    if (eventType !== 'PAYMENT.CAPTURE.COMPLETED') {
+      return ok({ ignored: true, event_type: eventType });
+    }
     //new verif
 
     //let body = {};
     //try { body = JSON.parse(event.body || '{}'); } catch { return bad(400, "BAD_JSON"); }
 
     // Payload minimal attendu: { orderId, paidTotal?, currency? }
-    const orderId   = String(body.orderId || "").trim();
+    //const orderId   = String(body.orderId || "").trim();
+    // IMPORTANT: on lit NOTRE orderId posé en custom_id par paypal-create-order
+    const orderId = String(
+      body?.resource?.purchase_units?.[0]?.custom_id || ''
+    ).trim();
+    if (!orderId) {
+      return bad(400, "MISSING_ORDER_ID", {
+        hint: "purchase_units[0].custom_id absent — assure-toi que paypal-create-order pose custom_id=orderId"
+      });
+    }
+
     const paidTotal = (body.paidTotal != null) ? Number(body.paidTotal) : null;
     const currency  = (body.currency || 'USD').toUpperCase();
-    if (!orderId) return bad(400, "MISSING_ORDER_ID");
+    //if (!orderId) return bad(400, "MISSING_ORDER_ID");
 
     // 1) Charger la commande (GitHub JSON)
     const orderPath = `${ORDERS_DIR}/${orderId}.json`;
