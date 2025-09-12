@@ -226,23 +226,35 @@
   currency: currency || 'USD',
 
   onApproved: async (data) => {
-    setStatus('Paiement confirmé. Finalisation en cours…');
+  try {
+    btnBusy(true);
+    const msg = ensureMsgEl();
+    msg.textContent = 'Paiement confirmé. Finalisation en cours…';
 
-    const r = await apiCall('/.netlify/functions/paypal-capture-finalize', {
+    // data.orderID vient de PayPal
+    const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
       method: 'POST',
-      body: { orderId, paypalOrderId: data.orderID } // <— ici: orderId (pas localOrderId)
+      body: JSON.stringify({ orderId, paypalOrderId: data.orderID })
     });
 
-    const j = (r && typeof r.json === 'function') ? await r.json() : r;
-    if (!j || !j.ok) {
-      throw new Error(j?.error || j?.message || 'FINALIZE_FAILED');
+    if (!res?.ok) {
+      throw new Error(res?.error || res?.message || 'FINALIZE_FAILED');
     }
 
-    setStatus('Terminé ✅');
+    msg.textContent = 'Commande finalisée ✅';
     try { await unlockSelection(); } catch {}
     await refreshStatus();
-    try { closeModal?.(); } catch {}
-  },
+    try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
+  } catch (e) {
+    uiError(e, 'PayPal');
+    const msg = ensureMsgEl();
+    msg.textContent = 'Erreur pendant la finalisation.';
+    try { await unlockSelection(); } catch {}
+    resumeHB();
+  } finally {
+    btnBusy(false);
+  }
+},
 
   onCancel: async () => {
     const msg = ensureMsgEl();
