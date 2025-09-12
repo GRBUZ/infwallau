@@ -64,5 +64,7 @@
   "unitPrice": 1.18,
   "total": 4720,
   "createdAt": 1757703771999,
-  "expiresAt": 1757704971999
+  "expiresAt": 1757704971999,
+  "paypalOrderId": "2F480222E7585280M",
+  "updatedAt": 1757703778237
 }
