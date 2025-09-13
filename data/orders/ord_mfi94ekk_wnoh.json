@@ -64,5 +64,7 @@
   "unitPrice": 1.44,
   "total": 5760,
   "createdAt": 1757767058373,
-  "expiresAt": 1757768258373
+  "expiresAt": 1757768258373,
+  "paypalOrderId": "43R26201A3821524W",
+  "updatedAt": 1757767066847
 }
