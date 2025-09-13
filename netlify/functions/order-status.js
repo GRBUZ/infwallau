@@ -10,14 +10,14 @@ function bad(status, error, extra = {}) {
   return {
     statusCode: status,
     headers: { "content-type": "application/json", "cache-control": "no-store" },
-    body: JSON.stringify({ ok: false, error, ...extra, signature: "order-status.supabase.v2" })
+    body: JSON.stringify({ ok: false, error, ...extra, signature: "order-status.supabase.v3" })
   };
 }
 function ok(body) {
   return {
     statusCode: 200,
     headers: { "content-type": "application/json", "cache-control": "no-store" },
-    body: JSON.stringify({ ok: true, signature: "order-status.supabase.v2", ...body })
+    body: JSON.stringify({ ok: true, signature: "order-status.supabase.v3", ...body })
   };
 }
 
@@ -39,14 +39,21 @@ exports.handler = async (event) => {
     const { createClient } = await import('@supabase/supabase-js');
     const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession:false } });
 
-    // 1) Lire l'ordre côté DB
+    // 1) Lire l'ordre côté DB (sans 'amount' — on expose amount = total pour compat côté front)
     const { data: order, error: getErr } = await supabase
       .from('orders')
-      .select('id, order_id, uid, status, region_id, image_url, amount, total, currency, updated_at, created_at, expires_at')
+      .select('id, order_id, uid, status, region_id, image_url, total, currency, updated_at, created_at, expires_at')
       .eq('order_id', orderId)
-      .single();
+      .maybeSingle(); // <-- évite l'erreur .single() quand 0 ligne
 
-    if (getErr || !order) return bad(404, "ORDER_NOT_FOUND");
+    // Erreur SQL (ex: mauvaise colonne) -> 500 explicite
+    if (getErr) {
+      return bad(500, "DB_READ_FAILED", { message: getErr.message });
+    }
+    // Pas trouvé
+    if (!order) return bad(404, "ORDER_NOT_FOUND");
+
+    // Ownership
     if (order.uid && order.uid !== uid) return bad(403, "FORBIDDEN");
 
     // 2) Statut/expiration
@@ -67,8 +74,8 @@ exports.handler = async (event) => {
     let regionId  = order.region_id || null;
     let imageUrl  = order.image_url || null;
     const currency= (order.currency || "USD").toUpperCase();
-    // Par compat, "amount" = total (serveur). Si absent, retombe sur amount.
-    const amount  = (order.total != null ? Number(order.total) : (order.amount != null ? Number(order.amount) : null));
+    // Compat front: "amount" = total (serveur)
+    const amount  = (order.total != null ? Number(order.total) : null);
     let updatedAt = order.updated_at ? new Date(order.updated_at).getTime()
                     : (order.created_at ? new Date(order.created_at).getTime() : null);
 
@@ -98,7 +105,7 @@ exports.handler = async (event) => {
               .from('regions')
               .select('image_url')
               .eq('id', regionId)
-              .single();
+              .maybeSingle();
             if (!regErr && reg?.image_url) imageUrl = reg.image_url;
           } catch (_) {}
         }
