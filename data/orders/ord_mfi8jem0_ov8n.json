@@ -1,5 +1,5 @@
 {
-  "status": "pending",
+  "status": "failed_refunded",
   "uid": "adba65a0-932b-4aaf-aac4-3fcd648a352f",
   "name": "bouzzyddee",
   "linkUrl": "https://tota2t.com/",
@@ -80,5 +80,10 @@
   "createdAt": 1757766078648,
   "expiresAt": 1757767278648,
   "paypalOrderId": "1U477001GM896010P",
-  "updatedAt": 1757766186623
+  "updatedAt": 1757766271276,
+  "failReason": "LOCKS_INVALID",
+  "refundId": "9Y97484088267225N",
+  "paypalCaptureId": "5HF80459S1958940A",
+  "serverUnitPrice": 1.44,
+  "serverTotal": 7776
 }
