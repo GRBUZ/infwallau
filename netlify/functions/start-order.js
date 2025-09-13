@@ -1,10 +1,9 @@
-// netlify/functions/start-order.js — 100% Supabase, plus de GitHub
-// API identique: renvoie { orderId, regionId, imageUrl, unitPrice, total, currency }
+// netlify/functions/start-order.js — 100% Supabase (plus de GitHub)
+// POST { name, linkUrl, blocks[], filename, contentType, contentBase64 } 
+// -> { ok:true, orderId, regionId, imageUrl, unitPrice, total, currency }
 
 const { requireAuth } = require('./auth-middleware');
-const { guardFinalizeInput } = require('./_validation');
 
-// --- Supabase
 const SUPABASE_URL     = process.env.SUPABASE_URL;
 const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_BUCKET  = process.env.SUPABASE_BUCKET || 'images';
@@ -37,26 +36,43 @@ function safeFilename(name) {
 function makeId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,6)}`;
 }
+function normalizeBlocks(arr){
+  if (!Array.isArray(arr)) return [];
+  const out = [];
+  for (const n of arr) {
+    const v = parseInt(n, 10);
+    if (Number.isFinite(v) && v >= 0) out.push(v);
+  }
+  // dédupe
+  return [...new Set(out)];
+}
+function isHttpUrl(u){
+  try { const x = new URL(u); return x.protocol === 'http:' || x.protocol === 'https:'; } catch { return false; }
+}
 
 exports.handler = async (event) => {
   try {
-    // Auth (ton requireAuth renvoie un objet OU une réponse 401 prête)
+    // Auth
     const auth = requireAuth(event);
-    if (auth?.statusCode) return auth;
+    if (auth.statusCode) return auth;
     const uid = auth.uid;
 
     if (event.httpMethod !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
     if (!SUPABASE_URL || !SUPA_SERVICE_KEY) return bad(500, "SUPABASE_CONFIG_MISSING");
 
-    // Payload JSON
+    // Payload
     let payload = {};
     try { payload = JSON.parse(event.body || '{}'); } catch { return bad(400, "BAD_JSON"); }
 
-    // Valider et normaliser (name, linkUrl, blocks) — réutilise ta validation
-    const { name, linkUrl, blocks } = await guardFinalizeInput(event);
-    if (!Array.isArray(blocks) || blocks.length === 0) return bad(400, "NO_BLOCKS");
+    // Validation minimale inline (pour éviter tout .then() caché dans un util)
+    const name    = String(payload.name || '').trim();
+    const linkUrl = String(payload.linkUrl || '').trim();
+    const blocks  = normalizeBlocks(payload.blocks);
+    if (!name) return bad(400, "MISSING_NAME");
+    if (!linkUrl || !isHttpUrl(linkUrl)) return bad(400, "INVALID_LINK_URL");
+    if (!blocks.length) return bad(400, "NO_BLOCKS");
 
-    // Image OBLIGATOIRE pour la commande
+    // Image requise pour l’ordre
     const filename    = safeFilename(payload.filename || "image.jpg");
     const contentType = String(payload.contentType || "");
     let   b64         = String(payload.contentBase64 || "");
@@ -65,20 +81,19 @@ exports.handler = async (event) => {
     const m = b64.match(/^data:[^;]+;base64,(.*)$/i);
     if (m) b64 = m[1];
 
-    // ==== Supabase client ====
+    // Supabase
     const { createClient } = await import('@supabase/supabase-js');
     const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession: false } });
 
-    // 1) blocs déjà vendus ?
+    // 1) déjà vendus ?
     const { data: soldRows, error: soldErr } = await supabase
       .from('cells')
       .select('idx')
       .in('idx', blocks)
       .not('sold_at', 'is', null);
+
     if (soldErr) return bad(500, 'CELLS_QUERY_FAILED', { message: soldErr.message });
-    if (soldRows && soldRows.length) {
-      return bad(409, 'ALREADY_SOLD', { idx: Number(soldRows[0].idx) });
-    }
+    if (soldRows && soldRows.length) return bad(409, 'ALREADY_SOLD', { idx: Number(soldRows[0].idx) });
 
     // 2) lockés par un autre ?
     const nowIso = new Date().toISOString();
@@ -88,13 +103,11 @@ exports.handler = async (event) => {
       .in('idx', blocks)
       .gt('until', nowIso)
       .neq('uid', uid);
+
     if (lockErr) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr.message });
-    if (lockRows && lockRows.length) {
-      return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
-    }
+    if (lockRows && lockRows.length) return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
 
     // 3) Prix côté serveur
-    // unitPrice = 1 + floor(blocksSold/10)*0.01 (2 décimales)
     const { count, error: countErr } = await supabase
       .from('cells')
       .select('idx', { count: 'exact', head: true })
@@ -102,29 +115,30 @@ exports.handler = async (event) => {
     if (countErr) return bad(500, 'PRICE_QUERY_FAILED', { message: countErr.message });
 
     const blocksSold  = count || 0;
-    const tier        = Math.floor(blocksSold / 10); // = floor(pixelsSold/1000)
-    const unitPrice   = Math.round((1 + tier * 0.01) * 100) / 100; // 2 décimales
+    const tier        = Math.floor(blocksSold / 10);                   // palier de 1% par 10 blocs vendus
+    const unitPrice   = Math.round((1 + tier * 0.01) * 100) / 100;     // 2 décimales
     const totalPixels = blocks.length * 100;
     const total       = Math.round((unitPrice * totalPixels) * 100) / 100;
     const currency    = 'USD';
 
-    // 4) Upload image (Supabase Storage)
-    const buffer    = Buffer.from(b64, "base64");
-    const regionId  = (await import('node:crypto')).then(m => m.randomUUID());
-    const regionUuid= await regionId;
-
+    // 4) Upload image
+    const buffer = Buffer.from(b64, "base64");
+    const { randomUUID } = await import('node:crypto');
+    const regionUuid = randomUUID();
     const objectPath = `regions/${regionUuid}/${filename}`;
-    const { data: upRes, error: upErr } = await supabase
+
+    const { error: upErr } = await supabase
       .storage
       .from(SUPABASE_BUCKET)
       .upload(objectPath, buffer, { contentType, upsert: true });
     if (upErr) return bad(500, "STORAGE_UPLOAD_FAILED", { message: upErr.message });
 
+    // getPublicUrl est SYNCHRONE en supabase-js v2 → pas de .then() ici
     const { data: pub } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(objectPath);
     const imageUrl = pub?.publicUrl || `${SUPABASE_URL}/storage/v1/object/public/${SUPABASE_BUCKET}/${objectPath}`;
 
-    // 5) Créer la commande en DB (table `orders`)
-    const orderId = makeId("ord");
+    // 5) Créer l’order (DB)
+    const orderId   = makeId("ord"); // identifiant “lisible” côté front
     const expiresAt = new Date(Date.now() + 20*60*1000).toISOString();
 
     const { error: insErr } = await supabase
@@ -144,13 +158,18 @@ exports.handler = async (event) => {
         status:     'pending',
         expires_at: expiresAt
       }]);
+    if (insErr) return bad(500, "DB_INSERT_FAILED", { message: insErr.message });
 
-    if (insErr) return bad(500, 'ORDERS_INSERT_FAILED', { message: insErr.message });
+    // 6) Locks 2 minutes pour l’UID (best-effort)
+    const until = new Date(Date.now() + 2*60*1000).toISOString();
+    const lockRowsNew = blocks.map(idx => ({ idx, uid, until }));
+    await supabase.from('locks').upsert(lockRowsNew, { onConflict: 'idx' });
 
-    // 6) Réponse (API inchangée)
     return ok({ orderId, regionId: regionUuid, imageUrl, unitPrice, total, currency });
 
   } catch (e) {
+    // Log côté fonction et renvoyer un message clair
+    console.error('[start-order] ERROR', e);
     return bad(500, "SERVER_ERROR", { message: String(e?.message || e) });
   }
 };
