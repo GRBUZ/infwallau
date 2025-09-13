@@ -1,23 +1,11 @@
 // netlify/functions/paypal-webhook.js
 // Webhook PayPal -> finalisation server-side (prix serveur, tout ou rien, via Supabase RPC)
 // Étapes : vérif signature PayPal -> retrouver notre orderId (custom_id) -> contrôles -> prix serveur -> RPC -> marquer completed.
-//
-// Variables requises :
-//   GH_REPO, GH_TOKEN, [GH_BRANCH], [ORDERS_DIR]
-//
-//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-//   PAYPAL_CLIENT_ID, PAYPAL_SECRET, [PAYPAL_BASE_URL] (défaut sandbox)
-//   PAYPAL_WEBHOOK_SECRET (plus utilisé ici), verifyPayPalWebhook (cryptographique officiel)
+// 100% Supabase (plus de GitHub JSON).
 
-const PAYPAL_BASE_URL   = process.env.PAYPAL_BASE_URL || 'https://api-m.sandbox.paypal.com';
-const PAYPAL_CLIENT_ID  = process.env.PAYPAL_CLIENT_ID;
-const PAYPAL_SECRET     = process.env.PAYPAL_SECRET;
-// const PAYPAL_WEBHOOK_SECRET = process.env.PAYPAL_WEBHOOK_SECRET; // (non utilisé, on passe par verifyPayPalWebhook)
-
-const GH_REPO    = process.env.GH_REPO;
-const GH_TOKEN   = process.env.GH_TOKEN;
-const GH_BRANCH  = process.env.GH_BRANCH || 'main';
-const ORDERS_DIR = process.env.ORDERS_DIR || 'data/orders';
+const PAYPAL_BASE_URL  = process.env.PAYPAL_BASE_URL || 'https://api-m.sandbox.paypal.com';
+const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
+const PAYPAL_SECRET    = process.env.PAYPAL_SECRET; // (client_secret côté serveur)
 
 const SUPABASE_URL     = process.env.SUPABASE_URL;
 const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -31,43 +19,8 @@ function json(status, obj){
     body: JSON.stringify(obj)
   };
 }
-const bad = (s,e,extra={}) => json(s, { ok:false, error:e, ...extra, signature:'paypal-webhook.v3' });
-const ok  = (b)         => json(200,{ ok:true,  signature:'paypal-webhook.v3', ...b });
-
-async function ghGetJson(path){
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(GH_BRANCH)}`,
-    { headers: { "Authorization": `Bearer ${GH_TOKEN}`, "Accept":"application/vnd.github+json" } }
-  );
-  if (r.status === 404) return { json:null, sha:null };
-  if (!r.ok) throw new Error(`GH_GET_FAILED:${r.status}`);
-  const data = await r.json();
-  const content = Buffer.from(data.content || "", "base64").toString("utf-8");
-  return { json: JSON.parse(content || "{}"), sha: data.sha };
-}
-async function ghPutJson(path, jsonData, sha, message){
-  const pretty = JSON.stringify(jsonData, null, 2) + "\n";
-  const body = {
-    message: message || "chore: write json",
-    content: Buffer.from(pretty, "utf-8").toString("base64"),
-    branch: GH_BRANCH
-  };
-  if (sha) body.sha = sha;
-  const r = await fetch(
-    `https://api.github.com/repos/${GH_REPO}/contents/${encodeURIComponent(path)}`,
-    {
-      method: "PUT",
-      headers: {
-        "Authorization": `Bearer ${GH_TOKEN}`,
-        "Accept": "application/vnd.github+json",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    }
-  );
-  if (!r.ok) throw new Error(`GH_PUT_JSON_FAILED:${r.status}`);
-  return r.json();
-}
+const bad = (s,e,extra={}) => json(s, { ok:false, error:e, ...extra, signature:'paypal-webhook.v4' });
+const ok  = (b)            => json(200,{ ok:true,  signature:'paypal-webhook.v4', ...b });
 
 function isUuid(v){
   return typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
@@ -78,10 +31,7 @@ async function getPayPalAccessToken() {
   const creds = Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_SECRET}`).toString('base64');
   const r = await fetch(`${PAYPAL_BASE_URL}/v1/oauth2/token`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Basic ${creds}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
+    headers: { 'Authorization': `Basic ${creds}`, 'Content-Type': 'application/x-www-form-urlencoded' },
     body: 'grant_type=client_credentials'
   });
   if (!r.ok) throw new Error(`PAYPAL_TOKEN_FAILED:${r.status}`);
@@ -99,7 +49,7 @@ async function getOrderCustomId(accessToken, paypalOrderId){
   return { customId, orderJson };
 }
 
-// === PATCH: helper refund PayPal (amount/currency optionnels -> full refund si omis) ===
+// Refund PayPal (amount/currency optionnels -> full refund si omis)
 async function refundPayPalCapture(accessToken, captureId, amount, currency) {
   try {
     const body = (Number.isFinite(amount) && currency)
@@ -123,7 +73,7 @@ async function refundPayPalCapture(accessToken, captureId, amount, currency) {
   }
 }
 
-// === PATCH: helper libération des locks ===
+// Libération des locks
 async function releaseLocks(supabase, blocks, uid) {
   try {
     if (!Array.isArray(blocks) || !blocks.length || !uid) return;
@@ -134,7 +84,6 @@ async function releaseLocks(supabase, blocks, uid) {
 exports.handler = async (event) => {
   try {
     if (event.httpMethod !== "POST") return bad(405, "METHOD_NOT_ALLOWED");
-    if (!GH_REPO || !GH_TOKEN) return bad(500, "GITHUB_CONFIG_MISSING");
     if (!SUPABASE_URL || !SUPA_SERVICE_KEY) return bad(500, "SUPABASE_CONFIG_MISSING");
 
     // --- 1) Signature PayPal (raw body)
@@ -158,19 +107,15 @@ exports.handler = async (event) => {
     const captureId  = resource.id || null;
     const paidTotal  = Number(resource?.amount?.value ?? NaN);
     const paidCurr   = (resource?.amount?.currency_code || 'USD').toUpperCase();
-    // Essayer d'obtenir le PayPal Order Id (lié à la capture)
     const paypalOrderId = resource?.supplementary_data?.related_ids?.order_id || null;
 
-    // Notre orderId interne est censé être dans purchase_units[].custom_id.
-    // Suivant les events, il peut ne pas figurer dans le payload -> fallback GET order.
+    // Notre orderId interne (custom_id)
     let orderId = String(resource?.purchase_units?.[0]?.custom_id || '').trim();
-    let orderJson = null;
 
     if (!orderId && paypalOrderId) {
       const accessToken = await getPayPalAccessToken();
       const res = await getOrderCustomId(accessToken, paypalOrderId);
       orderId = res.customId || '';
-      orderJson = res.orderJson || null;
     }
 
     if (!orderId) {
@@ -179,51 +124,54 @@ exports.handler = async (event) => {
       });
     }
 
-    // --- 3) Charger commande GH
-    const orderPath = `${ORDERS_DIR}/${orderId}.json`;
-    const { json: order, sha: orderSha } = await ghGetJson(orderPath);
-    if (!order) return bad(404, "ORDER_NOT_FOUND");
+    // --- 3) Charger commande depuis Supabase
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession:false } });
 
-    // Idempotence
-    if (order.status === "completed" && order.paypalCaptureId) {
+    const { data: order, error: getErr } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('order_id', orderId)
+      .single();
+
+    if (getErr || !order) return bad(404, "ORDER_NOT_FOUND");
+
+    // Idempotence: si déjà complété
+    if (order.status === "completed" && order.paypal_capture_id) {
       return ok({
         orderId,
         already: true,
         status: "completed",
-        regionId: order.regionId || order.regionDbId,
-        imageUrl: order.finalImageUrl || order.image?.url,
-        unitPrice: order.unitPrice || null,
+        regionId: order.region_id,
+        imageUrl: order.image_url,
+        unitPrice: order.unit_price || null,
         total: order.total || null,
         currency: order.currency || paidCurr,
-        paypalOrderId: order.paypalOrderId || paypalOrderId || null,
-        paypalCaptureId: order.paypalCaptureId
+        paypalOrderId: order.paypal_order_id || paypalOrderId || null,
+        paypalCaptureId: order.paypal_capture_id
       });
     }
 
     const uid      = String(order.uid || '').trim();
     const name     = String(order.name || '').trim();
-    const linkUrl  = String(order.linkUrl || '').trim();
+    const linkUrl  = String(order.link_url || '').trim();
     const blocks   = Array.isArray(order.blocks) ? order.blocks.map(n=>parseInt(n,10)).filter(Number.isFinite) : [];
-    const regionIn = String(order.regionId || '').trim();
-    const imageUrl = order.image?.url || order.finalImageUrl || null;
+    const regionIn = String(order.region_id || '').trim();
+    const imageUrl = order.image_url || null;
 
     if (!uid || !name || !linkUrl || !blocks.length) {
       return bad(400, "ORDER_INVALID");
     }
     const regionUuid = isUuid(regionIn) ? regionIn : (await import('node:crypto')).randomUUID();
 
-    // --- 4) Supabase + contrôles
-    const { createClient } = await import('@supabase/supabase-js');
-    const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession:false } });
-
-    // déjà vendu ?
+    // --- 4) Contrôles Supabase (déjà vendu / locks)
     const { data: soldRows, error: soldErr } = await supabase
       .from('cells').select('idx')
       .in('idx', blocks)
       .not('sold_at', 'is', null);
     if (soldErr) return bad(500, 'CELLS_QUERY_FAILED', { message: soldErr.message });
     if (soldRows && soldRows.length) {
-      // === PATCH: refund + release + journal enrichi ===
+      // refund + release + journal DB
       let refundedOk = false;
       let refundObj  = null;
       try {
@@ -232,41 +180,21 @@ exports.handler = async (event) => {
         refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
       } catch(_) {}
       try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
-      try {
-        if (refundedOk) {
-          const refundId = refundObj?.id
-            || refundObj?.refund_id
-            || refundObj?.purchase_units?.[0]?.payments?.refunds?.[0]?.id
-            || null;
-          const updated = {
-            ...order,
-            status: 'refunded',
-            refundStatus: 'succeeded',
-            needsManualRefund: false,
-            refundedAt: Date.now(),
-            paypalRefundId: refundId,
-            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-            paypalCaptureId: captureId || order.paypalCaptureId || null
-          };
-          await ghPutJson(orderPath, updated, orderSha, `chore: refunded (already sold) for ${orderId}`);
-        } else {
-          const updated = {
-            ...order,
-            status: 'refund_failed',
-            needsManualRefund: true,
-            refundStatus: 'failed',
-            refundAttemptedAt: Date.now(),
-            refundError: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
-            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-            paypalCaptureId: captureId || order.paypalCaptureId || null
-          };
-          await ghPutJson(orderPath, updated, orderSha, `chore: refund failed (already sold) for ${orderId}`);
-        }
-      } catch(_) {}
+      await supabase.from('orders').update({
+        status: refundedOk ? 'refunded' : 'refund_failed',
+        refund_status: refundedOk ? 'succeeded' : 'failed',
+        needs_manual_refund: !refundedOk,
+        refund_attempted_at: new Date().toISOString(),
+        refund_error: refundedOk ? null : String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
+        refund_id: refundedOk ? (refundObj?.id || refundObj?.refund_id || null) : null,
+        paypal_order_id: paypalOrderId || order.paypal_order_id || null,
+        paypal_capture_id: captureId || order.paypal_capture_id || null,
+        fail_reason: 'ALREADY_SOLD',
+        updated_at: new Date().toISOString()
+      }).eq('id', order.id);
       return bad(409, 'ALREADY_SOLD', { idx: Number(soldRows[0].idx) });
     }
 
-    // locks par autre UID ?
     const nowIso = new Date().toISOString();
     const { data: lockRows, error: lockErr } = await supabase
       .from('locks').select('idx, uid, until')
@@ -275,7 +203,7 @@ exports.handler = async (event) => {
       .neq('uid', uid);
     if (lockErr) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr.message });
     if (lockRows && lockRows.length) {
-      // === PATCH: refund + release + journal enrichi ===
+      // refund + release + journal DB
       let refundedOk = false;
       let refundObj  = null;
       try {
@@ -284,37 +212,18 @@ exports.handler = async (event) => {
         refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
       } catch(_) {}
       try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
-      try {
-        if (refundedOk) {
-          const refundId = refundObj?.id
-            || refundObj?.refund_id
-            || refundObj?.purchase_units?.[0]?.payments?.refunds?.[0]?.id
-            || null;
-          const updated = {
-            ...order,
-            status: 'refunded',
-            refundStatus: 'succeeded',
-            needsManualRefund: false,
-            refundedAt: Date.now(),
-            paypalRefundId: refundId,
-            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-            paypalCaptureId: captureId || order.paypalCaptureId || null
-          };
-          await ghPutJson(orderPath, updated, orderSha, `chore: refunded (locked by other) for ${orderId}`);
-        } else {
-          const updated = {
-            ...order,
-            status: 'refund_failed',
-            needsManualRefund: true,
-            refundStatus: 'failed',
-            refundAttemptedAt: Date.now(),
-            refundError: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
-            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-            paypalCaptureId: captureId || order.paypalCaptureId || null
-          };
-          await ghPutJson(orderPath, updated, orderSha, `chore: refund failed (locked by other) for ${orderId}`);
-        }
-      } catch(_) {}
+      await supabase.from('orders').update({
+        status: refundedOk ? 'refunded' : 'refund_failed',
+        refund_status: refundedOk ? 'succeeded' : 'failed',
+        needs_manual_refund: !refundedOk,
+        refund_attempted_at: new Date().toISOString(),
+        refund_error: refundedOk ? null : String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
+        refund_id: refundedOk ? (refundObj?.id || refundObj?.refund_id || null) : null,
+        paypal_order_id: paypalOrderId || order.paypal_order_id || null,
+        paypal_capture_id: captureId || order.paypal_capture_id || null,
+        fail_reason: 'LOCKED_BY_OTHER',
+        updated_at: new Date().toISOString()
+      }).eq('id', order.id);
       return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
     }
 
@@ -340,7 +249,7 @@ exports.handler = async (event) => {
 
     // Vérif sous-paiement si on a un montant capturé
     if (Number.isFinite(paidTotal) && paidTotal + 1e-9 < total) {
-      // === PATCH: refund + release + journal enrichi ===
+      // refund + release + journal DB
       let refundedOk = false;
       let refundObj  = null;
       try {
@@ -349,43 +258,21 @@ exports.handler = async (event) => {
         refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
       } catch(_) {}
       try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
-      try {
-        if (refundedOk) {
-          const refundId = refundObj?.id
-            || refundObj?.refund_id
-            || refundObj?.purchase_units?.[0]?.payments?.refunds?.[0]?.id
-            || null;
-          const updated = {
-            ...order,
-            status: 'refunded',
-            refundStatus: 'succeeded',
-            needsManualRefund: false,
-            refundedAt: Date.now(),
-            paypalRefundId: refundId,
-            serverTotal: total,
-            paidTotal,
-            currency: usedCurrency,
-            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-            paypalCaptureId: captureId || order.paypalCaptureId || null
-          };
-          await ghPutJson(orderPath, updated, orderSha, `chore: refunded (underpaid) for ${orderId}`);
-        } else {
-          const updated = {
-            ...order,
-            status: 'refund_failed',
-            needsManualRefund: true,
-            refundStatus: 'failed',
-            refundAttemptedAt: Date.now(),
-            refundError: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
-            serverTotal: total,
-            paidTotal,
-            currency: usedCurrency,
-            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-            paypalCaptureId: captureId || order.paypalCaptureId || null
-          };
-          await ghPutJson(orderPath, updated, orderSha, `chore: refund failed (underpaid) for ${orderId}`);
-        }
-      } catch(_) {}
+      await supabase.from('orders').update({
+        status: refundedOk ? 'refunded' : 'refund_failed',
+        refund_status: refundedOk ? 'succeeded' : 'failed',
+        needs_manual_refund: !refundedOk,
+        refund_attempted_at: new Date().toISOString(),
+        refund_error: refundedOk ? null : String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
+        refund_id: refundedOk ? (refundObj?.id || refundObj?.refund_id || null) : null,
+        server_total: total,
+        amount: paidTotal,
+        currency: usedCurrency,
+        paypal_order_id: paypalOrderId || order.paypal_order_id || null,
+        paypal_capture_id: captureId || order.paypal_capture_id || null,
+        fail_reason: 'UNDERPAID',
+        updated_at: new Date().toISOString()
+      }).eq('id', order.id);
       return bad(409, 'UNDERPAID', { serverTotal: total, paidTotal, currency: usedCurrency });
     }
 
@@ -416,7 +303,7 @@ exports.handler = async (event) => {
         const up2   = Math.round((1 + tier2 * 0.01) * 100) / 100;
         const tot2  = Math.round(up2 * totalPixels * 100) / 100;
 
-        // === PATCH: refund + release + journal enrichi ===
+        // refund + release + journal DB
         let refundedOk = false;
         let refundObj  = null;
         try {
@@ -425,48 +312,26 @@ exports.handler = async (event) => {
           refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
         } catch(_) {}
         try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
-        try {
-          if (refundedOk) {
-            const refundId = refundObj?.id
-              || refundObj?.refund_id
-              || refundObj?.purchase_units?.[0]?.payments?.refunds?.[0]?.id
-              || null;
-            const updated = {
-              ...order,
-              status: 'refunded',
-              refundStatus: 'succeeded',
-              needsManualRefund: false,
-              refundedAt: Date.now(),
-              paypalRefundId: refundId,
-              serverUnitPrice: up2,
-              serverTotal: tot2,
-              currency: usedCurrency,
-              paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-              paypalCaptureId: captureId || order.paypalCaptureId || null
-            };
-            await ghPutJson(orderPath, updated, orderSha, `chore: refunded (price_changed) for ${orderId}`);
-          } else {
-            const updated = {
-              ...order,
-              status: 'refund_failed',
-              needsManualRefund: true,
-              refundStatus: 'failed',
-              refundAttemptedAt: Date.now(),
-              refundError: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
-              serverUnitPrice: up2,
-              serverTotal: tot2,
-              currency: usedCurrency,
-              paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-              paypalCaptureId: captureId || order.paypalCaptureId || null
-            };
-            await ghPutJson(orderPath, updated, orderSha, `chore: refund failed (price_changed) for ${orderId}`);
-          }
-        } catch(_) {}
+        await supabase.from('orders').update({
+          status: refundedOk ? 'refunded' : 'refund_failed',
+          refund_status: refundedOk ? 'succeeded' : 'failed',
+          needs_manual_refund: !refundedOk,
+          refund_attempted_at: new Date().toISOString(),
+          refund_error: refundedOk ? null : String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
+          refund_id: refundedOk ? (refundObj?.id || refundObj?.refund_id || null) : null,
+          server_unit_price: up2,
+          server_total: tot2,
+          currency: usedCurrency,
+          paypal_order_id: paypalOrderId || order.paypal_order_id || null,
+          paypal_capture_id: captureId || order.paypal_capture_id || null,
+          fail_reason: 'PRICE_CHANGED',
+          updated_at: new Date().toISOString()
+        }).eq('id', order.id);
 
         return bad(409, 'PRICE_CHANGED', { serverUnitPrice: up2, serverTotal: tot2, currency: usedCurrency });
       }
 
-      // === PATCH: refund + release + journal enrichi pour autres erreurs RPC ===
+      // Autres erreurs RPC : refund + release + journal DB
       let refundedOk = false;
       let refundObj  = null;
       try {
@@ -475,43 +340,20 @@ exports.handler = async (event) => {
         refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
       } catch(_) {}
       try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
-      try {
-        if (refundedOk) {
-          const refundId = refundObj?.id
-            || refundObj?.refund_id
-            || refundObj?.purchase_units?.[0]?.payments?.refunds?.[0]?.id
-            || null;
-          const updated = {
-            ...order,
-            status: 'refunded',
-            refundStatus: 'succeeded',
-            needsManualRefund: false,
-            refundedAt: Date.now(),
-            paypalRefundId: refundId,
-            failReason: (msg.includes('LOCKS_INVALID') ? 'LOCKS_INVALID'
-                      : (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) ? 'ALREADY_SOLD'
-                      : (msg.includes('NO_BLOCKS') ? 'NO_BLOCKS' : 'FINALIZE_ERROR')),
-            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-            paypalCaptureId: captureId || order.paypalCaptureId || null
-          };
-          await ghPutJson(orderPath, updated, orderSha, `chore: refunded (finalize failed) for ${orderId}`);
-        } else {
-          const updated = {
-            ...order,
-            status: 'refund_failed',
-            needsManualRefund: true,
-            refundStatus: 'failed',
-            refundAttemptedAt: Date.now(),
-            refundError: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
-            failReason: (msg.includes('LOCKS_INVALID') ? 'LOCKS_INVALID'
-                      : (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) ? 'ALREADY_SOLD'
-                      : (msg.includes('NO_BLOCKS') ? 'NO_BLOCKS' : 'FINALIZE_ERROR')),
-            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-            paypalCaptureId: captureId || order.paypalCaptureId || null
-          };
-          await ghPutJson(orderPath, updated, orderSha, `chore: refund failed (finalize failed) for ${orderId}`);
-        }
-      } catch(_) {}
+      await supabase.from('orders').update({
+        status: refundedOk ? 'refunded' : 'refund_failed',
+        refund_status: refundedOk ? 'succeeded' : 'failed',
+        needs_manual_refund: !refundedOk,
+        refund_attempted_at: new Date().toISOString(),
+        refund_error: refundedOk ? null : String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
+        refund_id: refundedOk ? (refundObj?.id || refundObj?.refund_id || null) : null,
+        paypal_order_id: paypalOrderId || order.paypal_order_id || null,
+        paypal_capture_id: captureId || order.paypal_capture_id || null,
+        fail_reason: (msg.includes('LOCKS_INVALID') ? 'LOCKS_INVALID'
+                  : (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) ? 'ALREADY_SOLD'
+                  : (msg.includes('NO_BLOCKS') ? 'NO_BLOCKS' : 'FINALIZE_ERROR')),
+        updated_at: new Date().toISOString()
+      }).eq('id', order.id);
 
       if (msg.includes('LOCKS_INVALID')) return bad(409, 'LOCK_MISSING_OR_EXPIRED');
       if (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) return bad(409, 'ALREADY_SOLD');
@@ -520,23 +362,18 @@ exports.handler = async (event) => {
     }
 
     // --- 7) Succès — marquer completed + journaliser
-    try {
-      const updated = {
-        ...order,
-        status: 'completed',
-        updatedAt: Date.now(),
-        finalImageUrl: imageUrl || null,
-        regionDbId: regionUuid,
-        unitPrice,
-        total,
-        currency: usedCurrency,
-        paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-        paypalCaptureId: captureId || order.paypalCaptureId || null
-      };
-      await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} completed (webhook)`);
-    } catch(_) { /* non bloquant */ }
+    await supabase.from('orders').update({
+      status: 'completed',
+      region_id: regionUuid,
+      unit_price: unitPrice,
+      total,
+      currency: usedCurrency,
+      paypal_order_id: paypalOrderId || order.paypal_order_id || null,
+      paypal_capture_id: captureId || order.paypal_capture_id || null,
+      updated_at: new Date().toISOString()
+    }).eq('id', order.id);
 
-    // === PATCH: libération des locks en cas de succès (best-effort) ===
+    // Libération des locks en cas de succès (best-effort)
     try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
 
     return ok({
