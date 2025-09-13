@@ -99,7 +99,7 @@ async function getOrderCustomId(accessToken, paypalOrderId){
   return { customId, orderJson };
 }
 
-// === PATCH AJOUTÉ: helper refund PayPal (amount/currency optionnels -> full refund si omis) ===
+// === PATCH: helper refund PayPal (amount/currency optionnels -> full refund si omis) ===
 async function refundPayPalCapture(accessToken, captureId, amount, currency) {
   try {
     const body = (Number.isFinite(amount) && currency)
@@ -109,7 +109,8 @@ async function refundPayPalCapture(accessToken, captureId, amount, currency) {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
       },
       body: JSON.stringify(body)
     });
@@ -122,7 +123,7 @@ async function refundPayPalCapture(accessToken, captureId, amount, currency) {
   }
 }
 
-// === PATCH AJOUTÉ: helper libération des locks ===
+// === PATCH: helper libération des locks ===
 async function releaseLocks(supabase, blocks, uid) {
   try {
     if (!Array.isArray(blocks) || !blocks.length || !uid) return;
@@ -222,17 +223,45 @@ exports.handler = async (event) => {
       .not('sold_at', 'is', null);
     if (soldErr) return bad(500, 'CELLS_QUERY_FAILED', { message: soldErr.message });
     if (soldRows && soldRows.length) {
-      // === PATCH: refund + release ===
+      // === PATCH: refund + release + journal enrichi ===
+      let refundedOk = false;
+      let refundObj  = null;
       try {
         const accessToken = await getPayPalAccessToken();
-        const refund = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
-        try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
-        try {
-          const updated = { ...order, status:'failed_refunded', updatedAt: Date.now(), failReason:'ALREADY_SOLD',
-            refundId: refund?.id || null, paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-            paypalCaptureId: captureId || order.paypalCaptureId || null };
-          await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} refunded (already sold)`);
-        } catch(_) {}
+        refundObj  = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
+        refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+      } catch(_) {}
+      try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
+      try {
+        if (refundedOk) {
+          const refundId = refundObj?.id
+            || refundObj?.refund_id
+            || refundObj?.purchase_units?.[0]?.payments?.refunds?.[0]?.id
+            || null;
+          const updated = {
+            ...order,
+            status: 'refunded',
+            refundStatus: 'succeeded',
+            needsManualRefund: false,
+            refundedAt: Date.now(),
+            paypalRefundId: refundId,
+            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
+            paypalCaptureId: captureId || order.paypalCaptureId || null
+          };
+          await ghPutJson(orderPath, updated, orderSha, `chore: refunded (already sold) for ${orderId}`);
+        } else {
+          const updated = {
+            ...order,
+            status: 'refund_failed',
+            needsManualRefund: true,
+            refundStatus: 'failed',
+            refundAttemptedAt: Date.now(),
+            refundError: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
+            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
+            paypalCaptureId: captureId || order.paypalCaptureId || null
+          };
+          await ghPutJson(orderPath, updated, orderSha, `chore: refund failed (already sold) for ${orderId}`);
+        }
       } catch(_) {}
       return bad(409, 'ALREADY_SOLD', { idx: Number(soldRows[0].idx) });
     }
@@ -246,17 +275,45 @@ exports.handler = async (event) => {
       .neq('uid', uid);
     if (lockErr) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr.message });
     if (lockRows && lockRows.length) {
-      // === PATCH: refund + release ===
+      // === PATCH: refund + release + journal enrichi ===
+      let refundedOk = false;
+      let refundObj  = null;
       try {
         const accessToken = await getPayPalAccessToken();
-        const refund = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
-        try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
-        try {
-          const updated = { ...order, status:'failed_refunded', updatedAt: Date.now(), failReason:'LOCKED_BY_OTHER',
-            refundId: refund?.id || null, paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-            paypalCaptureId: captureId || order.paypalCaptureId || null };
-          await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} refunded (locked by other)`);
-        } catch(_) {}
+        refundObj  = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
+        refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+      } catch(_) {}
+      try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
+      try {
+        if (refundedOk) {
+          const refundId = refundObj?.id
+            || refundObj?.refund_id
+            || refundObj?.purchase_units?.[0]?.payments?.refunds?.[0]?.id
+            || null;
+          const updated = {
+            ...order,
+            status: 'refunded',
+            refundStatus: 'succeeded',
+            needsManualRefund: false,
+            refundedAt: Date.now(),
+            paypalRefundId: refundId,
+            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
+            paypalCaptureId: captureId || order.paypalCaptureId || null
+          };
+          await ghPutJson(orderPath, updated, orderSha, `chore: refunded (locked by other) for ${orderId}`);
+        } else {
+          const updated = {
+            ...order,
+            status: 'refund_failed',
+            needsManualRefund: true,
+            refundStatus: 'failed',
+            refundAttemptedAt: Date.now(),
+            refundError: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
+            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
+            paypalCaptureId: captureId || order.paypalCaptureId || null
+          };
+          await ghPutJson(orderPath, updated, orderSha, `chore: refund failed (locked by other) for ${orderId}`);
+        }
       } catch(_) {}
       return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
     }
@@ -283,18 +340,51 @@ exports.handler = async (event) => {
 
     // Vérif sous-paiement si on a un montant capturé
     if (Number.isFinite(paidTotal) && paidTotal + 1e-9 < total) {
-      // === PATCH: refund + release ===
+      // === PATCH: refund + release + journal enrichi ===
+      let refundedOk = false;
+      let refundObj  = null;
       try {
         const accessToken = await getPayPalAccessToken();
-        const refund = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
-        try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
-        try {
-          const updated = { ...order, status:'failed_refunded', updatedAt: Date.now(), failReason:'UNDERPAID',
-            serverTotal: total, paidTotal, currency: usedCurrency,
-            refundId: refund?.id || null, paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-            paypalCaptureId: captureId || order.paypalCaptureId || null };
-          await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} refunded (underpaid)`);
-        } catch(_) {}
+        refundObj  = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
+        refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+      } catch(_) {}
+      try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
+      try {
+        if (refundedOk) {
+          const refundId = refundObj?.id
+            || refundObj?.refund_id
+            || refundObj?.purchase_units?.[0]?.payments?.refunds?.[0]?.id
+            || null;
+          const updated = {
+            ...order,
+            status: 'refunded',
+            refundStatus: 'succeeded',
+            needsManualRefund: false,
+            refundedAt: Date.now(),
+            paypalRefundId: refundId,
+            serverTotal: total,
+            paidTotal,
+            currency: usedCurrency,
+            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
+            paypalCaptureId: captureId || order.paypalCaptureId || null
+          };
+          await ghPutJson(orderPath, updated, orderSha, `chore: refunded (underpaid) for ${orderId}`);
+        } else {
+          const updated = {
+            ...order,
+            status: 'refund_failed',
+            needsManualRefund: true,
+            refundStatus: 'failed',
+            refundAttemptedAt: Date.now(),
+            refundError: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
+            serverTotal: total,
+            paidTotal,
+            currency: usedCurrency,
+            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
+            paypalCaptureId: captureId || order.paypalCaptureId || null
+          };
+          await ghPutJson(orderPath, updated, orderSha, `chore: refund failed (underpaid) for ${orderId}`);
+        }
       } catch(_) {}
       return bad(409, 'UNDERPAID', { serverTotal: total, paidTotal, currency: usedCurrency });
     }
@@ -326,37 +416,101 @@ exports.handler = async (event) => {
         const up2   = Math.round((1 + tier2 * 0.01) * 100) / 100;
         const tot2  = Math.round(up2 * totalPixels * 100) / 100;
 
-        // === PATCH: refund + release ===
+        // === PATCH: refund + release + journal enrichi ===
+        let refundedOk = false;
+        let refundObj  = null;
         try {
           const accessToken = await getPayPalAccessToken();
-          const refund = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
-          try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
-          try {
-            const updated = { ...order, status:'failed_refunded', updatedAt: Date.now(), failReason:'PRICE_CHANGED',
-              serverUnitPrice: up2, serverTotal: tot2, currency: usedCurrency,
-              refundId: refund?.id || null, paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-              paypalCaptureId: captureId || order.paypalCaptureId || null };
-            await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} refunded (price_changed)`);
-          } catch(_) {}
+          refundObj  = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
+          refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+        } catch(_) {}
+        try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
+        try {
+          if (refundedOk) {
+            const refundId = refundObj?.id
+              || refundObj?.refund_id
+              || refundObj?.purchase_units?.[0]?.payments?.refunds?.[0]?.id
+              || null;
+            const updated = {
+              ...order,
+              status: 'refunded',
+              refundStatus: 'succeeded',
+              needsManualRefund: false,
+              refundedAt: Date.now(),
+              paypalRefundId: refundId,
+              serverUnitPrice: up2,
+              serverTotal: tot2,
+              currency: usedCurrency,
+              paypalOrderId: paypalOrderId || order.paypalOrderId || null,
+              paypalCaptureId: captureId || order.paypalCaptureId || null
+            };
+            await ghPutJson(orderPath, updated, orderSha, `chore: refunded (price_changed) for ${orderId}`);
+          } else {
+            const updated = {
+              ...order,
+              status: 'refund_failed',
+              needsManualRefund: true,
+              refundStatus: 'failed',
+              refundAttemptedAt: Date.now(),
+              refundError: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
+              serverUnitPrice: up2,
+              serverTotal: tot2,
+              currency: usedCurrency,
+              paypalOrderId: paypalOrderId || order.paypalOrderId || null,
+              paypalCaptureId: captureId || order.paypalCaptureId || null
+            };
+            await ghPutJson(orderPath, updated, orderSha, `chore: refund failed (price_changed) for ${orderId}`);
+          }
         } catch(_) {}
 
         return bad(409, 'PRICE_CHANGED', { serverUnitPrice: up2, serverTotal: tot2, currency: usedCurrency });
       }
 
-      // === PATCH: refund + release pour autres erreurs RPC ===
+      // === PATCH: refund + release + journal enrichi pour autres erreurs RPC ===
+      let refundedOk = false;
+      let refundObj  = null;
       try {
         const accessToken = await getPayPalAccessToken();
-        const refund = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
-        try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
-        try {
-          const updated = { ...order, status:'failed_refunded', updatedAt: Date.now(),
+        refundObj  = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
+        refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+      } catch(_) {}
+      try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
+      try {
+        if (refundedOk) {
+          const refundId = refundObj?.id
+            || refundObj?.refund_id
+            || refundObj?.purchase_units?.[0]?.payments?.refunds?.[0]?.id
+            || null;
+          const updated = {
+            ...order,
+            status: 'refunded',
+            refundStatus: 'succeeded',
+            needsManualRefund: false,
+            refundedAt: Date.now(),
+            paypalRefundId: refundId,
             failReason: (msg.includes('LOCKS_INVALID') ? 'LOCKS_INVALID'
-                     : (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) ? 'ALREADY_SOLD'
-                     : (msg.includes('NO_BLOCKS') ? 'NO_BLOCKS' : 'FINALIZE_ERROR')),
-            refundId: refund?.id || null, paypalOrderId: paypalOrderId || order.paypalOrderId || null,
-            paypalCaptureId: captureId || order.paypalCaptureId || null };
-          await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} refunded (finalize failed)`);
-        } catch(_) {}
+                      : (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) ? 'ALREADY_SOLD'
+                      : (msg.includes('NO_BLOCKS') ? 'NO_BLOCKS' : 'FINALIZE_ERROR')),
+            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
+            paypalCaptureId: captureId || order.paypalCaptureId || null
+          };
+          await ghPutJson(orderPath, updated, orderSha, `chore: refunded (finalize failed) for ${orderId}`);
+        } else {
+          const updated = {
+            ...order,
+            status: 'refund_failed',
+            needsManualRefund: true,
+            refundStatus: 'failed',
+            refundAttemptedAt: Date.now(),
+            refundError: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
+            failReason: (msg.includes('LOCKS_INVALID') ? 'LOCKS_INVALID'
+                      : (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) ? 'ALREADY_SOLD'
+                      : (msg.includes('NO_BLOCKS') ? 'NO_BLOCKS' : 'FINALIZE_ERROR')),
+            paypalOrderId: paypalOrderId || order.paypalOrderId || null,
+            paypalCaptureId: captureId || order.paypalCaptureId || null
+          };
+          await ghPutJson(orderPath, updated, orderSha, `chore: refund failed (finalize failed) for ${orderId}`);
+        }
       } catch(_) {}
 
       if (msg.includes('LOCKS_INVALID')) return bad(409, 'LOCK_MISSING_OR_EXPIRED');

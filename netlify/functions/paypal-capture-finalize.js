@@ -95,9 +95,10 @@ async function refundPayPalCapture(accessToken, captureId, amount, currency) {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
       },
-      body: JSON.stringify({ amount: { value: Number(amount).toFixed(2), currency_code: currency } })
+      body: JSON.stringify({ amount: { value: Number(amount).toFixed(2), currency_code: String(currency || 'USD').toUpperCase() } })
     });
     const j = await resp.json().catch(()=> ({}));
     if (!resp.ok) throw new Error(`PAYPAL_REFUND_FAILED:${resp.status}:${j?.name || ''}`);
@@ -286,29 +287,60 @@ exports.handler = async (event) => {
       const msg = (rpcErr.message || '').toUpperCase();
 
       // === PATCH: REFUND + libération des locks si la finalisation échoue après capture ===
+      let refundedOk = false;
+      let refundObj  = null;
       try {
-        const refund = await refundPayPalCapture(accessToken, captureId, capValue, currency);
-        try { await releaseLocks(supabase, blocksOk, uid); } catch(_) {}
+        refundObj  = await refundPayPalCapture(accessToken, captureId, capValue, currency);
+        refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+      } catch(_) {}
 
-        // journal best-effort
-        try {
+      // libération des locks (best-effort)
+      try { await releaseLocks(supabase, blocksOk, uid); } catch(_) {}
+
+      // journal clair selon succès/échec du refund
+      try {
+        if (refundedOk) {
+          const refundId = refundObj?.id
+            || refundObj?.refund_id
+            || refundObj?.purchase_units?.[0]?.payments?.refunds?.[0]?.id
+            || null;
+
           const updated = {
             ...order,
-            status: 'failed_refunded',
-            updatedAt: Date.now(),
-            failReason: msg.includes('LOCKS_INVALID') ? 'LOCKS_INVALID'
-                     : (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) ? 'ALREADY_SOLD'
-                     : (msg.includes('NO_BLOCKS') ? 'NO_BLOCKS' : 'FINALIZE_ERROR'),
-            refundId: refund?.id || null,
+            status: 'refunded',
+            refundStatus: 'succeeded',
+            needsManualRefund: false,
+            refundedAt: Date.now(),
+            paypalRefundId: refundId,
             paypalOrderId,
             paypalCaptureId: captureId,
             serverUnitPrice: unitPrice,
             serverTotal,
             currency
           };
-          await ghPutJson(orderPath, updated, orderSha, `chore: order ${orderId} refunded (finalize failed)`);
-        } catch(_) {}
+          await ghPutJson(orderPath, updated, orderSha, `chore: refunded after finalize error for ${orderId}`);
+        } else {
+          const updated = {
+            ...order,
+            status: 'refund_failed',
+            needsManualRefund: true,
+            refundStatus: 'failed',
+            refundAttemptedAt: Date.now(),
+            refundError: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
+            paypalOrderId,
+            paypalCaptureId: captureId,
+            serverUnitPrice: unitPrice,
+            serverTotal,
+            currency
+          };
+          await ghPutJson(orderPath, updated, orderSha, `chore: refund failed after finalize error for ${orderId}`);
+        }
       } catch(_) {}
+
+      // retourne un code adapté
+      if (refundedOk) {
+        return bad(500, 'FINALIZE_FAILED_REFUNDED', { message: msg || 'RPC_FINALIZE_FAILED' });
+      }
 
       if (msg.includes('LOCKS_INVALID'))                          return bad(409, 'LOCK_MISSING_OR_EXPIRED');
       if (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) return bad(409, 'ALREADY_SOLD');
