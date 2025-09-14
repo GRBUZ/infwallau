@@ -137,6 +137,10 @@ exports.handler = async (event) => {
 
     if (getErr || !order) return bad(404, "ORDER_NOT_FOUND");
 
+    // Ne pas finaliser si un refund est en cours/terminé
+    if (['refund_pending', 'refunded', 'refund_failed'].includes(order.status)) {
+      return ok({ ignored: true, reason: 'refund_in_progress_or_done', orderId });
+    }
     // Idempotence: si déjà complété
     if (order.status === "completed" && order.paypal_capture_id) {
       return ok({
