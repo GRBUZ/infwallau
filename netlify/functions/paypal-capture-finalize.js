@@ -15,6 +15,9 @@ const PAYPAL_CLIENT_ID     = process.env.PAYPAL_CLIENT_ID;
 const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
 // Sandbox par défaut; mets https://api-m.paypal.com en prod via la variable d'env
 const PAYPAL_BASE_URL      = process.env.PAYPAL_BASE_URL || 'https://api-m.sandbox.paypal.com';
+//test refund fail
+const FORCE_REFUND_FAIL = process.env.FORCE_REFUND_FAIL === '1';
+
 
 function json(status, obj){
   return {
@@ -47,6 +50,11 @@ async function getPayPalAccessToken() {
 
 // === helper refund PayPal ===
 async function refundPayPalCapture(accessToken, captureId, amount, currency) {
+  //test refund fail
+  if (FORCE_REFUND_FAIL) {
+    throw new Error('TEST_FORCED_REFUND_FAIL');
+  }
+  //test refund fail
   try {
     const resp = await fetch(`${PAYPAL_BASE_URL}/v2/payments/captures/${captureId}/refund`, {
       method: 'POST',
