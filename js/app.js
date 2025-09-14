@@ -227,11 +227,22 @@
       if (confirmBtn.textContent === 'Processing…') return;
 
       const blocks = currentLock.length ? currentLock : Array.from(selected);
+      
+      //const ok = haveMyValidLocks(blocks);
+      // Only update when not processing
+      //confirmBtn.disabled = !ok;
+      //confirmBtn.textContent = ok ? 'Confirm' : 'Reservation expired — reselect';
       const ok = haveMyValidLocks(blocks);
 
-      // Only update when not processing
       confirmBtn.disabled = !ok;
       confirmBtn.textContent = ok ? 'Confirm' : 'Reservation expired — reselect';
+
+      // ⛔️ Si expiré, on coupe le “keepalive” pour éviter tout relock
+      if (!ok) {
+        window.LockManager.heartbeat.stop();
+      }
+
+
     }, 1500);
 
     /*modalLockTimer = setInterval(()=>{
@@ -257,8 +268,14 @@
     modalStats.textContent = `${formatInt(selectedPixels)} px — ${formatMoney(total)}`;
 
     // Heartbeat for the current lock
-    if (currentLock.length) {
+    //if (currentLock.length) {
+      //window.LockManager.heartbeat.start(currentLock);
+    //}
+    // Heartbeat ONLY if my locks are still valid now
+    if (currentLock.length && haveMyValidLocks(currentLock, 0)) {
       window.LockManager.heartbeat.start(currentLock);
+    } else {
+      window.LockManager.heartbeat.stop(); // do not try to “keepalive” an expired lock
     }
 
     // Surveiller l'expiration
@@ -338,7 +355,7 @@
     const blocks = currentLock.length ? currentLock.slice() : Array.from(selected);
 
     // Si ma resa a expiré, tenter un re-lock avant de laisser finalize-addon agir
-    if (!haveMyValidLocks(blocks)) {
+    /*if (!haveMyValidLocks(blocks)) {
       try {
         const lr = await window.LockManager.lock(blocks, 180000);
         locks = window.LockManager.getLocalLocks();
@@ -359,7 +376,21 @@
         alert('Your reservation expired. Please reselect your pixels.');
         return;
       }
-    }
+    }*/
+
+      //new
+      // Si ma resa a expiré → on NE re-lock PAS. On ferme et on force une nouvelle sélection.
+if (!haveMyValidLocks(blocks)) {
+  window.LockManager.heartbeat.stop();
+  await loadStatus().catch(()=>{});
+  closeModal();
+  clearSelection();
+  paintAll();
+  alert('Your reservation expired. Please reselect your pixels.');
+  return;
+}
+
+      //new
 
     // Tout est bon → laisser finalize-addon.js faire le reste
     document.dispatchEvent(new CustomEvent('finalize:submit'));
@@ -412,8 +443,18 @@
           const blocks = currentLock.length ? currentLock : Array.from(selected);
           const ok = haveMyValidLocks(blocks);
           confirmBtn.disabled = !ok;
-          if (!ok) confirmBtn.textContent = 'Reservation expired — reselect';
-          else     confirmBtn.textContent = 'Confirm';
+          //if (!ok) confirmBtn.textContent = 'Reservation expired — reselect';
+          //new
+          
+          confirmBtn.textContent = ok ? 'Confirm' : 'Reservation expired — reselect';
+
+          // ⛔️ Si expiré, on coupe le “keepalive” pour éviter tout relock
+          if (!ok) {
+            window.LockManager.heartbeat.stop();
+          }
+
+          //new
+          //else     confirmBtn.textContent = 'Confirm';
         }
       }
 

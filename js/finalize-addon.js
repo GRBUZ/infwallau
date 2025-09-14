@@ -28,6 +28,28 @@
 
   const { uid, apiCall } = window.CoreManager;
 
+  //new
+  function haveMyValidLocks(blocks, graceMs = 0){
+  if (!Array.isArray(blocks) || !blocks.length) return false;
+  const now = Date.now() + Math.max(0, graceMs|0);
+  const myUid = uid;
+  // source de vérité côté front
+  let map = {};
+  try {
+    // idéal: LockManager garde un cache local
+    map = window.LockManager?.getLocalLocks?.() || window.locks || {};
+  } catch (_) {
+    map = window.locks || {};
+  }
+  for (const i of blocks) {
+    const l = map[String(i)];
+    if (!l || l.uid !== myUid || !(Number(l.until) > now)) return false;
+  }
+  return true;
+}
+
+  //new
+
   // DOM handles (we tolerate multiple possible IDs to be resilient)
   const modal        = document.getElementById('modal');
   const confirmBtn   = document.getElementById('confirm') || document.querySelector('[data-confirm]');
@@ -46,17 +68,36 @@
     __processing = true;
     try { window.LockManager?.heartbeat?.stop?.(); } catch {}
   }
-  function resumeHB(){
+  
+  /*function resumeHB(){
     if (!__processing) return;
     __processing = false;
     try {
-      // on ne relance que si le modal est encore ouvert et qu'il reste une sélection
+      
       const sel = (typeof getSelectedIndices === 'function') ? getSelectedIndices() : [];
       if (modal && !modal.classList.contains('hidden') && sel && sel.length) {
         window.LockManager?.heartbeat?.start?.(sel); // interval/ttl par défaut
       }
     } catch {}
+  }*/
+  //new
+  function resumeHB(){
+  if (!__processing) return;
+  __processing = false;
+  try {
+    const sel = (typeof getSelectedIndices === 'function') ? getSelectedIndices() : [];
+    // 👉 on NE relance pas si mes locks ne sont pas encore valides
+    if (modal && !modal.classList.contains('hidden') && sel && sel.length && haveMyValidLocks(sel, 0)) {
+      window.LockManager?.heartbeat?.start?.(sel);
+    } else {
+      window.LockManager?.heartbeat?.stop?.();
+    }
+  } catch {
+    try { window.LockManager?.heartbeat?.stop?.(); } catch {}
   }
+}
+
+  //new
 
   // UI helpers
   function uiWarn(msg){
@@ -310,7 +351,7 @@
     btnBusy(true);
 
     // Re-reserve just before start-order (defensive)
-    try {
+    /*try {
       if (window.LockManager) {
         const jr = await window.LockManager.lock(blocks, 180000);
         if (!jr || !jr.ok) {
@@ -332,8 +373,20 @@
       }
     } catch (e) {
       console.warn('[IW patch] pre-finalize reserve warning:', e);
-    }
+    }*/
 
+      //new
+      // No re-lock: si ma résa a expiré, on arrête net
+if (!haveMyValidLocks(blocks, 0)) {
+  await refreshStatus().catch(()=>{});
+  uiWarn('Your reservation expired. Please reselect your pixels.');
+  btnBusy(false);
+  // ne pas relancer le heartbeat si c’est mort
+  try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+  return;
+}
+
+      //new
     // === START-ORDER: le serveur prépare la commande et uploade l'image ===
     let start = null;
     try {
