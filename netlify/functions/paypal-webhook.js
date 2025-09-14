@@ -11,6 +11,7 @@ const SUPABASE_URL     = process.env.SUPABASE_URL;
 const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const { verifyPayPalWebhook } = require('./_paypal-verify');
+const { logManualRefundNeeded } = require('./_manual-refund-logger');
 
 function json(status, obj){
   return {
@@ -192,6 +193,25 @@ exports.handler = async (event) => {
         fail_reason: 'ALREADY_SOLD',
         updated_at: new Date().toISOString()
       }).eq('id', order.id);
+      //new journal
+      if (!refundedOk) {
+        try {
+          await logManualRefundNeeded({
+            route: 'webhook',
+            orderId,
+            uid,
+            regionId: regionUuid,
+            blocks,
+            amount: paidTotal,              // à ce stade on a paidTotal / paidCurr
+            currency: paidCurr,
+            paypalOrderId: paypalOrderId || order.paypal_order_id || null,
+            paypalCaptureId: captureId || order.paypal_capture_id || null,
+            reason: 'ALREADY_SOLD',
+            error: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED')
+          });
+        } catch (_) {}
+      }
+      //new journal
       return bad(409, 'ALREADY_SOLD', { idx: Number(soldRows[0].idx) });
     }
 
@@ -224,6 +244,25 @@ exports.handler = async (event) => {
         fail_reason: 'LOCKED_BY_OTHER',
         updated_at: new Date().toISOString()
       }).eq('id', order.id);
+      //new journal
+      if (!refundedOk) {
+        try {
+          await logManualRefundNeeded({
+            route: 'webhook',
+            orderId,
+            uid,
+            regionId: regionUuid,
+            blocks,
+            amount: paidTotal,
+            currency: paidCurr,
+            paypalOrderId: paypalOrderId || order.paypal_order_id || null,
+            paypalCaptureId: captureId || order.paypal_capture_id || null,
+            reason: 'LOCKED_BY_OTHER',
+            error: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED')
+          });
+        } catch (_) {}
+      }
+      //new journal
       return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
     }
 
@@ -273,6 +312,25 @@ exports.handler = async (event) => {
         fail_reason: 'UNDERPAID',
         updated_at: new Date().toISOString()
       }).eq('id', order.id);
+      //new journal
+      if (!refundedOk) {
+        try {
+          await logManualRefundNeeded({
+            route: 'webhook',
+            orderId,
+            uid,
+            regionId: regionUuid,
+            blocks,
+            amount: paidTotal,
+            currency: usedCurrency,         // ici usedCurrency est défini
+            paypalOrderId: paypalOrderId || order.paypal_order_id || null,
+            paypalCaptureId: captureId || order.paypal_capture_id || null,
+            reason: 'UNDERPAID',
+            error: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED')
+          });
+        } catch (_) {}
+      }
+      //new journal
       return bad(409, 'UNDERPAID', { serverTotal: total, paidTotal, currency: usedCurrency });
     }
 
@@ -327,7 +385,25 @@ exports.handler = async (event) => {
           fail_reason: 'PRICE_CHANGED',
           updated_at: new Date().toISOString()
         }).eq('id', order.id);
-
+        //new journal
+        if (!refundedOk) {
+          try {
+            await logManualRefundNeeded({
+              route: 'webhook',
+              orderId,
+              uid,
+              regionId: regionUuid,
+              blocks,
+              amount: paidTotal,
+              currency: usedCurrency,
+              paypalOrderId: paypalOrderId || order.paypal_order_id || null,
+              paypalCaptureId: captureId || order.paypal_capture_id || null,
+              reason: 'PRICE_CHANGED',
+              error: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED')
+            });
+          } catch (_) {}
+        }
+        //new journal
         return bad(409, 'PRICE_CHANGED', { serverUnitPrice: up2, serverTotal: tot2, currency: usedCurrency });
       }
 

@@ -4,6 +4,7 @@
 // Sortie: { ok:true, status:'completed', regionId, imageUrl?, paypalOrderId, paypalCaptureId }
 
 const { requireAuth } = require('./auth-middleware');
+const { logManualRefundNeeded } = require('./_manual-refund-logger');
 
 // --- Supabase
 const SUPABASE_URL     = process.env.SUPABASE_URL;
@@ -313,6 +314,29 @@ exports.handler = async (event) => {
                    : (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) ? 'ALREADY_SOLD'
                    : (msg.includes('NO_BLOCKS') ? 'NO_BLOCKS' : 'FINALIZE_ERROR'))
         }).eq('id', order.id);
+
+        // 👇👇👇 **AJOUTE CE BLOC ICI** (juste après l'update "refund_failed")
+        try {
+          const failReasonForLog =
+            (msg.includes('LOCKS_INVALID') ? 'LOCKS_INVALID'
+            : (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) ? 'ALREADY_SOLD'
+            : (msg.includes('NO_BLOCKS') ? 'NO_BLOCKS' : 'FINALIZE_ERROR'));
+
+          await logManualRefundNeeded({
+            route: 'capture-finalize',
+            orderId,
+            uid,
+            regionId,
+            blocks: blocksOk,
+            amount: capValue,
+            currency,
+            paypalOrderId,
+            paypalCaptureId: captureId,
+            reason: failReasonForLog,
+            error: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED')
+          });
+        } catch (_) {}
+        // ☝️☝️☝️ fin du bloc à ajouter
       }
 
       if (refundedOk) {
