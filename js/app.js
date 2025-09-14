@@ -272,9 +272,17 @@
       //window.LockManager.heartbeat.start(currentLock);
     //}
     // Heartbeat ONLY if my locks are still valid now
-    if (currentLock.length && haveMyValidLocks(currentLock, 0)) {
-      window.LockManager.heartbeat.start(currentLock);
-    } else {
+    //if (currentLock.length && haveMyValidLocks(currentLock, 0)) {
+      //window.LockManager.heartbeat.start(currentLock);
+    //}
+    if (currentLock.length) {
+     window.LockManager.heartbeat.start(currentLock, 4000, 180000, {
+       maxMs: 300000,          // fenêtre totale max de keepalive: 5 min
+       autoUnlock: true,       // libère proprement si on stoppe
+       requireActivity: true   // coupe si l’utilisateur est inactif 3 min (IDLE_LIMIT_MS)
+     });
+   } 
+    else {
       window.LockManager.heartbeat.stop(); // do not try to “keepalive” an expired lock
     }
 

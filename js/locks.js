@@ -25,7 +25,7 @@
   let hbAutoUnlock = true;       // libérer automatiquement à l’arrêt
   let hbRequireActivity = true;  // ne pas prolonger si l’utilisateur est inactif
   let lastActivityTs = Date.now();
-  const IDLE_LIMIT_MS = 120000;  // inactif après 2 min
+  const IDLE_LIMIT_MS = 180000;  // inactif après 3 min
 
   // NEW — on suivra un minimum d’activité côté client
   (function attachActivityListenersOnce(){
@@ -251,6 +251,8 @@
 //new
 function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, options = {}){
   stopHeartbeat();
+   // Ne pas battre plus longtemps que le TTL réel côté serveur
+  hbMaxMs = Math.min(Math.max(10000, options.maxMs || ttlMs), ttlMs);
   hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
   if (!hbBlocks.length) return;
 
@@ -276,18 +278,33 @@ function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, opt
     const now = Date.now();
 
     // Cap de durée totale
-    if (now - hbStartedAt > hbMaxMs) {
-      stopHeartbeat();
-      if (hbAutoUnlock) { try { await unlock(hbBlocks); } catch {} }
-      return;
-    }
+    //if (now - hbStartedAt > hbMaxMs) {
+      //stopHeartbeat();
+      //if (hbAutoUnlock) { try { await unlock(hbBlocks); } catch {} }
+      //return;
+    //}
     // Inactivité prolongée
-    if (hbRequireActivity && (now - lastActivityTs > IDLE_LIMIT_MS)) {
-      stopHeartbeat();
-      if (hbAutoUnlock) { try { await unlock(hbBlocks); } catch {} }
-      return;
-    }
-
+    //if (hbRequireActivity && (now - lastActivityTs > IDLE_LIMIT_MS)) {
+      //stopHeartbeat();
+      //if (hbAutoUnlock) { try { await unlock(hbBlocks); } catch {} }
+      //return;
+    //}
+    //new
+      // cap de durée totale
+   if (Date.now() - hbStartedAt > hbMaxMs) {
+     const blocksSnapshot = hbBlocks.slice();
+     stopHeartbeat();
+     if (hbAutoUnlock && blocksSnapshot.length) { try { await unlock(blocksSnapshot); } catch {} }
+     return;
+   }
+   // inactivité prolongée
+   if (hbRequireActivity && (Date.now() - lastActivityTs > IDLE_LIMIT_MS)) {
+     const blocksSnapshot = hbBlocks.slice();
+     stopHeartbeat();
+     if (hbAutoUnlock && blocksSnapshot.length) { try { await unlock(blocksSnapshot); } catch {} }
+     return;
+   }
+    //new
     // ⛔️ Si mes locks ne sont plus valides → stop, surtout pas de relock
     if (onlyExtendIfValid && !haveMyValidLocksStrict(hbBlocks, skewMs)) {
       stopHeartbeat();

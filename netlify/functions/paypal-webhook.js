@@ -290,17 +290,24 @@ exports.handler = async (event) => {
   if (lockErr2) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr2.message });
   if (!myLocks || myLocks.length !== blocks.length) {
     // Locks invalides → tenter refund (webhook a déjà la capture)
-    const accessToken = await getPayPalAccessToken();
+    const currencyForRefund = (order.currency || paidCurr || 'USD').toUpperCase();
+
     let refundedOk = false;
     let refundObj  = null;
     try {
-      const currencyForRefund = (order.currency || paidCurr || 'USD').toUpperCase();
-      refundObj  = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, currencyForRefund) : null;
+      const accessToken = await getPayPalAccessToken();   // 👈 déplacé DANS le try
+      refundObj = captureId
+        ? await refundPayPalCapture(accessToken, captureId, paidTotal, currencyForRefund)
+        : null;
       refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
-    } catch(_) {}
-    try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
+    } catch (_) {
+      // token/refund raté → on laissera refundedOk=false
+    }
 
-    await supabase.from('orders').update({
+    try { await releaseLocks(supabase, blocks, uid); } catch (_) {}
+
+    // Journal DB : on écrit quoi qu'il arrive, même si PayPal a échoué
+    const { error: updErr } = await supabase.from('orders').update({
       status: refundedOk ? 'refunded' : 'refund_failed',
       refund_status: refundedOk ? 'succeeded' : 'failed',
       needs_manual_refund: !refundedOk,
@@ -310,10 +317,15 @@ exports.handler = async (event) => {
       paypal_order_id: paypalOrderId || order.paypal_order_id || null,
       paypal_capture_id: captureId || order.paypal_capture_id || null,
       fail_reason: 'LOCKS_INVALID',
+      currency: currencyForRefund,                           // 👈 sécurise la devise
       updated_at: new Date().toISOString()
-    }).eq('id', order.id);
+    })
+    .eq('order_id', orderId);                                // 👈 cohérence du filtre
+
+    if (updErr) console.error('[orders.update refund/LOCKS_INVALID]', updErr, { orderId });
 
     if (!refundedOk) {
+      // Journal GitHub en cas de refund raté (évite usedCurrency non défini ici)
       try {
         await logManualRefundNeeded({
           route: 'webhook',
@@ -322,7 +334,7 @@ exports.handler = async (event) => {
           regionId: regionUuid,
           blocks,
           amount: paidTotal,
-          currency: usedCurrency,
+          currency: currencyForRefund,                       // 👈 pas de usedCurrency ici
           paypalOrderId: paypalOrderId || order.paypal_order_id || null,
           paypalCaptureId: captureId || order.paypal_capture_id || null,
           reason: 'LOCKS_INVALID',
