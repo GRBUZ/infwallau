@@ -1,0 +1,29 @@
+{
+  "type": "manual_refund_needed",
+  "createdAt": 1757888406223,
+  "createdAtIso": "2025-09-14T22:20:06.223Z",
+  "orderId": "ord_mfk96me2_bl8u",
+  "uid": "c4b69d42-f3f7-4fe5-af7d-9cb9532ca167",
+  "regionId": "5e7a705f-0611-4cc7-a9df-70f9ef8c7b56",
+  "blocks": [
+    47,
+    48,
+    49,
+    147,
+    148,
+    149,
+    247,
+    248,
+    249,
+    347,
+    348,
+    349
+  ],
+  "amount": 1896,
+  "currency": "USD",
+  "paypalOrderId": "65C531349H729230J",
+  "paypalCaptureId": "02P78386C02273115",
+  "reason": "LOCKS_INVALID",
+  "error": "REFUND_FAILED",
+  "route": "webhook"
+}
