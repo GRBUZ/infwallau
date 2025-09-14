@@ -294,7 +294,8 @@ exports.handler = async (event) => {
     let refundedOk = false;
     let refundObj  = null;
     try {
-      refundObj  = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, usedCurrency) : null;
+      const currencyForRefund = (order.currency || paidCurr || 'USD').toUpperCase();
+      refundObj  = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, currencyForRefund) : null;
       refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
     } catch(_) {}
     try { await releaseLocks(supabase, blocks, uid); } catch(_) {}

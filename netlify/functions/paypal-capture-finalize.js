@@ -279,13 +279,16 @@ exports.handler = async (event) => {
             currency,
             updated_at: new Date().toISOString()
           })
+          //.eq('order_id', orderId)
+          //.neq('status', 'completed')    // si déjà finalisé par webhook: on ne touche pas
+          //.select('id');
           .eq('order_id', orderId)
-          .neq('status', 'completed')    // si déjà finalisé par webhook: on ne touche pas
+          .not('status', 'in', ['completed','refunded','refund_failed','refund_pending'])
           .select('id');
 
+
         const weOwnRefund = !claimErr && Array.isArray(claimRows) && claimRows.length > 0;
-        if (!weOwnRefund) {
-          // Probablement finalisé par le webhook entre-temps → on NE rembourse pas.
+        /*if (!weOwnRefund) {
           return ok({
             status: 'completed',
             orderId,
@@ -297,7 +300,38 @@ exports.handler = async (event) => {
             total: serverTotal,
             currency
           });
-        }
+        }*/
+          if (!weOwnRefund) {
+  // Re-read the order to see what happened meanwhile (webhook likely acted)
+  const { data: fresh } = await supabase
+    .from('orders')
+    .select('status, region_id, image_url, unit_price, total, currency, paypal_capture_id, paypal_order_id')
+    .eq('order_id', orderId)
+    .single();
+
+  if (fresh?.status === 'completed') {
+    return ok({
+      status: 'completed',
+      orderId,
+      regionId,
+      imageUrl: imageUrl || fresh.image_url || null,
+      paypalOrderId: fresh.paypal_order_id || paypalOrderId,
+      paypalCaptureId: fresh.paypal_capture_id || captureId,
+      unitPrice,
+      total: serverTotal,
+      currency
+    });
+  }
+
+  if (fresh?.status === 'refunded') {
+    // Webhook already refunded → tell the UI it failed but money is back.
+    return bad(500, 'FINALIZE_FAILED_REFUNDED', { message: 'LOCKS_INVALID' });
+  }
+
+  // Neither completed nor refunded → just surface the lock error.
+  return bad(409, 'LOCK_MISSING_OR_EXPIRED');
+}
+
 
         // On détient le "claim" → tenter le refund
         let refundedOk = false;
@@ -393,14 +427,17 @@ exports.handler = async (event) => {
           currency,
           updated_at: new Date().toISOString()
         })
+        //.eq('order_id', orderId)
+        //.neq('status', 'completed')
+        //.select('id');
         .eq('order_id', orderId)
-        .neq('status', 'completed')
+        .not('status', 'in', ['completed','refunded','refund_failed','refund_pending'])
         .select('id');
+
 
       const weOwnRefund = !claimErr && Array.isArray(claimRows) && claimRows.length > 0;
 
-      if (!weOwnRefund) {
-        // 👉 Probablement finalisé par le webhook entre-temps : PAS de refund, succès côté UI.
+      /*if (!weOwnRefund) {
         return ok({
           status: 'completed',
           orderId,
@@ -412,7 +449,38 @@ exports.handler = async (event) => {
           total: serverTotal,
           currency
         });
-      }
+      }*/
+     if (!weOwnRefund) {
+  // Re-read the order to see what happened meanwhile (webhook likely acted)
+  const { data: fresh } = await supabase
+    .from('orders')
+    .select('status, region_id, image_url, unit_price, total, currency, paypal_capture_id, paypal_order_id')
+    .eq('order_id', orderId)
+    .single();
+
+  if (fresh?.status === 'completed') {
+    return ok({
+      status: 'completed',
+      orderId,
+      regionId,
+      imageUrl: imageUrl || fresh.image_url || null,
+      paypalOrderId: fresh.paypal_order_id || paypalOrderId,
+      paypalCaptureId: fresh.paypal_capture_id || captureId,
+      unitPrice,
+      total: serverTotal,
+      currency
+    });
+  }
+
+  if (fresh?.status === 'refunded') {
+    // Webhook already refunded → tell the UI it failed but money is back.
+    return bad(500, 'FINALIZE_FAILED_REFUNDED', { message: 'LOCKS_INVALID' });
+  }
+
+  // Neither completed nor refunded → just surface the lock error.
+  return bad(409, 'LOCK_MISSING_OR_EXPIRED');
+}
+
 
       // On a le "claim" → on tente le refund
       let refundedOk = false;
