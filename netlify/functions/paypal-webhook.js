@@ -271,11 +271,70 @@ exports.handler = async (event) => {
     }
 
     // (Ré)appliquer locks 2 min pour uid
-    const until = new Date(Date.now() + 2*60*1000).toISOString();
+    /*const until = new Date(Date.now() + 2*60*1000).toISOString();
     const upsertRows = blocks.map(idx => ({ idx, uid, until }));
     const { error: upsertErr } = await supabase.from('locks').upsert(upsertRows, { onConflict: 'idx' });
     if (upsertErr) return bad(500, 'LOCKS_UPSERT_FAILED', { message: upsertErr.message });
+    */
+    //new
+    // 🔍 STRICT LOCK VALIDATION (pas de ré-upsert)
+{
+  const nowIso = new Date().toISOString();
+  const { data: myLocks, error: lockErr2 } = await supabase
+    .from('locks')
+    .select('idx')
+    .in('idx', blocks)
+    .gt('until', nowIso)
+    .eq('uid', uid);
 
+  if (lockErr2) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr2.message });
+  if (!myLocks || myLocks.length !== blocks.length) {
+    // Locks invalides → tenter refund (webhook a déjà la capture)
+    const accessToken = await getPayPalAccessToken();
+    let refundedOk = false;
+    let refundObj  = null;
+    try {
+      refundObj  = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, usedCurrency) : null;
+      refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+    } catch(_) {}
+    try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
+
+    await supabase.from('orders').update({
+      status: refundedOk ? 'refunded' : 'refund_failed',
+      refund_status: refundedOk ? 'succeeded' : 'failed',
+      needs_manual_refund: !refundedOk,
+      refund_attempted_at: new Date().toISOString(),
+      refund_error: refundedOk ? null : 'REFUND_FAILED',
+      refund_id: refundedOk ? (refundObj?.id || refundObj?.refund_id || null) : null,
+      paypal_order_id: paypalOrderId || order.paypal_order_id || null,
+      paypal_capture_id: captureId || order.paypal_capture_id || null,
+      fail_reason: 'LOCKS_INVALID',
+      updated_at: new Date().toISOString()
+    }).eq('id', order.id);
+
+    if (!refundedOk) {
+      try {
+        await logManualRefundNeeded({
+          route: 'webhook',
+          orderId,
+          uid,
+          regionId: regionUuid,
+          blocks,
+          amount: paidTotal,
+          currency: usedCurrency,
+          paypalOrderId: paypalOrderId || order.paypal_order_id || null,
+          paypalCaptureId: captureId || order.paypal_capture_id || null,
+          reason: 'LOCKS_INVALID',
+          error: 'REFUND_FAILED'
+        });
+      } catch(_) {}
+    }
+
+    return bad(409, 'LOCK_MISSING_OR_EXPIRED');
+  }
+}
+
+    //new
     // --- 5) Prix serveur
     const { count, error: countErr } = await supabase
       .from('cells')
