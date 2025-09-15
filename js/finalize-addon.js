@@ -271,6 +271,26 @@
     try { window.LockManager?.heartbeat?.stop?.(); } catch {}
     //new
   try {
+    //new
+    // 🔒 garde-fou: si mes locks ne sont plus valides → on n’appelle PAS le serveur
+    if (window.LockManager) {
+      const me = window.CoreManager?.uid;
+      const t = Date.now() + 300;
+      const loc = window.LockManager.getLocalLocks();
+      const blocks = (typeof getSelectedIndices==='function') ? getSelectedIndices() : [];
+      const stillOk = blocks.length && blocks.every(i => {
+        const l = loc[String(i)];
+        return l && l.uid === me && l.until > t;
+      });
+      if (!stillOk) {
+        const msg = ensureMsgEl();
+        msg.textContent = 'Reservation expired — reselect';
+        try { await unlockSelection(); } catch {}
+        btnBusy(false);
+        return;
+      }
+    }
+    //new
     btnBusy(true);
     const msg = ensureMsgEl();
     msg.textContent = 'Paiement confirmé. Finalisation en cours…';
