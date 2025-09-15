@@ -404,6 +404,7 @@ function showPaypalButton(orderId, currency){
 }
 
 
+
   // Finalize flow
   async function doConfirm(){
     const name = (nameInput && nameInput.value || '').trim();
