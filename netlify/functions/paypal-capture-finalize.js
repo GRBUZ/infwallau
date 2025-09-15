@@ -279,9 +279,6 @@ exports.handler = async (event) => {
             currency,
             updated_at: new Date().toISOString()
           })
-          //.eq('order_id', orderId)
-          //.neq('status', 'completed')    // si déjà finalisé par webhook: on ne touche pas
-          //.select('id');
           .eq('order_id', orderId)
           .not('status', 'in', ['completed','refunded','refund_failed','refund_pending'])
           .select('id');
@@ -427,11 +424,9 @@ exports.handler = async (event) => {
           currency,
           updated_at: new Date().toISOString()
         })
-        //.eq('order_id', orderId)
-        //.neq('status', 'completed')
-        //.select('id');
         .eq('order_id', orderId)
-        .not('status', 'in', ['completed','refunded','refund_failed','refund_pending'])
+        //.not('status', 'in', ['completed','refunded','refund_failed','refund_pending'])
+        .not('status', 'in', ['completed','failed_refunded','failed','expired'])// ↑ Exclure les états finaux, inclure 'pending'
         .select('id');
 
 

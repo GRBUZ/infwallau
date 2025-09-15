@@ -298,7 +298,7 @@
     //}
     if (currentLock.length) {
      window.LockManager.heartbeat.start(currentLock, 4000, 180000, {
-       maxMs: 300000,          // fenêtre totale max de keepalive: 5 min
+       maxMs: 240000,          // fenêtre totale max de keepalive: 4 min
        autoUnlock: true,       // libère proprement si on stoppe
        requireActivity: true   // coupe si l’utilisateur est inactif 3 min (IDLE_LIMIT_MS)
      });
