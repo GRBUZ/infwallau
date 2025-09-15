@@ -38,7 +38,7 @@
   let selected = new Set();
   let currentLock = [];         // blocks locked when opening the modal
 
-  // Surveillance d’expiration pendant le modal
+  // Surveillance d'expiration pendant le modal (simplifié)
   let modalLockTimer = null;
 
   // Expose la sélection au besoin (pour d'autres modules)
@@ -210,37 +210,35 @@
     toggleCell(idx);
   });
 
-
   //new fermeture modal paypal
   function setPayPalEnabled(enabled){
-  const c = document.getElementById('paypal-button-container');
-  if (!c) return;
-  c.style.pointerEvents = enabled ? '' : 'none';
-  c.style.opacity = enabled ? '' : '0.45';
-  c.setAttribute('aria-disabled', enabled ? 'false' : 'true');
-  // (Optionnel) message visuel
-  let badge = c.querySelector('.pp-disabled-badge');
-  if (!enabled) {
-    if (!badge) {
-      badge = document.createElement('div');
-      badge.className = 'pp-disabled-badge';
-      badge.textContent = 'Reservation expired — reselect';
-      Object.assign(badge.style, {
-        position: 'absolute', inset: '0', display:'grid', placeItems:'center',
-        fontSize:'14px', fontWeight:'600', color:'#b91c1c', background:'rgba(255,255,255,0.6)'
-      });
-      c.style.position = 'relative';
-      c.appendChild(badge);
+    const c = document.getElementById('paypal-button-container');
+    if (!c) return;
+    c.style.pointerEvents = enabled ? '' : 'none';
+    c.style.opacity = enabled ? '' : '0.45';
+    c.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+    // (Optionnel) message visuel
+    let badge = c.querySelector('.pp-disabled-badge');
+    if (!enabled) {
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'pp-disabled-badge';
+        badge.textContent = 'Reservation expired — reselect';
+        Object.assign(badge.style, {
+          position: 'absolute', inset: '0', display:'grid', placeItems:'center',
+          fontSize:'14px', fontWeight:'600', color:'#b91c1c', background:'rgba(255,255,255,0.6)'
+        });
+        c.style.position = 'relative';
+        c.appendChild(badge);
+      }
+    } else if (badge) {
+      badge.remove();
     }
-  } else if (badge) {
-    badge.remove();
   }
-}
-
   //new fermeture modal paypal
 
-  // === Garde-fous d’expiration côté client ===
-  function haveMyValidLocks(arr, graceMs = 500){
+  // === Garde-fous d'expiration côté client (simplifié) ===
+  function haveMyValidLocks(arr, graceMs = 2000){
     if (!arr || !arr.length) return false;
     const now = Date.now() + Math.max(0, graceMs|0);
     for (const i of arr){
@@ -249,29 +247,26 @@
     }
     return true;
   }
+  
   function startModalMonitor(){
     stopModalMonitor();
     modalLockTimer = setInterval(() => {
-  // 👉 Don't touch while finalize flow is running
+      // Don't touch while finalize flow is running
       if (confirmBtn.textContent === 'Processing…') return;
 
       const blocks = currentLock.length ? currentLock : Array.from(selected);
-      
-      const ok = haveMyValidLocks(blocks);
+      const ok = haveMyValidLocks(blocks, 5000); // grâce de 5 secondes
 
       confirmBtn.disabled = !ok;
       confirmBtn.textContent = ok ? 'Confirm' : 'Reservation expired — reselect';
-      //new fermeture modal paypal
-      // 👉 Désactiver/activer le bouton PayPal aussi
       setPayPalEnabled(ok);
-      //new fermeture modal paypal
 
-      // ⛔️ Si expiré, on coupe le “keepalive” pour éviter tout relock
+      // Si expiré, on coupe le "keepalive" pour éviter tout relock
       if (!ok) {
         window.LockManager.heartbeat.stop();
       }
 
-    }, 1500);
+    }, 5000); // Check moins fréquent (5 secondes au lieu de 1,5)
   }
 
   function stopModalMonitor(){
@@ -288,28 +283,21 @@
     const total = selectedPixels * currentPrice;
     modalStats.textContent = `${formatInt(selectedPixels)} px — ${formatMoney(total)}`;
 
-    // Heartbeat for the current lock
-    //if (currentLock.length) {
-      //window.LockManager.heartbeat.start(currentLock);
-    //}
-    // Heartbeat ONLY if my locks are still valid now
-    //if (currentLock.length && haveMyValidLocks(currentLock, 0)) {
-      //window.LockManager.heartbeat.start(currentLock);
-    //}
+    // Heartbeat pour maintenir la réservation (3 minutes + renouvellement étapes)
     if (currentLock.length) {
-     window.LockManager.heartbeat.start(currentLock, 4000, 180000, {
-       maxMs: 240000,          // fenêtre totale max de keepalive: 4 min
-       autoUnlock: true,       // libère proprement si on stoppe
-       requireActivity: true   // coupe si l’utilisateur est inactif 3 min (IDLE_LIMIT_MS)
-     });
-   } 
-    else {
-      window.LockManager.heartbeat.stop(); // do not try to “keepalive” an expired lock
+      window.LockManager.heartbeat.start(currentLock, 30000, 180000, {
+        maxMs: 180000,          // 3 minutes max au total
+        autoUnlock: true,       // libère proprement si on stoppe
+        requireActivity: true   // coupe si l'utilisateur est inactif 2 min
+      });
+    } else {
+      window.LockManager.heartbeat.stop();
     }
 
-    // Surveiller l'expiration
+    // Surveiller l'expiration (plus permissif)
     startModalMonitor();
   }
+  
   function closeModal(){
     modal.classList.add('hidden');
     window.LockManager.heartbeat.stop();
@@ -356,6 +344,7 @@
     if(!selected.size) return;
     const want = Array.from(selected);
     try{
+      // Réservation initiale avec 3 minutes pleines
       const lr = await window.LockManager.lock(want, 180000);
       locks = window.LockManager.getLocalLocks();
 
@@ -377,25 +366,22 @@
   });
 
   // Finalize form — on garde la délégation à finalize-addon.js,
-  // mais on ajoute un re-lock défensif si les locks ont expiré.
+  // avec validation simplifiée
   form.addEventListener('submit', async (e)=>{
     e.preventDefault();
 
     const blocks = currentLock.length ? currentLock.slice() : Array.from(selected);
 
-      //new
-      // Si ma resa a expiré → on NE re-lock PAS. On ferme et on force une nouvelle sélection.
-if (!haveMyValidLocks(blocks)) {
-  window.LockManager.heartbeat.stop();
-  await loadStatus().catch(()=>{});
-  closeModal();
-  clearSelection();
-  paintAll();
-  alert('Your reservation expired. Please reselect your pixels.');
-  return;
-}
-
-      //new
+    // Si ma résa a expiré → on NE re-lock PAS. On ferme et on force une nouvelle sélection.
+    if (!haveMyValidLocks(blocks, 1000)) { // Grâce de 1 seconde seulement ici
+      window.LockManager.heartbeat.stop();
+      await loadStatus().catch(()=>{});
+      closeModal();
+      clearSelection();
+      paintAll();
+      alert('Your reservation expired. Please reselect your pixels.');
+      return;
+    }
 
     // Tout est bon → laisser finalize-addon.js faire le reste
     document.dispatchEvent(new CustomEvent('finalize:submit'));
@@ -417,7 +403,6 @@ if (!haveMyValidLocks(blocks)) {
       const s = await apiCall('/status');
       if (!s || !s.ok) return;
 
-      //sold = s.sold || {};
       if (s && s.sold && typeof s.sold === 'object') {
         const isEmpty = Object.keys(s.sold).length === 0;
         const hasRegions = s.regions && Object.keys(s.regions).length > 0;
@@ -436,29 +421,20 @@ if (!haveMyValidLocks(blocks)) {
 
       // If the modal is open and my locks expired, disable confirm
       if (!modal.classList.contains('hidden')) {
-        // 👉 Don't touch while finalize flow is running
+        // Don't touch while finalize flow is running
         if (confirmBtn.textContent !== 'Processing…') {
           const blocks = currentLock.length ? currentLock : Array.from(selected);
-          const ok = haveMyValidLocks(blocks);
+          const ok = haveMyValidLocks(blocks, 5000); // Grâce de 5 secondes
           confirmBtn.disabled = !ok;
-          //if (!ok) confirmBtn.textContent = 'Reservation expired — reselect';
-          //new
-          
           confirmBtn.textContent = ok ? 'Confirm' : 'Reservation expired — reselect';
-          //new fermeture modal paypal
           setPayPalEnabled(ok);
-          //new modal paypal
 
-          // ⛔️ Si expiré, on coupe le “keepalive” pour éviter tout relock
+          // Si expiré, on coupe le "keepalive" pour éviter tout relock
           if (!ok) {
             window.LockManager.heartbeat.stop();
           }
-
-          //new
-          //else     confirmBtn.textContent = 'Confirm';
         }
       }
-
 
       paintAll();
     } catch (e) {
