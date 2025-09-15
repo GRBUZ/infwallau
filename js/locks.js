@@ -240,7 +240,8 @@ function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, opt
 }
 
   function stopHeartbeat(){
-    if (hbTimer) { 
+    if (hbTimer) {
+      console.trace('[LockManager] stopHeartbeat() called from:'); 
       clearInterval(hbTimer); 
       hbTimer = null; 
       console.log('[LockManager] Heartbeat stopped');
