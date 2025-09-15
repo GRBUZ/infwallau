@@ -196,7 +196,7 @@ exports.handler = async (event) => {
         paypal_capture_id: captureId || order.paypal_capture_id || null,
         fail_reason: 'ALREADY_SOLD',
         updated_at: new Date().toISOString()
-      }).eq('id', order.id);
+      }).eq('order_id', orderId);
       //new journal
       if (!refundedOk) {
         try {
@@ -247,7 +247,7 @@ exports.handler = async (event) => {
         paypal_capture_id: captureId || order.paypal_capture_id || null,
         fail_reason: 'LOCKED_BY_OTHER',
         updated_at: new Date().toISOString()
-      }).eq('id', order.id);
+      }).eq('order_id', orderId);
       //new journal
       if (!refundedOk) {
         try {
@@ -314,8 +314,7 @@ exports.handler = async (event) => {
       currency: currencyForRefund,                           // 👈 sécurise la devise
       updated_at: new Date().toISOString()
     })
-    .eq('id', order.id);
-    //.eq('order_id', orderId);                                // 👈 cohérence du filtre
+    .eq('order_id', orderId);                                // 👈 cohérence du filtre
 
     if (updErr) console.error('[orders.update refund/LOCKS_INVALID]', updErr, { orderId });
 
@@ -382,7 +381,9 @@ exports.handler = async (event) => {
         paypal_capture_id: captureId || order.paypal_capture_id || null,
         fail_reason: 'UNDERPAID',
         updated_at: new Date().toISOString()
-      }).eq('id', order.id);
+      })
+      .eq('order_id', orderId);
+      //.eq('id', order.id);
       //new journal
       if (!refundedOk) {
         try {
@@ -455,7 +456,7 @@ exports.handler = async (event) => {
           paypal_capture_id: captureId || order.paypal_capture_id || null,
           fail_reason: 'PRICE_CHANGED',
           updated_at: new Date().toISOString()
-        }).eq('id', order.id);
+        }).eq('order_id', orderId);
         //new journal
         if (!refundedOk) {
           try {
@@ -500,7 +501,7 @@ exports.handler = async (event) => {
                   : (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) ? 'ALREADY_SOLD'
                   : (msg.includes('NO_BLOCKS') ? 'NO_BLOCKS' : 'FINALIZE_ERROR')),
         updated_at: new Date().toISOString()
-      }).eq('id', order.id);
+      }).eq('order_id', orderId);
 
       if (msg.includes('LOCKS_INVALID')) return bad(409, 'LOCK_MISSING_OR_EXPIRED');
       if (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) return bad(409, 'ALREADY_SOLD');
@@ -518,7 +519,7 @@ exports.handler = async (event) => {
       paypal_order_id: paypalOrderId || order.paypal_order_id || null,
       paypal_capture_id: captureId || order.paypal_capture_id || null,
       updated_at: new Date().toISOString()
-    }).eq('id', order.id);
+    }).eq('order_id', orderId);
 
     // Libération des locks en cas de succès (best-effort)
     try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
