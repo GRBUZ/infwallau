@@ -270,12 +270,6 @@ exports.handler = async (event) => {
       return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
     }
 
-    // (Ré)appliquer locks 2 min pour uid
-    /*const until = new Date(Date.now() + 2*60*1000).toISOString();
-    const upsertRows = blocks.map(idx => ({ idx, uid, until }));
-    const { error: upsertErr } = await supabase.from('locks').upsert(upsertRows, { onConflict: 'idx' });
-    if (upsertErr) return bad(500, 'LOCKS_UPSERT_FAILED', { message: upsertErr.message });
-    */
     //new
     // 🔍 STRICT LOCK VALIDATION (pas de ré-upsert)
 {
@@ -320,7 +314,8 @@ exports.handler = async (event) => {
       currency: currencyForRefund,                           // 👈 sécurise la devise
       updated_at: new Date().toISOString()
     })
-    .eq('order_id', orderId);                                // 👈 cohérence du filtre
+    .eq('id', order.id);
+    //.eq('order_id', orderId);                                // 👈 cohérence du filtre
 
     if (updErr) console.error('[orders.update refund/LOCKS_INVALID]', updErr, { orderId });
 
