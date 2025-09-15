@@ -425,8 +425,8 @@ exports.handler = async (event) => {
           updated_at: new Date().toISOString()
         })
         .eq('order_id', orderId)
-        //.not('status', 'in', ['completed','refunded','refund_failed','refund_pending'])
-        .not('status', 'in', ['completed','failed_refunded','failed','expired'])// ↑ Exclure les états finaux, inclure 'pending'
+        .not('status', 'in', ['completed','refunded','refund_failed','refund_pending'])
+        //.not('status', 'in', ['completed','failed_refunded','failed','expired'])// ↑ Exclure les états finaux, inclure 'pending'
         .select('id');
 
 
