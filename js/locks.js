@@ -170,59 +170,73 @@
     });
   }
 
-  function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, options = {}){
-    stopHeartbeat();
-    hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
-    if (!hbBlocks.length) return;
 
-    // Options avec valeurs par défaut
-    hbMaxMs = Math.max(30000, options.maxMs || 180000); // min 30s, défaut 3min
-    hbAutoUnlock = options.autoUnlock !== false;
-    hbRequireActivity = options.requireActivity !== false;
+function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, options = {}){
+  stopHeartbeat();
+  hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
+  if (!hbBlocks.length) return;
 
-    hbStartedAt = Date.now();
-    lastActivityTs = Date.now();
+  // Options avec valeurs par défaut
+  hbMaxMs = Math.max(30000, options.maxMs || 180000); // min 30s, défaut 3min
+  hbAutoUnlock = options.autoUnlock !== false;
+  hbRequireActivity = options.requireActivity !== false;
 
-    console.log('[LockManager] Starting heartbeat for', hbBlocks.length, 'blocks, maxMs:', hbMaxMs, 'requireActivity:', hbRequireActivity);
+  hbStartedAt = Date.now();
+  lastActivityTs = Date.now();
 
-    // Premier renouvellement avec optimisme (on vient juste de créer ces locks)
-    lock(hbBlocks, ttlMs, { optimistic: true }).catch((e) => {
-      console.warn('[LockManager] Initial heartbeat lock failed:', e);
-    });
+  console.log('[LockManager] Starting heartbeat for', hbBlocks.length, 'blocks, maxMs:', hbMaxMs, 'requireActivity:', hbRequireActivity);
 
-    hbTimer = setInterval(async () => {
-      const now = Date.now();
-      const blocksSnapshot = hbBlocks.slice(); // Snapshot pour éviter les races
+  // Premier renouvellement avec optimisme (on vient juste de créer ces locks)
+  lock(hbBlocks, ttlMs, { optimistic: true }).catch((e) => {
+    console.warn('[LockManager] Initial heartbeat lock failed:', e);
+  });
 
-      // Cap de durée totale
-      if (now - hbStartedAt > hbMaxMs) {
-        console.log('[LockManager] Heartbeat max duration reached, stopping');
-        stopHeartbeat();
-        if (hbAutoUnlock && blocksSnapshot.length) { 
-          try { await unlock(blocksSnapshot); } catch {} 
+  hbTimer = setInterval(async () => {
+    const now = Date.now();
+    const blocksSnapshot = hbBlocks.slice();
+    const elapsed = now - hbStartedAt;
+
+    // DEBUG: Log pour diagnostiquer
+    console.log(`[Heartbeat] tick - elapsed=${elapsed}ms, maxMs=${hbMaxMs}, blocks=${blocksSnapshot.length}`);
+
+    // Cap de durée totale
+    if (elapsed > hbMaxMs) {
+      console.log('[LockManager] Heartbeat max duration reached, stopping');
+      stopHeartbeat();
+      if (hbAutoUnlock && blocksSnapshot.length) { 
+        try { await unlock(blocksSnapshot); } catch {} 
+      }
+      return;
+    }
+
+    // Inactivité prolongée
+    if (hbRequireActivity && (now - lastActivityTs > IDLE_LIMIT_MS)) {
+      console.log('[LockManager] User inactive for too long, stopping heartbeat');
+      stopHeartbeat();
+      if (hbAutoUnlock && blocksSnapshot.length) { 
+        try { await unlock(blocksSnapshot); } catch {} 
+      }
+      return;
+    }
+
+    // Renouvellement (PAS d'optimisme local - on fait confiance au serveur)
+    if (blocksSnapshot.length) {
+      try {
+        const result = await lock(blocksSnapshot, ttlMs, { optimistic: false });
+        if (!result || !result.ok) {
+          console.warn('[LockManager] Heartbeat renewal failed - server rejected:', result?.error);
+          // NE PAS arrêter le heartbeat pour un échec ponctuel
+          // Le serveur peut être temporairement surchargé
+        } else {
+          console.log('[LockManager] Heartbeat renewal success');
         }
-        return;
+      } catch (e) {
+        console.warn('[LockManager] Heartbeat renewal failed - network error:', e);
+        // NE PAS arrêter le heartbeat pour un échec ponctuel
       }
-
-      // Inactivité prolongée
-      if (hbRequireActivity && (now - lastActivityTs > IDLE_LIMIT_MS)) {
-        console.log('[LockManager] User inactive for too long, stopping heartbeat');
-        stopHeartbeat();
-        if (hbAutoUnlock && blocksSnapshot.length) { 
-          try { await unlock(blocksSnapshot); } catch {} 
-        }
-        return;
-      }
-
-      // Renouvellement (pas d'optimisme local, on fait confiance au serveur)
-      if (blocksSnapshot.length) {
-        lock(blocksSnapshot, ttlMs, { optimistic: false })
-          .catch((e) => {
-            console.warn('[LockManager] Heartbeat renewal failed:', e);
-          });
-      }
-    }, Math.max(1000, intervalMs));
-  }
+    }
+  }, Math.max(1000, intervalMs));
+}
 
   function stopHeartbeat(){
     if (hbTimer) { 

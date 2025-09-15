@@ -248,33 +248,27 @@ function showPaypalButton(orderId, currency){
     return;
   }
 
-  // Renouvellement des locks pour PayPal (3 minutes supplémentaires + pas d'inactivité)
+  // Renouvellement des locks pour PayPal - SANS arrêter le heartbeat existant
   try {
     if (window.LockManager) {
       const blocks = getSelectedIndices();
       if (blocks.length && haveMyValidLocks(blocks, 1000)) {
-        // Renouvellement explicite avant PayPal
-        window.LockManager.lock(blocks, 180000, { optimistic: false }).then(() => {
-          window.LockManager.heartbeat.start(blocks, 30000, 180000, {
-            maxMs: 300000,        // 5 minutes pour PayPal  
-            autoUnlock: true,       
-            requireActivity: false // TRÈS IMPORTANT : pas d'inactivité pendant PayPal
-          });
-        }).catch(e => {
+        // Juste renouveler les locks, garder le heartbeat qui tourne
+        window.LockManager.lock(blocks, 300000, { optimistic: false }).catch(e => {
           console.warn('[PayPal] Lock renewal failed:', e);
         });
       }
     }
   } catch (e) {
-    console.warn('[PayPal heartbeat] Failed to start:', e);
+    console.warn('[PayPal] Lock renewal failed:', e);
   }
 
-  // Mini watcher pour l'expiration pendant PayPal (plus permissif)
+  // Mini watcher pour l'expiration pendant PayPal
   let __watch;
   function setupPayPalExpiryBanner(){
     const blocks = getSelectedIndices();
 
-    function haveMyValidLocksLocal(indices, graceMs = 5000){ // 5 secondes de grâce
+    function haveMyValidLocksLocal(indices, graceMs = 5000){
       if (!window.LockManager) return true;
       const locks = window.LockManager.getLocalLocks?.() || {};
       const t = Date.now() + graceMs;
@@ -307,7 +301,7 @@ function showPaypalButton(orderId, currency){
     }
 
     clearInterval(__watch);
-    __watch = setInterval(tick, 10000); // Check toutes les 10 secondes
+    __watch = setInterval(tick, 10000);
     tick();
   }
   setupPayPalExpiryBanner();
@@ -317,21 +311,26 @@ function showPaypalButton(orderId, currency){
     currency: currency || 'USD',
 
     onApproved: async (data) => {
+      // NE PAS arrêter le heartbeat ici - on en a besoin pour valider les locks
       try { clearInterval(__watch); } catch {}
-      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+      
       try {
-        // Garde-fou final : si mes locks ne sont plus valides → ne pas appeler le serveur
+        btnBusy(true);
+        const msg = ensureMsgEl();
+        msg.textContent = 'Paiement confirmé. Finalisation en cours…';
+
+        // Garde-fou final : vérifier les locks AVANT d'arrêter le heartbeat
         if (window.LockManager) {
           const me = window.CoreManager?.uid;
-          const t = Date.now() + 1000; // 1 seconde de grâce seulement
+          const t = Date.now() + 1000;
           const loc = window.LockManager.getLocalLocks();
           const blocks = getSelectedIndices();
           const stillOk = blocks.length && blocks.every(i => {
             const l = loc[String(i)];
             return l && l.uid === me && l.until > t;
           });
+          
           if (!stillOk) {
-            const msg = ensureMsgEl();
             msg.textContent = 'Reservation expired — reselect';
             try { await unlockSelection(); } catch {}
             btnBusy(false);
@@ -339,36 +338,37 @@ function showPaypalButton(orderId, currency){
           }
         }
 
-        btnBusy(true);
-        const msg = ensureMsgEl();
-        msg.textContent = 'Paiement confirmé. Finalisation en cours…';
-
-        // 1) tagguer paypalOrderId côté serveur (auth via apiCall)
+        // 1) tagguer paypalOrderId côté serveur
         const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
           method: 'POST',
           body: JSON.stringify({ orderId, paypalOrderId: data.orderID })
         });
+        
         if (!res?.ok) throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
 
         // 2) attendre la finalisation par le webhook
-        const ok = await waitForCompleted(orderId, 60); // augmente si besoin
+        const ok = await waitForCompleted(orderId, 60);
+        
         if (!ok) {
           msg.textContent = 'Paiement enregistré, finalisation en attente… Vous pourrez vérifier plus tard.';
-          resumeHB();
+          // Garder le heartbeat actif
           return;
         }
 
-        // 3) succès
+        // 3) succès - MAINTENANT on peut arrêter le heartbeat
         msg.textContent = 'Commande finalisée ✅';
+        try { window.LockManager?.heartbeat?.stop?.(); } catch {}
         try { await unlockSelection(); } catch {}
         await refreshStatus();
         try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
+        
       } catch (e) {
         uiError(e, 'PayPal');
         const msg = ensureMsgEl();
         msg.textContent = 'Erreur pendant la finalisation.';
+        // En cas d'erreur, libérer les locks
+        try { window.LockManager?.heartbeat?.stop?.(); } catch {}
         try { await unlockSelection(); } catch {}
-        resumeHB();
       } finally {
         btnBusy(false);
       }
