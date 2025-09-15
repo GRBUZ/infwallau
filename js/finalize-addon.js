@@ -251,106 +251,158 @@
     if (c && c.parentNode) c.parentNode.removeChild(c);
   }
 
-  function showPaypalButton(orderId, currency){
-    const msg = ensureMsgEl();
-    msg.textContent = 'Veuillez confirmer le paiement PayPal pour finaliser.';
-    if (confirmBtn) confirmBtn.style.display = 'none';
-    removePaypalContainer();
+function showPaypalButton(orderId, currency){
+  const msg = ensureMsgEl();
+  msg.textContent = 'Veuillez confirmer le paiement PayPal pour finaliser.';
+  if (confirmBtn) confirmBtn.style.display = 'none';
+  removePaypalContainer();
 
-    if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
-      uiWarn('Paiement: configuration PayPal manquante (PAYPAL_CLIENT_ID / PayPalIntegration).');
-      return;
+  if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
+    uiWarn('Paiement: configuration PayPal manquante (PAYPAL_CLIENT_ID / PayPalIntegration).');
+    return;
+  }
+
+  // --- Mini watcher local: si mes locks expirent AVANT d’ouvrir PayPal,
+  //     on change uniquement le message et on "mollit" les boutons.
+  let __watch; // timer local à cette fonction
+  (function setupPayPalExpiryBanner(){
+    const uid = window.CoreManager?.uid;
+    const blocks = (typeof getSelectedIndices === 'function') ? getSelectedIndices() : [];
+
+    function haveMyValidLocksLocal(indices, graceMs = 500){
+      if (!window.LockManager) return true; // si pas de LockManager, ne pas bloquer
+      const locks = window.LockManager.getLocalLocks?.() || {};
+      const t = Date.now() + graceMs;
+      for (const i of indices || []) {
+        const l = locks[String(i)];
+        if (!l || l.uid !== uid || !(l.until > t)) return false;
+      }
+      return true;
     }
 
-  window.PayPalIntegration.initAndRender({
-  orderId,
-  currency: currency || 'USD',
-
-  onApproved: async (data) => {
-    //new
-    try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-    //new
-  try {
-    //new
-    // 🔒 garde-fou: si mes locks ne sont plus valides → on n’appelle PAS le serveur
-    if (window.LockManager) {
-      const me = window.CoreManager?.uid;
-      const t = Date.now() + 300;
-      const loc = window.LockManager.getLocalLocks();
-      const blocks = (typeof getSelectedIndices==='function') ? getSelectedIndices() : [];
-      const stillOk = blocks.length && blocks.every(i => {
-        const l = loc[String(i)];
-        return l && l.uid === me && l.until > t;
-      });
-      if (!stillOk) {
-        const msg = ensureMsgEl();
-        msg.textContent = 'Reservation expired — reselect';
-        try { await unlockSelection(); } catch {}
-        btnBusy(false);
+    function tick(){
+      // si le modal a été fermé entre temps → clean
+      if (modal && modal.classList.contains('hidden')) {
+        clearInterval(__watch);
         return;
       }
+      const ok = haveMyValidLocksLocal(blocks);
+      msg.textContent = ok
+        ? 'Veuillez confirmer le paiement PayPal pour finaliser.'
+        : 'Reservation expired — reselect';
+
+      // « mollir » les boutons (si déjà rendus)
+      const box = document.getElementById('paypal-button-container');
+      if (box) {
+        box.style.pointerEvents = ok ? 'auto' : 'none';
+        box.style.opacity = ok ? '' : '0.45';
+      }
+
+      if (!ok) {
+        // une fois expiré, on laisse le message et on coupe le timer
+        clearInterval(__watch);
+      }
     }
-    //new
-    btnBusy(true);
-    const msg = ensureMsgEl();
-    msg.textContent = 'Paiement confirmé. Finalisation en cours…';
 
-    // 1) tagguer paypalOrderId côté serveur (auth via apiCall)
-    const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
-      method: 'POST',
-      body: JSON.stringify({ orderId, paypalOrderId: data.orderID })
-    });
-    if (!res?.ok) throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
+    clearInterval(__watch);
+    __watch = setInterval(tick, 1200);
+    tick(); // premier check immédiat
+  })();
+  // --- fin mini watcher ---
 
-    // 2) attendre la finalisation par le webhook
-    const ok = await waitForCompleted(orderId, 60); // augmente si besoin
-    if (!ok) {
-      msg.textContent = 'Paiement enregistré, finalisation en attente… Vous pourrez vérifier plus tard.';
+  window.PayPalIntegration.initAndRender({
+    orderId,
+    currency: currency || 'USD',
+
+    onApproved: async (data) => {
+      // new
+      try { clearInterval(__watch); } catch {}
+      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+      // new
+      try {
+        // new — garde-fou: si mes locks ne sont plus valides → ne pas appeler le serveur
+        if (window.LockManager) {
+          const me = window.CoreManager?.uid;
+          const t = Date.now() + 300;
+          const loc = window.LockManager.getLocalLocks();
+          const blocks = (typeof getSelectedIndices==='function') ? getSelectedIndices() : [];
+          const stillOk = blocks.length && blocks.every(i => {
+            const l = loc[String(i)];
+            return l && l.uid === me && l.until > t;
+          });
+          if (!stillOk) {
+            const msg = ensureMsgEl();
+            msg.textContent = 'Reservation expired — reselect';
+            try { await unlockSelection(); } catch {}
+            btnBusy(false);
+            return;
+          }
+        }
+        // new
+
+        btnBusy(true);
+        const msg = ensureMsgEl();
+        msg.textContent = 'Paiement confirmé. Finalisation en cours…';
+
+        // 1) tagguer paypalOrderId côté serveur (auth via apiCall)
+        const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
+          method: 'POST',
+          body: JSON.stringify({ orderId, paypalOrderId: data.orderID })
+        });
+        if (!res?.ok) throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
+
+        // 2) attendre la finalisation par le webhook
+        const ok = await waitForCompleted(orderId, 60); // augmente si besoin
+        if (!ok) {
+          msg.textContent = 'Paiement enregistré, finalisation en attente… Vous pourrez vérifier plus tard.';
+          resumeHB();
+          return;
+        }
+
+        // 3) succès
+        msg.textContent = 'Commande finalisée ✅';
+        try { await unlockSelection(); } catch {}
+        await refreshStatus();
+        try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
+      } catch (e) {
+        uiError(e, 'PayPal');
+        const msg = ensureMsgEl();
+        msg.textContent = 'Erreur pendant la finalisation.';
+        try { await unlockSelection(); } catch {}
+        resumeHB();
+      } finally {
+        btnBusy(false);
+      }
+    },
+
+    onCancel: async () => {
+      // new
+      try { clearInterval(__watch); } catch {}
+      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+      // new
+      const msg = ensureMsgEl();
+      msg.textContent = 'Paiement annulé.';
+      await unlockSelection();
+      btnBusy(false);
       resumeHB();
-      return;
+    },
+
+    onError: async (err) => {
+      // new
+      try { clearInterval(__watch); } catch {}
+      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+      // new
+      uiError(err, 'PayPal');
+      const msg = ensureMsgEl();
+      msg.textContent = 'Erreur de paiement.';
+      await unlockSelection();
+      btnBusy(false);
+      resumeHB();
     }
+  });
 
-    // 3) succès
-    msg.textContent = 'Commande finalisée ✅';
-    try { await unlockSelection(); } catch {}
-    await refreshStatus();
-    try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
-  } catch (e) {
-    uiError(e, 'PayPal');
-    const msg = ensureMsgEl();
-    msg.textContent = 'Erreur pendant la finalisation.';
-    try { await unlockSelection(); } catch {}
-    resumeHB();
-  } finally {
-    btnBusy(false);
-  }
-},
+}
 
-  onCancel: async () => {
-      //new
-    try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-    //new
-    const msg = ensureMsgEl();
-    msg.textContent = 'Paiement annulé.';
-    await unlockSelection();
-    btnBusy(false);
-    resumeHB();
-  },
-
-  onError: async (err) => {
-      //new
-    try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-    //new
-    uiError(err, 'PayPal');
-    const msg = ensureMsgEl();
-    msg.textContent = 'Erreur de paiement.';
-    await unlockSelection();
-    btnBusy(false);
-    resumeHB();
-  }
-});
-
-  }
 
   // Finalize flow
   async function doConfirm(){
