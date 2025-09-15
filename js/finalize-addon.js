@@ -267,6 +267,9 @@
   currency: currency || 'USD',
 
   onApproved: async (data) => {
+    //new
+    try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+    //new
   try {
     btnBusy(true);
     const msg = ensureMsgEl();
@@ -304,6 +307,9 @@
 },
 
   onCancel: async () => {
+      //new
+    try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+    //new
     const msg = ensureMsgEl();
     msg.textContent = 'Paiement annulé.';
     await unlockSelection();
@@ -312,6 +318,9 @@
   },
 
   onError: async (err) => {
+      //new
+    try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+    //new
     uiError(err, 'PayPal');
     const msg = ensureMsgEl();
     msg.textContent = 'Erreur de paiement.';
@@ -422,6 +431,18 @@ if (!haveMyValidLocks(blocks, 0)) {
     if (fileInput && regionId) fileInput.dataset.regionId = regionId;
 
     uiInfo('Commande créée. Veuillez finaliser le paiement…');
+
+    // ✅ Pendant la fenetre PayPal: maintenir la resa sans exiger d’activité
+    try {
+      if (window.LockManager) {
+        const blocks = getSelectedIndices(); // mêmes blocs que pour la commande
+        window.LockManager.heartbeat.start(blocks, 4000, 180000, {
+          maxMs: 300000,        // 5 minutes “tampon” pour PayPal
+          autoUnlock: true,     // libère proprement si on stoppe
+          requireActivity: false // 🔴 très important pendant PayPal
+        });
+      }
+    } catch {}
 
     // → Afficher le bouton PayPal et laisser l’utilisateur payer
     showPaypalButton(orderId, currency);
