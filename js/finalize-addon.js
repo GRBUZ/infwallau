@@ -421,7 +421,7 @@ function showPaypalButton(orderId, currency){
       return;
     }
 
-    pauseHB();
+    //pauseHB();
     btnBusy(true);
 
     // ÉTAPE CLÉ 1 : Renouvellement des locks au clic "Confirm" (+3 minutes)
