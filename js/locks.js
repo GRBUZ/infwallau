@@ -172,6 +172,7 @@
 
 
 function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, options = {}){
+  
   stopHeartbeat();
   hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
   if (!hbBlocks.length) return;
@@ -240,6 +241,7 @@ function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, opt
 
   function stopHeartbeat(){
     if (hbTimer) { 
+      console.trace('[LockManager] stopHeartbeat() called from:');
       clearInterval(hbTimer); 
       hbTimer = null; 
       console.log('[LockManager] Heartbeat stopped');
@@ -247,6 +249,7 @@ function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, opt
     hbBlocks = [];
     hbStartedAt = 0;
   }
+  
 
   function setHeartbeatBlocks(blocks){
     hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
