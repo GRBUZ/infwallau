@@ -65,7 +65,9 @@ exports.handler = async (event) => {
         await supabase.from('orders').update({
           status: 'expired',
           updated_at: new Date().toISOString()
-        }).eq('id', order.id);
+        })
+        //.eq('id', order.id);
+        .eq('order_id', orderId);
       } catch (_) {}
       status = 'expired';
     }
@@ -95,7 +97,9 @@ exports.handler = async (event) => {
           await supabase.from('orders').update({
             status: 'completed',
             updated_at: new Date().toISOString()
-          }).eq('id', order.id);
+          })
+          //.eq('id', order.id);
+          .eq('order_id', orderId);
         } catch (_) {}
 
         // si image_url manquante, on tente de la récupérer depuis regions
