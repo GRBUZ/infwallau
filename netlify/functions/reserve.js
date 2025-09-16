@@ -39,12 +39,8 @@ exports.handler = async (event) => {
     // TTL front était en ms ; la RPC prend des secondes
     let ttlMs  = Math.max(1000, parseInt(body.ttl || 180000, 10));
     let ttlSec = Math.max(1, Math.round(ttlMs / 1000));
-    
-    // Logique métier : 3 minutes maximum, mais on accepte les renouvellements
-    // Garde une borne 30s..300s pour éviter les TTL délirants (5 minutes max pour PayPal)
-    ttlSec = Math.max(30, Math.min(300, ttlSec));
-
-    console.log(`[reserve] uid=${uid}, blocks=${blocks.length}, ttlSec=${ttlSec}`);
+    // garde une borne 15s..180s pour éviter les TTL délirants
+    ttlSec = Math.max(15, Math.min(180, ttlSec));
 
     // ESM import (compat require/exports.handler)
     const { createClient } = await import('@supabase/supabase-js');
@@ -54,13 +50,9 @@ exports.handler = async (event) => {
     const { data: reservedArr, error: rpcErr } = await supabase
       .rpc('reserve_blocks', { _uid: uid, _blocks: blocks, _ttl_seconds: ttlSec });
 
-    if (rpcErr) {
-      console.error('[reserve] RPC failed:', rpcErr);
-      return bad(500, 'RPC_RESERVE_FAILED', { message: rpcErr.message });
-    }
+    if (rpcErr) return bad(500, 'RPC_RESERVE_FAILED', { message: rpcErr.message });
 
     const reserved = Array.isArray(reservedArr) ? reservedArr.map(Number) : [];
-    console.log(`[reserve] Reserved ${reserved.length}/${blocks.length} blocks`);
 
     // 2) Filtrer les blocs déjà vendus (au cas où)
     const { data: soldRows, error: soldErr } = await supabase
@@ -69,15 +61,10 @@ exports.handler = async (event) => {
       .in('idx', blocks)
       .not('sold_at', 'is', null);
 
-    if (soldErr) {
-      console.error('[reserve] Sold check failed:', soldErr);
-      return bad(500, 'CELLS_QUERY_FAILED', { message: soldErr.message });
-    }
+    if (soldErr) return bad(500, 'CELLS_QUERY_FAILED', { message: soldErr.message });
 
     const soldSet = new Set((soldRows||[]).map(r=>Number(r.idx)));
     const locked = reserved.filter(i => !soldSet.has(i));
-
-    console.log(`[reserve] Final locked: ${locked.length} (${soldSet.size} already sold)`);
 
     // 3) Construire conflicts = demandés – locked
     const reqSet = new Set(blocks);
@@ -92,10 +79,7 @@ exports.handler = async (event) => {
       .select('idx, uid, until')
       .gt('until', nowIso);
 
-    if (lockErr) {
-      console.error('[reserve] Locks query failed:', lockErr);
-      return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr.message });
-    }
+    if (lockErr) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr.message });
 
     const locks = {};
     for (const r of (lockRows||[])) {
@@ -114,11 +98,7 @@ exports.handler = async (event) => {
         .in('idx', locked)
         .gt('until', nowIso);
 
-      if (myErr) {
-        console.error('[reserve] Self locks query failed:', myErr);
-        return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: myErr.message });
-      }
-      
+      if (myErr) return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: myErr.message });
       for (const r of (myLockRows||[])) {
         const t = r.until ? new Date(r.until).getTime() : 0;
         if (t > until) until = t;
@@ -126,21 +106,16 @@ exports.handler = async (event) => {
     }
     const regionId = genRegionId(uid, locked);
 
-    const result = {
+    return ok({
       locked,
       conflicts,
       locks,
       ttlSeconds: ttlSec,
       regionId,
       until
-    };
-
-    console.log(`[reserve] Success: locked=${locked.length}, conflicts=${conflicts.length}, until=${new Date(until).toISOString()}`);
-
-    return ok(result);
+    });
 
   }catch(e){
-    console.error('[reserve] Server error:', e);
     return bad(500, 'SERVER_ERROR', { message: String(e?.message || e) });
   }
 };
