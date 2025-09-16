@@ -272,7 +272,7 @@ exports.handler = async (event) => {
 
     //new
     // 🔍 STRICT LOCK VALIDATION (pas de ré-upsert)
-{
+  /*{
   const nowIso = new Date().toISOString();
   const { data: myLocks, error: lockErr2 } = await supabase
     .from('locks')
@@ -339,9 +339,61 @@ exports.handler = async (event) => {
 
     return bad(409, 'LOCK_MISSING_OR_EXPIRED');
   }
-}
-
+}*/
     //new
+
+    // 🔍 VALIDATION DES LOCKS AVEC LOGGING ET CONTINUATION
+{
+  const nowIso = new Date().toISOString();
+  const { data: myLocks, error: lockErr2 } = await supabase
+    .from('locks')
+    .select('idx')
+    .in('idx', blocks)
+    .gt('until', nowIso)
+    .eq('uid', uid);
+
+  if (lockErr2) {
+    console.error('[LOCK VALIDATION] LOCKS_QUERY_FAILED:', lockErr2.message);
+    // Journaliser l'erreur mais continuer
+    await logManualRefundNeeded({
+      route: 'webhook',
+      orderId,
+      uid,
+      regionId: regionUuid,
+      blocks,
+      amount: paidTotal,
+      currency: (order.currency || paidCurr || 'USD').toUpperCase(),
+      paypalOrderId: paypalOrderId || order.paypal_order_id || null,
+      paypalCaptureId: captureId || order.paypal_capture_id || null,
+      reason: 'LOCKS_QUERY_FAILED',
+      error: lockErr2.message
+    });
+    // Continuer sans échec immédiat
+  }
+
+  if (!myLocks || myLocks.length !== blocks.length) {
+    console.warn('[LOCK VALIDATION] LOCK COUNT MISMATCH');
+    console.warn('Expected blocks:', blocks);
+    console.warn('Found locks:', myLocks?.map(l => ({ idx: l.idx })));
+
+    // Enregistrer un journal manuel si les locks sont invalides
+    await logManualRefundNeeded({
+      route: 'webhook',
+      orderId,
+      uid,
+      regionId: regionUuid,
+      blocks,
+      amount: paidTotal,
+      currency: (order.currency || paidCurr || 'USD').toUpperCase(),
+      paypalOrderId: paypalOrderId || order.paypal_order_id || null,
+      paypalCaptureId: captureId || order.paypal_capture_id || null,
+      reason: 'LOCKS_INVALID',
+      error: 'LOCK_VALIDATION_FAILED'
+    });
+
+    // Continuer sans échec, au lieu de retourner une erreur
+  }
+}
     // --- 5) Prix serveur
     const { count, error: countErr } = await supabase
       .from('cells')

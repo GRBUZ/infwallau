@@ -402,7 +402,6 @@ console.log('[DEBUG] Post-upsert error:', postErr);
   }
 
   // Neither completed nor refunded → just surface the lock error.
-  console.log('[DEBUG] coucou');
   return bad(409, 'LOCK_MISSING_OR_EXPIRED');
 }
 
