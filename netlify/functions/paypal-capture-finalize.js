@@ -255,7 +255,7 @@ exports.handler = async (event) => {
       //new
       // 🔍 STRICT LOCK VALIDATION (pas de ré-upsert)
       // 🔍 STRICT LOCK VALIDATION (pas de ré-upsert)
-{
+/*{
   // 1) Prolonger les locks côté DB pour éviter l'expiration pendant la finalisation
   const bumpSecs = 120; // 2 minutes
   const { data: bumped, error: bumpErr } = await supabase
@@ -382,9 +382,17 @@ exports.handler = async (event) => {
       return bad(409, 'LOCK_MISSING_OR_EXPIRED');
     }
   }
-}
+}*/
 
       //new
+
+      // 🔒 (Optionnel) Prolonger les locks côté DB pour éviter l'expiration entre ici et la RPC.
+// Ne PAS faire de vérif JS : la DB est l'arbitre unique.
+try {
+  await supabase.rpc('bump_locks', { p_uid: uid, p_blocks: blocksOk, p_secs: 120 });
+} catch (_) {
+  // best-effort, on ignore : la RPC tranchera
+}
 
     // 4) Finalisation atomique via RPC
     const orderUuid = (await import('node:crypto')).randomUUID();
