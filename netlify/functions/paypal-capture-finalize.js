@@ -259,7 +259,8 @@ exports.handler = async (event) => {
         .from('locks')
         .select('idx')
         .in('idx', blocksOk)
-        .gt('until', nowIso)
+        //.gt('until', nowIso)
+        .gte('until', nowIso)
         .eq('uid', uid);
 
       if (lockErr2) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr2.message });
