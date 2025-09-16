@@ -254,14 +254,33 @@ exports.handler = async (event) => {
       //new
       // 🔍 STRICT LOCK VALIDATION (pas de ré-upsert)
     {
+
+
       const nowIso = new Date().toISOString();
-      const { data: myLocks, error: lockErr2 } = await supabase
-        .from('locks')
-        .select('idx')
-        .in('idx', blocksOk)
-        //.gt('until', nowIso)
-        .gte('until', nowIso)
-        .eq('uid', uid);
+console.log('[DEBUG] Checking locks at:', nowIso);
+
+const { data: allMyLocks } = await supabase
+  .from('locks')
+  .select('idx, until')
+  .in('idx', blocksOk)
+  .eq('uid', uid);
+
+console.log('[DEBUG] All my locks:', allMyLocks?.map(l => ({
+  idx: l.idx, 
+  until: l.until, 
+  isValid: new Date(l.until) > new Date(nowIso)
+})));
+
+// Ensuite la requête normale
+const { data: myLocks, error: lockErr2 } = await supabase
+  .from('locks')
+  .select('idx')
+  .in('idx', blocksOk)
+  .gt('until', nowIso)
+  .eq('uid', uid);
+
+console.log('[DEBUG] Valid locks count:', myLocks?.length, 'Expected:', blocksOk.length);
+      
 
       if (lockErr2) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr2.message });
       if (!myLocks || myLocks.length !== blocksOk.length) {
