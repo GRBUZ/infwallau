@@ -320,16 +320,7 @@ function showPaypalButton(orderId, currency){
       try { window.LockManager?.heartbeat?.stop?.(); } catch {}
       // new
       try {
-        // ✅ NOUVELLE LIGNE : prolonger les locks avant de finaliser
-    const blocks = (typeof getSelectedIndices==='function') ? getSelectedIndices() : [];
-    if (blocks.length && window.LockManager) {
-      console.log('[PayPal] Extending locks before finalization...');
-      const extendResult = await window.LockManager.lock(blocks, 300000); // 5 min
-      if (!extendResult.ok) {
-        console.warn('[PayPal] Failed to extend locks:', extendResult);
-        // Continuer quand même, le serveur décidera
-      }
-    }
+        
         // new — garde-fou: si mes locks ne sont plus valides → ne pas appeler le serveur
         if (window.LockManager) {
           const me = window.CoreManager?.uid;
@@ -443,7 +434,7 @@ function showPaypalButton(orderId, currency){
     btnBusy(true);
 
     // Re-reserve just before start-order (defensive)
-    /*try {
+    try {
       if (window.LockManager) {
         const jr = await window.LockManager.lock(blocks, 180000);
         if (!jr || !jr.ok) {
@@ -465,20 +456,8 @@ function showPaypalButton(orderId, currency){
       }
     } catch (e) {
       console.warn('[IW patch] pre-finalize reserve warning:', e);
-    }*/
+    }
 
-      //new
-      // No re-lock: si ma résa a expiré, on arrête net
-if (!haveMyValidLocks(blocks, 0)) {
-  await refreshStatus().catch(()=>{});
-  uiWarn('Your reservation expired. Please reselect your pixels.');
-  btnBusy(false);
-  // ne pas relancer le heartbeat si c’est mort
-  try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-  return;
-}
-
-      //new
     // === START-ORDER: le serveur prépare la commande et uploade l'image ===
     let start = null;
     try {
