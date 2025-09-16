@@ -322,7 +322,7 @@ function showPaypalButton(orderId, currency){
         msg.textContent = 'Paiement confirmé. Finalisation en cours…';
 
         // Garde-fou final : vérifier les locks AVANT d'arrêter le heartbeat
-        if (window.LockManager) {
+        /*if (window.LockManager) {
           const me = window.CoreManager?.uid;
           const t = Date.now() + 1000;
           const loc = window.LockManager.getLocalLocks();
@@ -333,6 +333,18 @@ function showPaypalButton(orderId, currency){
           });
           
           if (!stillOk) {
+            msg.textContent = 'Reservation expired — reselect';
+            try { await unlockSelection(); } catch {}
+            btnBusy(false);
+            return;
+          }
+        }*/
+
+        // Garde-fou final **serveur** : petite prolongation non-optimiste
+        if (window.LockManager) {
+          const blocks = getSelectedIndices();
+          const res = await window.LockManager.lock(blocks, 60000, { optimistic: false });
+          if (!res?.ok || !blocks.length || !blocks.every(i => res.locks[String(i)]?.uid === uid)) {
             msg.textContent = 'Reservation expired — reselect';
             try { await unlockSelection(); } catch {}
             btnBusy(false);

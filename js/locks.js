@@ -65,19 +65,35 @@
     const out = Object.create(null);
 
     // 1) Mes locks locaux d'abord
-    for (const [k, l] of Object.entries(localLocks)) {
+    /*for (const [k, l] of Object.entries(localLocks)) {
       if (l && l.uid === uid && l.until > t) {
         out[k] = { uid: l.uid, until: l.until };
       }
-    }
+    }*/
 
     // 2) Locks du serveur (vérité pour les autres) + noter "vu à t"
-    for (const [k, l] of Object.entries(serverLocks || {})) {
+    /*for (const [k, l] of Object.entries(serverLocks || {})) {
       if (l && l.until > t) {
         out[k] = { uid: l.uid, until: l.until };
         if (l.uid !== uid) othersLastSeen[k] = t;
       }
+    }*/
+
+      // 1) Vérité serveur d'abord (pour tout le monde, y compris moi)
+  for (const [k, l] of Object.entries(serverLocks || {})) {
+    if (l && l.until > t) {
+      out[k] = { uid: l.uid, until: l.until };
+      if (l.uid !== uid) othersLastSeen[k] = t;
     }
+  }
+  // 2) (Optionnel) Si tu veux "étirer" un peu l'`until` pour MES locks
+  //    uniquement lorsqu'ils existent déjà côté serveur :
+  for (const [k, l] of Object.entries(localLocks)) {
+    if (l && l.uid === uid && l.until > t && out[k]?.uid === uid) {
+      // on garde le max pour éviter un léger recul d'horloge local
+      out[k].until = Math.max(out[k].until, l.until);
+    }
+  }
 
     // 3) Grâce de quelques secondes pour des locks "autres" disparus
     for (const [k, l] of Object.entries(localLocks)) {
