@@ -341,7 +341,7 @@ function showPaypalButton(orderId, currency){
         }*/
 
         // Garde-fou final **serveur** : petite prolongation non-optimiste
-        if (window.LockManager) {
+        /*if (window.LockManager) {
           const blocks = getSelectedIndices();
           const res = await window.LockManager.lock(blocks, 60000, { optimistic: false });
           if (!res?.ok || !blocks.length || !blocks.every(i => res.locks[String(i)]?.uid === uid)) {
@@ -350,7 +350,20 @@ function showPaypalButton(orderId, currency){
             btnBusy(false);
             return;
           }
-        }
+        }*/
+       // Garde-fou final **SERVEUR** : prolonge 60s en non-optimiste
+ if (window.LockManager) {
+   const blocks = getSelectedIndices();
+   const res = await window.LockManager.lock(blocks, 60000, { optimistic: false });
+   const okSrv = res?.ok && blocks.length && blocks.every(i => res.locks[String(i)]?.uid === window.CoreManager.uid);
+   if (!okSrv) {
+     const msg = ensureMsgEl();
+     msg.textContent = 'Reservation expired — reselect';
+     try { await unlockSelection(); } catch {}
+     btnBusy(false);
+     return;
+   }
+ }
 
         // 1) tagguer paypalOrderId côté serveur
         const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
