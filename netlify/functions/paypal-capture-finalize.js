@@ -99,6 +99,17 @@ exports.handler = async (event) => {
     const { createClient } = await import('@supabase/supabase-js');
     const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession:false } });
 
+    //new debug
+    // 👇 ADD: reqId + marquer la source (= finalize)
+const reqId = (Math.random().toString(36).slice(2, 8) + Date.now().toString(36)).toUpperCase();
+console.info('[CAPTURE-FINALIZE] start', { reqId, orderId, paypalOrderId });
+
+// 👇 ADD: pousser des variables session dans Postgres (best-effort)
+try {
+  await supabase.rpc('set_config', { parameter: 'app.req_id', value: reqId, is_local: true });
+  await supabase.rpc('set_config', { parameter: 'app.source', value: 'finalize', is_local: true });
+} catch { /* ignore: pas bloquant */ }
+    //new debug
     // 1) Charger l’ordre et vérifier ownership
     const { data: order, error: getErr } = await supabase
       .from('orders')
@@ -261,129 +272,124 @@ try {
       _amount:    amount
     });
 
-    if (rpcErr) {
-      const msg = (rpcErr.message || '').toUpperCase();
+if (rpcErr) {
+  const msg = (rpcErr.message || '').toUpperCase();
 
-      // 🧠 Décision refund: on "claim" d'abord le droit de rembourser
-      const reason =
-        msg.includes('LOCKS_INVALID') ? 'LOCKS_INVALID'
-      : (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) ? 'ALREADY_SOLD'
-      : (msg.includes('NO_BLOCKS')) ? 'NO_BLOCKS'
-      : 'FINALIZE_ERROR';
+  // 🧠 Décision refund: on "claim" d'abord le droit de rembourser
+  const reason =
+    msg.includes('LOCKS_INVALID') ? 'LOCKS_INVALID'
+  : (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) ? 'ALREADY_SOLD'
+  : (msg.includes('NO_BLOCKS')) ? 'NO_BLOCKS'
+  : 'FINALIZE_ERROR';
 
-      const { data: claimRows, error: claimErr } = await supabase
-        .from('orders')
-        .update({
-          status: 'refund_pending',
-          fail_reason: reason,
-          paypal_order_id: paypalOrderId,
-          paypal_capture_id: captureId,
-          server_unit_price: unitPrice,
-          server_total: serverTotal,
-          currency,
-          updated_at: new Date().toISOString()
-        })
-        .eq('order_id', orderId)
-        .not('status', 'in', ['completed','refunded','refund_failed','refund_pending'])
-        //.not('status', 'in', ['completed','failed_refunded','failed','expired'])// ↑ Exclure les états finaux, inclure 'pending'
-        .select('id');
-
-
-      const weOwnRefund = !claimErr && Array.isArray(claimRows) && claimRows.length > 0;
-
-     if (!weOwnRefund) {
-  // Re-read the order to see what happened meanwhile (webhook likely acted)
-  const { data: fresh } = await supabase
+  const { data: claimRows, error: claimErr } = await supabase
     .from('orders')
-    .select('status, region_id, image_url, unit_price, total, currency, paypal_capture_id, paypal_order_id')
+    .update({
+      status: 'refund_pending',
+      fail_reason: reason,
+      paypal_order_id: paypalOrderId,
+      paypal_capture_id: captureId,
+      server_unit_price: unitPrice,
+      server_total: serverTotal,
+      currency,
+      updated_at: new Date().toISOString()
+    })
     .eq('order_id', orderId)
-    .single();
+    .not('status', 'in', ['completed','refunded','refund_failed','refund_pending'])
+    .select('id');
 
-  if (fresh?.status === 'completed') {
-    return ok({
-      status: 'completed',
-      orderId,
-      regionId,
-      imageUrl: imageUrl || fresh.image_url || null,
-      paypalOrderId: fresh.paypal_order_id || paypalOrderId,
-      paypalCaptureId: fresh.paypal_capture_id || captureId,
-      unitPrice,
-      total: serverTotal,
-      currency
-    });
+  const weOwnRefund = !claimErr && Array.isArray(claimRows) && claimRows.length > 0;
+
+  if (!weOwnRefund) {
+    // Re-read the order to see what happened meanwhile (webhook likely acted)
+    const { data: fresh } = await supabase
+      .from('orders')
+      .select('status, region_id, image_url, unit_price, total, currency, paypal_capture_id, paypal_order_id')
+      .eq('order_id', orderId)
+      .single();
+
+    if (fresh?.status === 'completed') {
+      return ok({
+        status: 'completed',
+        orderId,
+        regionId,
+        imageUrl: imageUrl || fresh.image_url || null,
+        paypalOrderId: fresh.paypal_order_id || paypalOrderId,
+        paypalCaptureId: fresh.paypal_capture_id || captureId,
+        unitPrice,
+        total: serverTotal,
+        currency
+      });
+    }
+
+    if (fresh?.status === 'refunded') {
+      return bad(500, 'FINALIZE_FAILED_REFUNDED', { message: 'LOCKS_INVALID', reqId, rpc: rpcErr.message });
+    }
+
+    // 👇 ADD: inclure reqId + message DB pour poser un diagnostic rapide côté UI/logs
+    return bad(409, 'LOCK_MISSING_OR_EXPIRED', { reqId, rpc: rpcErr.message });
   }
 
-  if (fresh?.status === 'refunded') {
-    // Webhook already refunded → tell the UI it failed but money is back.
-    return bad(500, 'FINALIZE_FAILED_REFUNDED', { message: 'LOCKS_INVALID' });
+  // On a le "claim" → on tente le refund
+  let refundedOk = false;
+  let refundObj  = null;
+  try {
+    refundObj  = await refundPayPalCapture(accessToken, captureId, capValue, currency);
+    refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+  } catch (_) {}
+
+  try { await releaseLocks(supabase, blocksOk, uid); } catch(_) {}
+
+  if (refundedOk) {
+    const refundId = refundObj?.id
+      || refundObj?.refund_id
+      || refundObj?.purchase_units?.[0]?.payments?.refunds?.[0]?.id
+      || null;
+
+    await supabase.from('orders').update({
+      status: 'refunded',
+      refund_status: 'succeeded',
+      needs_manual_refund: false,
+      refund_attempted_at: new Date().toISOString(),
+      refund_id: refundId,
+      updated_at: new Date().toISOString()
+    }).eq('order_id', orderId);
+  } else {
+    await supabase.from('orders').update({
+      status: 'refund_failed',
+      refund_status: 'failed',
+      needs_manual_refund: true,
+      refund_attempted_at: new Date().toISOString(),
+      refund_error: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
+      updated_at: new Date().toISOString()
+    }).eq('order_id', orderId);
+
+    try {
+      await logManualRefundNeeded({
+        route: 'capture-finalize',
+        orderId,
+        uid,
+        regionId,
+        blocks: blocksOk,
+        amount: capValue,
+        currency,
+        paypalOrderId,
+        paypalCaptureId: captureId,
+        reason,
+        error: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED')
+      });
+    } catch (_) {}
   }
 
-  // Neither completed nor refunded → just surface the lock error.
-  return bad(409, 'LOCK_MISSING_OR_EXPIRED');
+  if (refundedOk) {
+    return bad(500, 'FINALIZE_FAILED_REFUNDED', { message: msg || 'RPC_FINALIZE_FAILED', reqId, rpc: rpcErr.message });
+  }
+  if (msg.includes('LOCKS_INVALID'))                            return bad(409, 'LOCK_MISSING_OR_EXPIRED', { reqId, rpc: rpcErr.message });
+  if (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) return bad(409, 'ALREADY_SOLD',              { reqId, rpc: rpcErr.message });
+  if (msg.includes('NO_BLOCKS'))                                return bad(400, 'NO_BLOCKS',                 { reqId, rpc: rpcErr.message });
+  return bad(500, 'RPC_FINALIZE_FAILED', { message: rpcErr.message, reqId, rpc: rpcErr.message });
 }
 
-
-      // On a le "claim" → on tente le refund
-      let refundedOk = false;
-      let refundObj  = null;
-      try {
-        refundObj  = await refundPayPalCapture(accessToken, captureId, capValue, currency);
-        refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
-      } catch (_) {}
-
-      // libération des locks (best-effort)
-      try { await releaseLocks(supabase, blocksOk, uid); } catch(_) {}
-
-      if (refundedOk) {
-        const refundId = refundObj?.id
-          || refundObj?.refund_id
-          || refundObj?.purchase_units?.[0]?.payments?.refunds?.[0]?.id
-          || null;
-
-        await supabase.from('orders').update({
-          status: 'refunded',
-          refund_status: 'succeeded',
-          needs_manual_refund: false,
-          refund_attempted_at: new Date().toISOString(),
-          refund_id: refundId,
-          updated_at: new Date().toISOString()
-        }).eq('order_id', orderId);
-      } else {
-        await supabase.from('orders').update({
-          status: 'refund_failed',
-          refund_status: 'failed',
-          needs_manual_refund: true,
-          refund_attempted_at: new Date().toISOString(),
-          refund_error: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
-          updated_at: new Date().toISOString()
-        }).eq('order_id', orderId);
-
-        // Journal manuel GitHub en cas d'échec du refund
-        try {
-          await logManualRefundNeeded({
-            route: 'capture-finalize',
-            orderId,
-            uid,
-            regionId,
-            blocks: blocksOk,
-            amount: capValue,
-            currency,
-            paypalOrderId,
-            paypalCaptureId: captureId,
-            reason,
-            error: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED')
-          });
-        } catch (_) {}
-      }
-
-      if (refundedOk) {
-        return bad(500, 'FINALIZE_FAILED_REFUNDED', { message: msg || 'RPC_FINALIZE_FAILED' });
-      }
-      if (msg.includes('LOCKS_INVALID'))                            return bad(409, 'LOCK_MISSING_OR_EXPIRED');
-      if (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) return bad(409, 'ALREADY_SOLD');
-      if (msg.includes('NO_BLOCKS'))                                return bad(400, 'NO_BLOCKS');
-      return bad(500, 'RPC_FINALIZE_FAILED', { message: rpcErr.message });
-    }
 
     // 5) Succès: marquer completed
     await supabase.from('orders').update({
