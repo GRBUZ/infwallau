@@ -65,25 +65,6 @@
     try { window.LockManager?.heartbeat?.stop?.(); } catch {}
   }
   
-  /*function resumeHB(){
-    if (!__processing) return;
-    __processing = false;
-    try {
-      const sel = (typeof getSelectedIndices === 'function') ? getSelectedIndices() : [];
-      // on NE relance pas si mes locks ne sont pas encore valides
-      if (modal && !modal.classList.contains('hidden') && sel && sel.length && haveMyValidLocks(sel, 0)) {
-        window.LockManager?.heartbeat?.start?.(sel, 30000, 180000, {
-          maxMs: 180000,        // 3 minutes
-          autoUnlock: true,
-          requireActivity: true
-        });
-      } else {
-        window.LockManager?.heartbeat?.stop?.();
-      }
-    } catch {
-      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-    }
-  }*/
  function resumeHB(){
   if (!__processing) return;
   __processing = false;
@@ -442,7 +423,7 @@ function showPaypalButton(orderId, currency){
       return;
     }
 
-    pauseHB();
+    //pauseHB();
     btnBusy(true);
 
     // ÉTAPE CLÉ 1 : Renouvellement des locks au clic "Confirm" (+3 minutes)
