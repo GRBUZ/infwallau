@@ -320,6 +320,16 @@ function showPaypalButton(orderId, currency){
       try { window.LockManager?.heartbeat?.stop?.(); } catch {}
       // new
       try {
+        // ✅ NOUVELLE LIGNE : prolonger les locks avant de finaliser
+    const blocks = (typeof getSelectedIndices==='function') ? getSelectedIndices() : [];
+    if (blocks.length && window.LockManager) {
+      console.log('[PayPal] Extending locks before finalization...');
+      const extendResult = await window.LockManager.lock(blocks, 300000); // 5 min
+      if (!extendResult.ok) {
+        console.warn('[PayPal] Failed to extend locks:', extendResult);
+        // Continuer quand même, le serveur décidera
+      }
+    }
         // new — garde-fou: si mes locks ne sont plus valides → ne pas appeler le serveur
         if (window.LockManager) {
           const me = window.CoreManager?.uid;
