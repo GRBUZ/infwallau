@@ -240,6 +240,35 @@ exports.handler = async (event) => {
     const amount   = Number(capValue);
 
     // 🔒 (Ré)appliquer les locks 2 min juste avant la RPC
+
+    //logs
+    // 🔍 DEBUG EXTENSIF
+console.log('[DEBUG] paypal-capture-finalize - Starting lock validation');
+console.log('[DEBUG] uid:', uid);
+console.log('[DEBUG] blocksOk:', blocksOk);
+console.log('[DEBUG] Current time:', new Date().toISOString());
+
+// Vérifier l'état actuel des locks AVANT toute modification
+const { data: currentLocks, error: currentErr } = await supabase
+  .from('locks')
+  .select('*')
+  .in('idx', blocksOk);
+
+console.log('[DEBUG] Current locks in DB:', currentLocks);
+console.log('[DEBUG] Current locks error:', currentErr);
+
+// Vérifier spécifiquement pour cet UID
+const { data: myCurrentLocks, error: myCurrentErr } = await supabase
+  .from('locks')
+  .select('*')
+  .in('idx', blocksOk)
+  .eq('uid', uid);
+
+console.log('[DEBUG] My current locks:', myCurrentLocks);
+console.log('[DEBUG] My current locks error:', myCurrentErr);
+
+    //logs
+
     try {
       const until = new Date(Date.now() + 2 * 60 * 1000).toISOString();
       const upsertRows = blocksOk.map(idx => ({ idx, uid, until }));
@@ -251,6 +280,17 @@ exports.handler = async (event) => {
       return bad(500, 'LOCKS_UPSERT_FAILED', { message: String(e?.message || e) });
     }
 
+    //logs
+    // Vérification post-upsert
+const { data: postLocks, error: postErr } = await supabase
+  .from('locks')
+  .select('*')
+  .in('idx', blocksOk);
+
+console.log('[DEBUG] Post-upsert locks in DB:', postLocks);
+console.log('[DEBUG] Post-upsert error:', postErr);
+    //logs
+
     // Ensuite, validation que l'upsert a réussi (optionnel mais recommandé)
 {
   const nowIso = new Date().toISOString();
@@ -261,8 +301,17 @@ exports.handler = async (event) => {
     .gt('until', nowIso)
     .eq('uid', uid);
 
+    console.log('[DEBUG] Final validation - myLocks:', myLocks);
+  console.log('[DEBUG] Final validation - error:', lockErr2);
+  console.log('[DEBUG] Final validation - expected length:', blocksOk.length);
+  console.log('[DEBUG] Final validation - actual length:', myLocks?.length);
+
   if (lockErr2) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr2.message });
   if (!myLocks || myLocks.length !== blocksOk.length) {
+    console.log('[DEBUG] FINAL VALIDATION - LOCK COUNT MISMATCH');
+    console.log('[DEBUG] Expected blocks:', blocksOk);
+    console.log('[DEBUG] Found locks:', myLocks?.map(l => ({ idx: l.idx, uid: l.uid, until: l.until })));
+    
     // Si l'upsert a échoué (conflit), on refund
     return bad(409, 'LOCK_MISSING_OR_EXPIRED');
   }
