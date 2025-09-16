@@ -25,7 +25,7 @@
   let hbAutoUnlock = true;       // libérer automatiquement à l’arrêt
   let hbRequireActivity = true;  // ne pas prolonger si l’utilisateur est inactif
   let lastActivityTs = Date.now();
-  const IDLE_LIMIT_MS = 120000;  // inactif après 2 min
+  const IDLE_LIMIT_MS = 180000;  // inactif après 3 min
 
   // NEW — on suivra un minimum d’activité côté client
   (function attachActivityListenersOnce(){
@@ -112,7 +112,7 @@
     if (changed) emitChange();
   }
 
-  async function lock(blocks, ttlMs = 180000){
+  /*async function lock(blocks, ttlMs = 180000){
     const indices = Array.isArray(blocks) ? blocks.map(n=>parseInt(n,10)).filter(Number.isInteger) : [];
     if (!indices.length) return { ok:false, locked: [], conflicts: [], locks: localLocks };
 
@@ -133,8 +133,33 @@
     // Ajuster localLocks avec la vérité renvoyée par le serveur (pour les autres uid)
     localLocks = merge(res.locks || {});
     return { ok:true, locked: res.locked || [], conflicts: res.conflicts || [], locks: localLocks, ttlSeconds: res.ttlSeconds };
+  }*/
+
+    //new
+    async function lock(blocks, ttlMs = 180000, { optimistic = true } = {}){
+  const indices = Array.isArray(blocks) ? blocks.map(n=>parseInt(n,10)).filter(Number.isInteger) : [];
+  if (!indices.length) return { ok:false, locked: [], conflicts: [], locks: localLocks };
+
+  // Optimisme local seulement si demandé
+  if (optimistic) setLocalLocks(indices, ttlMs);
+
+  // Appel serveur
+  const res = await apiCall('/reserve', {
+    method: 'POST',
+    body: JSON.stringify({ blocks: indices, ttl: ttlMs })
+  });
+
+  if (!res || !res.ok) {
+    // Si on était en optimiste:false, on n'a rien modifié localement.
+    return { ok:false, locked: [], conflicts: (res && res.conflicts) || [], locks: localLocks, error: res && res.error };
   }
 
+  // Ajuster localLocks avec la vérité renvoyée par le serveur
+  localLocks = merge(res.locks || {});
+  return { ok:true, locked: res.locked || [], conflicts: res.conflicts || [], locks: localLocks, ttlSeconds: res.ttlSeconds };
+}
+
+    //new
   async function unlock(blocks){
     const indices = Array.isArray(blocks) ? blocks.map(n=>parseInt(n,10)).filter(Number.isInteger) : [];
     if (!indices.length) return { ok:true, locks: localLocks };
@@ -162,6 +187,17 @@
     return { ok:true, locks: localLocks };
   }
 
+  //new
+  function haveMyValidLocksStrict(indices, skewMs = 1500){
+  if (!Array.isArray(indices) || !indices.length) return false;
+  const t = Date.now() + Math.max(0, skewMs|0);
+  return indices.every(i => {
+    const l = localLocks[String(i)];
+    return l && l.uid === uid && l.until > t;
+  });
+}
+
+  //new
   /*function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000){
     stopHeartbeat();
     hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
@@ -178,7 +214,7 @@
     if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
     hbBlocks = [];
   }*/
-  function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, options = {}){
+  /*function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, options = {}){
   stopHeartbeat();
   hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
   if (!hbBlocks.length) return;
@@ -210,8 +246,78 @@
     // renouveler le TTL
     if (hbBlocks.length) lock(hbBlocks, ttlMs).catch(()=>{});
   }, Math.max(500, intervalMs));
+}*/
+
+//new
+function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, options = {}){
+  stopHeartbeat();
+   // Ne pas battre plus longtemps que le TTL réel côté serveur
+  hbMaxMs = Math.min(Math.max(10000, options.maxMs || ttlMs), ttlMs);
+  hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
+  if (!hbBlocks.length) return;
+
+  // options (facultatives)
+  hbMaxMs           = Math.max(10000, options.maxMs || 180000);
+  hbAutoUnlock      = options.autoUnlock !== false;          // défaut: true
+  hbRequireActivity = options.requireActivity !== false;     // défaut: true
+  const onlyExtendIfValid = options.onlyExtendIfValid !== false; // défaut: true
+  const skewMs = options.skewMs ?? 1500;
+
+  hbStartedAt    = Date.now();
+  lastActivityTs = Date.now();
+
+  // ❗ Ne pas (re)locker si déjà expiré
+  if (onlyExtendIfValid && !haveMyValidLocksStrict(hbBlocks, skewMs)) {
+    return; // on ne démarre pas le heartbeat
+  }
+
+  // Premier renew (prolonge seulement si serveur OK)
+  lock(hbBlocks, ttlMs, { optimistic: false }).catch(()=>{});
+
+  hbTimer = setInterval(async ()=>{
+    const now = Date.now();
+
+    // Cap de durée totale
+    //if (now - hbStartedAt > hbMaxMs) {
+      //stopHeartbeat();
+      //if (hbAutoUnlock) { try { await unlock(hbBlocks); } catch {} }
+      //return;
+    //}
+    // Inactivité prolongée
+    //if (hbRequireActivity && (now - lastActivityTs > IDLE_LIMIT_MS)) {
+      //stopHeartbeat();
+      //if (hbAutoUnlock) { try { await unlock(hbBlocks); } catch {} }
+      //return;
+    //}
+    //new
+      // cap de durée totale
+   if (Date.now() - hbStartedAt > hbMaxMs) {
+     const blocksSnapshot = hbBlocks.slice();
+     stopHeartbeat();
+     if (hbAutoUnlock && blocksSnapshot.length) { try { await unlock(blocksSnapshot); } catch {} }
+     return;
+   }
+   // inactivité prolongée
+   if (hbRequireActivity && (Date.now() - lastActivityTs > IDLE_LIMIT_MS)) {
+     const blocksSnapshot = hbBlocks.slice();
+     stopHeartbeat();
+     if (hbAutoUnlock && blocksSnapshot.length) { try { await unlock(blocksSnapshot); } catch {} }
+     return;
+   }
+    //new
+    // ⛔️ Si mes locks ne sont plus valides → stop, surtout pas de relock
+    if (onlyExtendIfValid && !haveMyValidLocksStrict(hbBlocks, skewMs)) {
+      stopHeartbeat();
+      // on n'appelle pas unlock ici : ils ne sont plus à nous
+      return;
+    }
+
+    // OK : prolongation côté serveur (sans optimisme local)
+    if (hbBlocks.length) lock(hbBlocks, ttlMs, { optimistic: false }).catch(()=>{});
+  }, Math.max(500, intervalMs));
 }
 
+//new
 function stopHeartbeat(){
   if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
   hbBlocks = [];

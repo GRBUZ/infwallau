@@ -28,6 +28,28 @@
 
   const { uid, apiCall } = window.CoreManager;
 
+  //new
+  function haveMyValidLocks(blocks, graceMs = 0){
+  if (!Array.isArray(blocks) || !blocks.length) return false;
+  const now = Date.now() + Math.max(0, graceMs|0);
+  const myUid = uid;
+  // source de vérité côté front
+  let map = {};
+  try {
+    // idéal: LockManager garde un cache local
+    map = window.LockManager?.getLocalLocks?.() || window.locks || {};
+  } catch (_) {
+    map = window.locks || {};
+  }
+  for (const i of blocks) {
+    const l = map[String(i)];
+    if (!l || l.uid !== myUid || !(Number(l.until) > now)) return false;
+  }
+  return true;
+}
+
+  //new
+
   // DOM handles (we tolerate multiple possible IDs to be resilient)
   const modal        = document.getElementById('modal');
   const confirmBtn   = document.getElementById('confirm') || document.querySelector('[data-confirm]');
@@ -46,17 +68,36 @@
     __processing = true;
     try { window.LockManager?.heartbeat?.stop?.(); } catch {}
   }
-  function resumeHB(){
+  
+  /*function resumeHB(){
     if (!__processing) return;
     __processing = false;
     try {
-      // on ne relance que si le modal est encore ouvert et qu'il reste une sélection
+      
       const sel = (typeof getSelectedIndices === 'function') ? getSelectedIndices() : [];
       if (modal && !modal.classList.contains('hidden') && sel && sel.length) {
         window.LockManager?.heartbeat?.start?.(sel); // interval/ttl par défaut
       }
     } catch {}
+  }*/
+  //new
+  function resumeHB(){
+  if (!__processing) return;
+  __processing = false;
+  try {
+    const sel = (typeof getSelectedIndices === 'function') ? getSelectedIndices() : [];
+    // 👉 on NE relance pas si mes locks ne sont pas encore valides
+    if (modal && !modal.classList.contains('hidden') && sel && sel.length && haveMyValidLocks(sel, 0)) {
+      window.LockManager?.heartbeat?.start?.(sel);
+    } else {
+      window.LockManager?.heartbeat?.stop?.();
+    }
+  } catch {
+    try { window.LockManager?.heartbeat?.stop?.(); } catch {}
   }
+}
+
+  //new
 
   // UI helpers
   function uiWarn(msg){
@@ -210,77 +251,159 @@
     if (c && c.parentNode) c.parentNode.removeChild(c);
   }
 
-  function showPaypalButton(orderId, currency){
-    const msg = ensureMsgEl();
-    msg.textContent = 'Veuillez confirmer le paiement PayPal pour finaliser.';
-    if (confirmBtn) confirmBtn.style.display = 'none';
-    removePaypalContainer();
+function showPaypalButton(orderId, currency){
+  const msg = ensureMsgEl();
+  msg.textContent = 'Veuillez confirmer le paiement PayPal pour finaliser.';
+  if (confirmBtn) confirmBtn.style.display = 'none';
+  removePaypalContainer();
 
-    if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
-      uiWarn('Paiement: configuration PayPal manquante (PAYPAL_CLIENT_ID / PayPalIntegration).');
-      return;
+  if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
+    uiWarn('Paiement: configuration PayPal manquante (PAYPAL_CLIENT_ID / PayPalIntegration).');
+    return;
+  }
+
+  // --- Mini watcher local: si mes locks expirent AVANT d’ouvrir PayPal,
+  //     on change uniquement le message et on "mollit" les boutons.
+  let __watch; // timer local à cette fonction
+  (function setupPayPalExpiryBanner(){
+    const uid = window.CoreManager?.uid;
+    const blocks = (typeof getSelectedIndices === 'function') ? getSelectedIndices() : [];
+
+    function haveMyValidLocksLocal(indices, graceMs = 500){
+      if (!window.LockManager) return true; // si pas de LockManager, ne pas bloquer
+      const locks = window.LockManager.getLocalLocks?.() || {};
+      const t = Date.now() + graceMs;
+      for (const i of indices || []) {
+        const l = locks[String(i)];
+        if (!l || l.uid !== uid || !(l.until > t)) return false;
+      }
+      return true;
     }
+
+    function tick(){
+      // si le modal a été fermé entre temps → clean
+      if (modal && modal.classList.contains('hidden')) {
+        clearInterval(__watch);
+        return;
+      }
+      const ok = haveMyValidLocksLocal(blocks);
+      msg.textContent = ok
+        ? 'Veuillez confirmer le paiement PayPal pour finaliser.'
+        : 'Reservation expired — reselect';
+
+      // « mollir » les boutons (si déjà rendus)
+      const box = document.getElementById('paypal-button-container');
+      if (box) {
+        box.style.pointerEvents = ok ? 'auto' : 'none';
+        box.style.opacity = ok ? '' : '0.45';
+      }
+
+      if (!ok) {
+        // une fois expiré, on laisse le message et on coupe le timer
+        clearInterval(__watch);
+      }
+    }
+
+    clearInterval(__watch);
+    __watch = setInterval(tick, 1200);
+    tick(); // premier check immédiat
+  })();
+  // --- fin mini watcher ---
 
   window.PayPalIntegration.initAndRender({
-  orderId,
-  currency: currency || 'USD',
+    orderId,
+    currency: currency || 'USD',
 
-  onApproved: async (data) => {
-  try {
-    btnBusy(true);
-    const msg = ensureMsgEl();
-    msg.textContent = 'Paiement confirmé. Finalisation en cours…';
+    onApproved: async (data) => {
+      // new
+      try { clearInterval(__watch); } catch {}
+      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+      // new
+      try {
+        // new — garde-fou: si mes locks ne sont plus valides → ne pas appeler le serveur
+        if (window.LockManager) {
+          const me = window.CoreManager?.uid;
+          const t = Date.now() + 300;
+          const loc = window.LockManager.getLocalLocks();
+          const blocks = (typeof getSelectedIndices==='function') ? getSelectedIndices() : [];
+          const stillOk = blocks.length && blocks.every(i => {
+            const l = loc[String(i)];
+            return l && l.uid === me && l.until > t;
+          });
+          if (!stillOk) {
+            const msg = ensureMsgEl();
+            msg.textContent = 'Reservation expired — reselect';
+            try { await unlockSelection(); } catch {}
+            btnBusy(false);
+            return;
+          }
+        }
+        // new
 
-    // 1) tagguer paypalOrderId côté serveur (auth via apiCall)
-    const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
-      method: 'POST',
-      body: JSON.stringify({ orderId, paypalOrderId: data.orderID })
-    });
-    if (!res?.ok) throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
+        btnBusy(true);
+        const msg = ensureMsgEl();
+        msg.textContent = 'Paiement confirmé. Finalisation en cours…';
 
-    // 2) attendre la finalisation par le webhook
-    const ok = await waitForCompleted(orderId, 60); // augmente si besoin
-    if (!ok) {
-      msg.textContent = 'Paiement enregistré, finalisation en attente… Vous pourrez vérifier plus tard.';
+        // 1) tagguer paypalOrderId côté serveur (auth via apiCall)
+        const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
+          method: 'POST',
+          body: JSON.stringify({ orderId, paypalOrderId: data.orderID })
+        });
+        if (!res?.ok) throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
+
+        // 2) attendre la finalisation par le webhook
+        const ok = await waitForCompleted(orderId, 60); // augmente si besoin
+        if (!ok) {
+          msg.textContent = 'Paiement enregistré, finalisation en attente… Vous pourrez vérifier plus tard.';
+          resumeHB();
+          return;
+        }
+
+        // 3) succès
+        msg.textContent = 'Commande finalisée ✅';
+        try { await unlockSelection(); } catch {}
+        await refreshStatus();
+        try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
+      } catch (e) {
+        uiError(e, 'PayPal');
+        const msg = ensureMsgEl();
+        msg.textContent = 'Erreur pendant la finalisation.';
+        try { await unlockSelection(); } catch {}
+        resumeHB();
+      } finally {
+        btnBusy(false);
+      }
+    },
+
+    onCancel: async () => {
+      // new
+      try { clearInterval(__watch); } catch {}
+      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+      // new
+      const msg = ensureMsgEl();
+      msg.textContent = 'Paiement annulé.';
+      await unlockSelection();
+      btnBusy(false);
       resumeHB();
-      return;
+    },
+
+    onError: async (err) => {
+      // new
+      try { clearInterval(__watch); } catch {}
+      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+      // new
+      uiError(err, 'PayPal');
+      const msg = ensureMsgEl();
+      msg.textContent = 'Erreur de paiement.';
+      await unlockSelection();
+      btnBusy(false);
+      resumeHB();
     }
+  });
 
-    // 3) succès
-    msg.textContent = 'Commande finalisée ✅';
-    try { await unlockSelection(); } catch {}
-    await refreshStatus();
-    try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
-  } catch (e) {
-    uiError(e, 'PayPal');
-    const msg = ensureMsgEl();
-    msg.textContent = 'Erreur pendant la finalisation.';
-    try { await unlockSelection(); } catch {}
-    resumeHB();
-  } finally {
-    btnBusy(false);
-  }
-},
+}
 
-  onCancel: async () => {
-    const msg = ensureMsgEl();
-    msg.textContent = 'Paiement annulé.';
-    await unlockSelection();
-    btnBusy(false);
-    resumeHB();
-  },
 
-  onError: async (err) => {
-    uiError(err, 'PayPal');
-    const msg = ensureMsgEl();
-    msg.textContent = 'Erreur de paiement.';
-    await unlockSelection();
-    btnBusy(false);
-    resumeHB();
-  }
-});
-
-  }
 
   // Finalize flow
   async function doConfirm(){
@@ -310,7 +433,7 @@
     btnBusy(true);
 
     // Re-reserve just before start-order (defensive)
-    try {
+    /*try {
       if (window.LockManager) {
         const jr = await window.LockManager.lock(blocks, 180000);
         if (!jr || !jr.ok) {
@@ -332,8 +455,20 @@
       }
     } catch (e) {
       console.warn('[IW patch] pre-finalize reserve warning:', e);
-    }
+    }*/
 
+      //new
+      // No re-lock: si ma résa a expiré, on arrête net
+if (!haveMyValidLocks(blocks, 0)) {
+  await refreshStatus().catch(()=>{});
+  uiWarn('Your reservation expired. Please reselect your pixels.');
+  btnBusy(false);
+  // ne pas relancer le heartbeat si c’est mort
+  try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+  return;
+}
+
+      //new
     // === START-ORDER: le serveur prépare la commande et uploade l'image ===
     let start = null;
     try {
@@ -369,6 +504,18 @@
     if (fileInput && regionId) fileInput.dataset.regionId = regionId;
 
     uiInfo('Commande créée. Veuillez finaliser le paiement…');
+
+    // ✅ Pendant la fenetre PayPal: maintenir la resa sans exiger d’activité
+    try {
+      if (window.LockManager) {
+        const blocks = getSelectedIndices(); // mêmes blocs que pour la commande
+        window.LockManager.heartbeat.start(blocks, 4000, 180000, {
+          maxMs: 300000,        // 5 minutes “tampon” pour PayPal
+          autoUnlock: true,     // libère proprement si on stoppe
+          requireActivity: false // 🔴 très important pendant PayPal
+        });
+      }
+    } catch {}
 
     // → Afficher le bouton PayPal et laisser l’utilisateur payer
     showPaypalButton(orderId, currency);
