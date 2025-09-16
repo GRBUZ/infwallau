@@ -327,7 +327,9 @@ if (rpcErr) {
     }
 
     // 👇 ADD: inclure reqId + message DB pour poser un diagnostic rapide côté UI/logs
-    return bad(409, 'LOCK_MISSING_OR_EXPIRED', { reqId, rpc: rpcErr.message });
+    //return bad(409, 'LOCK_MISSING_OR_EXPIRED', { reqId, rpc: rpcErr.message });
+    return bad(500, 'RPC_FINALIZE_FAILED', { reqId, rpc: rpcErr.message });
+
   }
 
   // On a le "claim" → on tente le refund
