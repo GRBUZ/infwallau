@@ -65,7 +65,7 @@
     try { window.LockManager?.heartbeat?.stop?.(); } catch {}
   }
   
-  function resumeHB(){
+  /*function resumeHB(){
     if (!__processing) return;
     __processing = false;
     try {
@@ -83,7 +83,28 @@
     } catch {
       try { window.LockManager?.heartbeat?.stop?.(); } catch {}
     }
+  }*/
+ function resumeHB(){
+  if (!__processing) return;
+  __processing = false;
+  try {
+    const sel = (typeof getSelectedIndices === 'function') ? getSelectedIndices() : [];
+    // 👆 Changez de 0 à 10000 (10 secondes de grâce)
+    if (modal && !modal.classList.contains('hidden') && sel && sel.length && haveMyValidLocks(sel, 10000)) {
+      window.LockManager?.heartbeat?.start?.(sel, 30000, 180000, {
+        maxMs: 180000,
+        autoUnlock: true,
+        requireActivity: true
+      });
+    } else {
+      // 👆 Ajout de log pour debug
+      console.warn('[resumeHB] Cannot restart heartbeat - locks not valid or modal closed');
+      window.LockManager?.heartbeat?.stop?.();
+    }
+  } catch {
+    try { window.LockManager?.heartbeat?.stop?.(); } catch {}
   }
+}
 
   // UI helpers
   function uiWarn(msg){
@@ -421,7 +442,7 @@ function showPaypalButton(orderId, currency){
       return;
     }
 
-    //pauseHB();
+    pauseHB();
     btnBusy(true);
 
     // ÉTAPE CLÉ 1 : Renouvellement des locks au clic "Confirm" (+3 minutes)
