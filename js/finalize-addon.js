@@ -317,33 +317,24 @@ function showPaypalButton(orderId, currency){
     onApproved: async (data) => {
       // new
       try { clearInterval(__watch); } catch {}
-      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-      // new
-      try {
-        
-        // new — garde-fou: si mes locks ne sont plus valides → ne pas appeler le serveur
-        if (window.LockManager) {
-          const me = window.CoreManager?.uid;
-          const t = Date.now() + 300;
-          const loc = window.LockManager.getLocalLocks();
-          const blocks = (typeof getSelectedIndices==='function') ? getSelectedIndices() : [];
-          const stillOk = blocks.length && blocks.every(i => {
-            const l = loc[String(i)];
-            return l && l.uid === me && l.until > t;
-          });
-          if (!stillOk) {
-            const msg = ensureMsgEl();
-            msg.textContent = 'Reservation expired — reselect';
-            try { await unlockSelection(); } catch {}
-            btnBusy(false);
-            return;
-          }
-        }
-        // new
+  try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+  
+  try {
+    btnBusy(true);
+    const msg = ensureMsgEl();
+    msg.textContent = 'Paiement confirmé. Finalisation en cours…';
 
-        btnBusy(true);
-        const msg = ensureMsgEl();
-        msg.textContent = 'Paiement confirmé. Finalisation en cours…';
+    // ✅ NOUVEAU : Étendre les locks AVANT d'appeler le serveur
+    const blocks = (typeof getSelectedIndices==='function') ? getSelectedIndices() : [];
+    if (blocks.length && window.LockManager) {
+      console.log('[PayPal] Extending locks before server finalization...');
+      const extendResult = await window.LockManager.lock(blocks, 300000, { optimistic: false }); // 5 min
+      if (!extendResult.ok) {
+        console.error('[PayPal] Failed to extend locks:', extendResult);
+        throw new Error('Failed to extend reservation before payment processing');
+      }
+      console.log('[PayPal] Locks extended successfully');
+    }
 
         // 1) tagguer paypalOrderId côté serveur (auth via apiCall)
         const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
@@ -365,6 +356,8 @@ function showPaypalButton(orderId, currency){
         try { await unlockSelection(); } catch {}
         await refreshStatus();
         try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
+      
+        
       } catch (e) {
         uiError(e, 'PayPal');
         const msg = ensureMsgEl();
