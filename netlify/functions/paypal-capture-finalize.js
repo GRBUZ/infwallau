@@ -292,7 +292,7 @@ console.log('[DEBUG] Post-upsert error:', postErr);
     //logs
 
     // Ensuite, validation que l'upsert a réussi (optionnel mais recommandé)
-{
+/*{
   const nowIso = new Date().toISOString();
   const { data: myLocks, error: lockErr2 } = await supabase
     .from('locks')
@@ -315,7 +315,7 @@ console.log('[DEBUG] Post-upsert error:', postErr);
     // Si l'upsert a échoué (conflit), on refund
     return bad(409, 'LOCK_MISSING_OR_EXPIRED');
   }
-}
+}*/
     
 
     // 4) Finalisation atomique via RPC
@@ -402,7 +402,7 @@ console.log('[DEBUG] Post-upsert error:', postErr);
   }
 
   // Neither completed nor refunded → just surface the lock error.
-  return bad(409, 'LOCK_MISSING_OR_EXPIRED');
+  //return bad(409, 'LOCK_MISSING_OR_EXPIRED');
 }
 
 
