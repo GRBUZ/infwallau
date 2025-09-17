@@ -271,35 +271,41 @@ exports.handler = async (event) => {
     }
 
     // 🔍 STRICT LOCK VALIDATION (pas de ré-upsert)
+// 🔍 STRICT LOCK VALIDATION (count-only, anti-cap 1000)
 {
   const nowIso = new Date().toISOString();
-  const { data: myLocks, error: lockErr2 } = await supabase
+
+  // On ne récupère PAS les lignes (qui seraient limitées à 1000).
+  // On demande uniquement le COUNT exact via head:true.
+  const { count: validCount, error: lockErr2 } = await supabase
     .from('locks')
-    .select('idx')
+    .select('idx', { count: 'exact', head: true })
     .in('idx', blocks)
     .gt('until', nowIso)
     .eq('uid', uid);
 
+  // Petit log pour vérifier l'hypothèse “pile 1000”
+  console.log('[WEBHOOK][STRICT VALIDATION] validCount / expected =',
+              validCount, '/', blocks.length);
+
   if (lockErr2) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr2.message });
-  if (!myLocks || myLocks.length !== blocks.length) {
-    // Locks invalides → tenter refund (webhook a déjà la capture)
+
+  if ((validCount ?? 0) !== blocks.length) {
+    // ↓↓↓ réutilise ton code EXISTANT de la branche "refund + release + journal"
     const currencyForRefund = (order.currency || paidCurr || 'USD').toUpperCase();
 
     let refundedOk = false;
     let refundObj  = null;
     try {
-      const accessToken = await getPayPalAccessToken();   // 👈 déplacé DANS le try
+      const accessToken = await getPayPalAccessToken();
       refundObj = captureId
         ? await refundPayPalCapture(accessToken, captureId, paidTotal, currencyForRefund)
         : null;
       refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
-    } catch (_) {
-      // token/refund raté → on laissera refundedOk=false
-    }
+    } catch (_) {}
 
     try { await releaseLocks(supabase, blocks, uid); } catch (_) {}
 
-    // Journal DB : on écrit quoi qu'il arrive, même si PayPal a échoué
     const { error: updErr } = await supabase.from('orders').update({
       status: refundedOk ? 'refunded' : 'refund_failed',
       refund_status: refundedOk ? 'succeeded' : 'failed',
@@ -310,15 +316,13 @@ exports.handler = async (event) => {
       paypal_order_id: paypalOrderId || order.paypal_order_id || null,
       paypal_capture_id: captureId || order.paypal_capture_id || null,
       fail_reason: 'LOCKS_INVALID',
-      currency: currencyForRefund,                           // 👈 sécurise la devise
+      currency: currencyForRefund,
       updated_at: new Date().toISOString()
-    })
-    .eq('order_id', orderId);                                // 👈 cohérence du filtre
+    }).eq('order_id', orderId);
 
     if (updErr) console.error('[orders.update refund/LOCKS_INVALID]', updErr, { orderId });
 
     if (!refundedOk) {
-      // Journal GitHub en cas de refund raté (évite usedCurrency non défini ici)
       try {
         await logManualRefundNeeded({
           route: 'webhook',
@@ -327,7 +331,7 @@ exports.handler = async (event) => {
           regionId: regionUuid,
           blocks,
           amount: paidTotal,
-          currency: currencyForRefund,                       // 👈 pas de usedCurrency ici
+          currency: currencyForRefund,
           paypalOrderId: paypalOrderId || order.paypal_order_id || null,
           paypalCaptureId: captureId || order.paypal_capture_id || null,
           reason: 'LOCKS_INVALID',
@@ -339,6 +343,7 @@ exports.handler = async (event) => {
     return bad(409, 'LOCK_MISSING_OR_EXPIRED');
   }
 }
+
 
     // --- 5) Prix serveur
     const { count, error: countErr } = await supabase
