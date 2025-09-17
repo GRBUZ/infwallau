@@ -235,7 +235,8 @@ function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, opt
         // NE PAS arrêter le heartbeat pour un échec ponctuel
       }
     }
-  }, Math.max(1000, intervalMs));
+  }, Math.max(1000, intervalMs * (0.8 + Math.random() * 0.4))); // Entre 24s et 36s
+  //Math.max(1000, intervalMs));
 }
 
   function stopHeartbeat(){

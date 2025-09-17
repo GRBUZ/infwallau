@@ -90,7 +90,8 @@ exports.handler = async (event) => {
     const { data: lockRows, error: lockErr } = await supabase
       .from('locks')
       .select('idx, uid, until')
-      .gt('until', nowIso);
+      .gt('until', new Date(Date.now() - 15000).toISOString());
+      //.gt('until', nowIso);
 
     if (lockErr) {
       console.error('[reserve] Locks query failed:', lockErr);
@@ -112,7 +113,8 @@ exports.handler = async (event) => {
         .select('until')
         .eq('uid', uid)
         .in('idx', locked)
-        .gt('until', nowIso);
+        .gt('until', new Date(Date.now() - 15000).toISOString());
+        //.gt('until', nowIso);
 
       if (myErr) {
         console.error('[reserve] Self locks query failed:', myErr);

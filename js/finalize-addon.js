@@ -248,21 +248,6 @@ function showPaypalButton(orderId, currency){
     return;
   }
 
-  // Renouvellement des locks pour PayPal - SANS arrêter le heartbeat existant
-  try {
-    if (window.LockManager) {
-      const blocks = getSelectedIndices();
-      if (blocks.length && haveMyValidLocks(blocks, 1000)) {
-        // Juste renouveler les locks, garder le heartbeat qui tourne
-        window.LockManager.lock(blocks, 300000, { optimistic: false }).catch(e => {
-          console.warn('[PayPal] Lock renewal failed:', e);
-        });
-      }
-    }
-  } catch (e) {
-    console.warn('[PayPal] Lock renewal failed:', e);
-  }
-
   // Mini watcher pour l'expiration pendant PayPal
   let __watch;
   function setupPayPalExpiryBanner(){
@@ -479,6 +464,15 @@ function showPaypalButton(orderId, currency){
 
     uiInfo('Commande créée. Veuillez finaliser le paiement…');
 
+    // BUMP +3min AVANT PayPal (recommandation)
+    if (window.LockManager) {
+      try {
+        await window.LockManager.lock(blocks, 180000, { optimistic: false });
+        console.log('[Finalize] Extended locks before PayPal phase');
+      } catch (e) {
+        console.warn('[Finalize] Lock extension before PayPal failed:', e);
+      }
+    }
     // → Afficher le bouton PayPal (qui gère son propre renouvellement)
     showPaypalButton(orderId, currency);
 
