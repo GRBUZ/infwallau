@@ -271,11 +271,74 @@ exports.handler = async (event) => {
     }
 
     //new
-// 🔒 (Optionnel) Prolonger les locks en DB; pas de vérif JS: la DB tranche.
-try {
-  await supabase.rpc('bump_locks', { p_uid: uid, p_blocks: blocks, p_secs: 120 });
-} catch (_) {
-  // ignore: la RPC décidera
+    // 🔍 STRICT LOCK VALIDATION (pas de ré-upsert)
+{
+  const nowIso = new Date().toISOString();
+  const { data: myLocks, error: lockErr2 } = await supabase
+    .from('locks')
+    .select('idx')
+    .in('idx', blocks)
+    .gt('until', nowIso)
+    .eq('uid', uid);
+
+  if (lockErr2) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr2.message });
+  if (!myLocks || myLocks.length !== blocks.length) {
+    // Locks invalides → tenter refund (webhook a déjà la capture)
+    const currencyForRefund = (order.currency || paidCurr || 'USD').toUpperCase();
+
+    let refundedOk = false;
+    let refundObj  = null;
+    try {
+      const accessToken = await getPayPalAccessToken();   // 👈 déplacé DANS le try
+      refundObj = captureId
+        ? await refundPayPalCapture(accessToken, captureId, paidTotal, currencyForRefund)
+        : null;
+      refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+    } catch (_) {
+      // token/refund raté → on laissera refundedOk=false
+    }
+
+    try { await releaseLocks(supabase, blocks, uid); } catch (_) {}
+
+    // Journal DB : on écrit quoi qu'il arrive, même si PayPal a échoué
+    const { error: updErr } = await supabase.from('orders').update({
+      status: refundedOk ? 'refunded' : 'refund_failed',
+      refund_status: refundedOk ? 'succeeded' : 'failed',
+      needs_manual_refund: !refundedOk,
+      refund_attempted_at: new Date().toISOString(),
+      refund_error: refundedOk ? null : 'REFUND_FAILED',
+      refund_id: refundedOk ? (refundObj?.id || refundObj?.refund_id || null) : null,
+      paypal_order_id: paypalOrderId || order.paypal_order_id || null,
+      paypal_capture_id: captureId || order.paypal_capture_id || null,
+      fail_reason: 'LOCKS_INVALID',
+      currency: currencyForRefund,                           // 👈 sécurise la devise
+      updated_at: new Date().toISOString()
+    })
+    .eq('order_id', orderId);                                // 👈 cohérence du filtre
+
+    if (updErr) console.error('[orders.update refund/LOCKS_INVALID]', updErr, { orderId });
+
+    if (!refundedOk) {
+      // Journal GitHub en cas de refund raté (évite usedCurrency non défini ici)
+      try {
+        await logManualRefundNeeded({
+          route: 'webhook',
+          orderId,
+          uid,
+          regionId: regionUuid,
+          blocks,
+          amount: paidTotal,
+          currency: currencyForRefund,                       // 👈 pas de usedCurrency ici
+          paypalOrderId: paypalOrderId || order.paypal_order_id || null,
+          paypalCaptureId: captureId || order.paypal_capture_id || null,
+          reason: 'LOCKS_INVALID',
+          error: 'REFUND_FAILED'
+        });
+      } catch(_) {}
+    }
+
+    return bad(409, 'LOCK_MISSING_OR_EXPIRED');
+  }
 }
 
     //new

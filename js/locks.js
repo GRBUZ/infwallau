@@ -16,25 +16,24 @@
   const OTHERS_GRACE_MS = 3000;           // Grâce temporaire pour "trous" réseau
   let hbTimer = null;
   let hbBlocks = [];                       // blocks courants pour le heartbeat
-  const HB_INTERVAL_MS = 4000;
+  const HB_INTERVAL_MS = 30000;           // 30 secondes au lieu de 4
 
-  //new
-  // NEW — limites de durée et inactivité
+  // Limites de durée et inactivité
   let hbStartedAt = 0;
   let hbMaxMs = 180000;          // durée totale max du heartbeat (3 min)
-  let hbAutoUnlock = true;       // libérer automatiquement à l’arrêt
-  let hbRequireActivity = true;  // ne pas prolonger si l’utilisateur est inactif
+  let hbAutoUnlock = true;       // libérer automatiquement à l'arrêt
+  let hbRequireActivity = true;  // ne pas prolonger si l'utilisateur est inactif
   let lastActivityTs = Date.now();
-  const IDLE_LIMIT_MS = 180000;  // inactif après 3 min
+  const IDLE_LIMIT_MS = 120000;  // inactif après 2 min (au lieu de 3)
 
-  // NEW — on suivra un minimum d’activité côté client
+  // Suivre un minimum d'activité côté client
   (function attachActivityListenersOnce(){
     const bump = () => { lastActivityTs = Date.now(); };
     window.addEventListener('mousemove', bump, { passive:true });
     window.addEventListener('keydown',   bump, { passive:true });
     window.addEventListener('touchstart',bump, { passive:true });
+    window.addEventListener('click',     bump, { passive:true });
   })();
-  //new
 
   // Petit event emitter
   const listeners = new Set();
@@ -112,12 +111,12 @@
     if (changed) emitChange();
   }
 
-  /*async function lock(blocks, ttlMs = 180000){
+  async function lock(blocks, ttlMs = 180000, { optimistic = true } = {}){
     const indices = Array.isArray(blocks) ? blocks.map(n=>parseInt(n,10)).filter(Number.isInteger) : [];
     if (!indices.length) return { ok:false, locked: [], conflicts: [], locks: localLocks };
 
-    // Optimisme local
-    setLocalLocks(indices, ttlMs);
+    // Optimisme local seulement si demandé
+    if (optimistic) setLocalLocks(indices, ttlMs);
 
     // Appel serveur
     const res = await apiCall('/reserve', {
@@ -126,40 +125,15 @@
     });
 
     if (!res || !res.ok) {
-      // En cas d'échec, on ne retire pas tout localement: on laissera merge() corriger via /status
+      // Si on était en optimiste:false, on n'a rien modifié localement.
       return { ok:false, locked: [], conflicts: (res && res.conflicts) || [], locks: localLocks, error: res && res.error };
     }
 
-    // Ajuster localLocks avec la vérité renvoyée par le serveur (pour les autres uid)
+    // Ajuster localLocks avec la vérité renvoyée par le serveur
     localLocks = merge(res.locks || {});
     return { ok:true, locked: res.locked || [], conflicts: res.conflicts || [], locks: localLocks, ttlSeconds: res.ttlSeconds };
-  }*/
-
-    //new
-    async function lock(blocks, ttlMs = 180000, { optimistic = true } = {}){
-  const indices = Array.isArray(blocks) ? blocks.map(n=>parseInt(n,10)).filter(Number.isInteger) : [];
-  if (!indices.length) return { ok:false, locked: [], conflicts: [], locks: localLocks };
-
-  // Optimisme local seulement si demandé
-  if (optimistic) setLocalLocks(indices, ttlMs);
-
-  // Appel serveur
-  const res = await apiCall('/reserve', {
-    method: 'POST',
-    body: JSON.stringify({ blocks: indices, ttl: ttlMs })
-  });
-
-  if (!res || !res.ok) {
-    // Si on était en optimiste:false, on n'a rien modifié localement.
-    return { ok:false, locked: [], conflicts: (res && res.conflicts) || [], locks: localLocks, error: res && res.error };
   }
 
-  // Ajuster localLocks avec la vérité renvoyée par le serveur
-  localLocks = merge(res.locks || {});
-  return { ok:true, locked: res.locked || [], conflicts: res.conflicts || [], locks: localLocks, ttlSeconds: res.ttlSeconds };
-}
-
-    //new
   async function unlock(blocks){
     const indices = Array.isArray(blocks) ? blocks.map(n=>parseInt(n,10)).filter(Number.isInteger) : [];
     if (!indices.length) return { ok:true, locks: localLocks };
@@ -187,150 +161,98 @@
     return { ok:true, locks: localLocks };
   }
 
-  //new
-  function haveMyValidLocksStrict(indices, skewMs = 1500){
-  if (!Array.isArray(indices) || !indices.length) return false;
-  const t = Date.now() + Math.max(0, skewMs|0);
-  return indices.every(i => {
-    const l = localLocks[String(i)];
-    return l && l.uid === uid && l.until > t;
-  });
-}
-
-  //new
-  /*function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000){
-    stopHeartbeat();
-    hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
-    if (!hbBlocks.length) return;
-    lock(hbBlocks, ttlMs).catch(()=>{});
-
-    hbTimer = setInterval(()=>{
-      if (!hbBlocks.length) return;
-      lock(hbBlocks, ttlMs).catch(()=>{});
-    }, Math.max(500, intervalMs));
+  function haveMyValidLocksStrict(indices, skewMs = 1000){
+    if (!Array.isArray(indices) || !indices.length) return false;
+    const t = Date.now() + Math.max(0, skewMs|0);
+    return indices.every(i => {
+      const l = localLocks[String(i)];
+      return l && l.uid === uid && l.until > t;
+    });
   }
 
-  function stopHeartbeat(){
-    if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
-    hbBlocks = [];
-  }*/
-  /*function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, options = {}){
-  stopHeartbeat();
-  hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
-  if (!hbBlocks.length) return;
 
-  // options (toutes facultatives)
-  hbMaxMs           = Math.max(10000, options.maxMs || 180000);  // min 10s
-  hbAutoUnlock      = options.autoUnlock !== false;               // par défaut true
-  hbRequireActivity = options.requireActivity !== false;          // par défaut true
-
-  hbStartedAt    = Date.now();
-  lastActivityTs = Date.now();
-
-  // premier renew immédiat
-  lock(hbBlocks, ttlMs).catch(()=>{});
-
-  hbTimer = setInterval(async ()=>{
-    // cap de durée totale
-    if (Date.now() - hbStartedAt > hbMaxMs) {
-      stopHeartbeat();
-      if (hbAutoUnlock) { try { await unlock(hbBlocks); } catch {} }
-      return;
-    }
-    // inactivité prolongée
-    if (hbRequireActivity && (Date.now() - lastActivityTs > IDLE_LIMIT_MS)) {
-      stopHeartbeat();
-      if (hbAutoUnlock) { try { await unlock(hbBlocks); } catch {} }
-      return;
-    }
-    // renouveler le TTL
-    if (hbBlocks.length) lock(hbBlocks, ttlMs).catch(()=>{});
-  }, Math.max(500, intervalMs));
-}*/
-
-//new
 function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, options = {}){
   stopHeartbeat();
-   // Ne pas battre plus longtemps que le TTL réel côté serveur
-  hbMaxMs = Math.min(Math.max(10000, options.maxMs || ttlMs), ttlMs);
   hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
   if (!hbBlocks.length) return;
 
-  // options (facultatives)
-  hbMaxMs           = Math.max(10000, options.maxMs || 180000);
-  hbAutoUnlock      = options.autoUnlock !== false;          // défaut: true
-  hbRequireActivity = options.requireActivity !== false;     // défaut: true
-  const onlyExtendIfValid = options.onlyExtendIfValid !== false; // défaut: true
-  const skewMs = options.skewMs ?? 1500;
+  // Options avec valeurs par défaut
+  hbMaxMs = Math.max(30000, options.maxMs || 180000); // min 30s, défaut 3min
+  hbAutoUnlock = options.autoUnlock !== false;
+  hbRequireActivity = options.requireActivity !== false;
 
-  hbStartedAt    = Date.now();
+  hbStartedAt = Date.now();
   lastActivityTs = Date.now();
 
-  // ❗ Ne pas (re)locker si déjà expiré
-  if (onlyExtendIfValid && !haveMyValidLocksStrict(hbBlocks, skewMs)) {
-    return; // on ne démarre pas le heartbeat
-  }
+  console.log('[LockManager] Starting heartbeat for', hbBlocks.length, 'blocks, maxMs:', hbMaxMs, 'requireActivity:', hbRequireActivity);
 
-  // Premier renew (prolonge seulement si serveur OK)
-  lock(hbBlocks, ttlMs, { optimistic: false }).catch(()=>{});
+  // Premier renouvellement avec optimisme (on vient juste de créer ces locks)
+  lock(hbBlocks, ttlMs, { optimistic: true }).catch((e) => {
+    console.warn('[LockManager] Initial heartbeat lock failed:', e);
+  });
 
-  hbTimer = setInterval(async ()=>{
+  hbTimer = setInterval(async () => {
     const now = Date.now();
+    const blocksSnapshot = hbBlocks.slice();
+    const elapsed = now - hbStartedAt;
+
+    // DEBUG: Log pour diagnostiquer
+    console.log(`[Heartbeat] tick - elapsed=${elapsed}ms, maxMs=${hbMaxMs}, blocks=${blocksSnapshot.length}`);
 
     // Cap de durée totale
-    //if (now - hbStartedAt > hbMaxMs) {
-      //stopHeartbeat();
-      //if (hbAutoUnlock) { try { await unlock(hbBlocks); } catch {} }
-      //return;
-    //}
-    // Inactivité prolongée
-    //if (hbRequireActivity && (now - lastActivityTs > IDLE_LIMIT_MS)) {
-      //stopHeartbeat();
-      //if (hbAutoUnlock) { try { await unlock(hbBlocks); } catch {} }
-      //return;
-    //}
-    //new
-      // cap de durée totale
-   if (Date.now() - hbStartedAt > hbMaxMs) {
-     const blocksSnapshot = hbBlocks.slice();
-     stopHeartbeat();
-     if (hbAutoUnlock && blocksSnapshot.length) { try { await unlock(blocksSnapshot); } catch {} }
-     return;
-   }
-   // inactivité prolongée
-   if (hbRequireActivity && (Date.now() - lastActivityTs > IDLE_LIMIT_MS)) {
-     const blocksSnapshot = hbBlocks.slice();
-     stopHeartbeat();
-     if (hbAutoUnlock && blocksSnapshot.length) { try { await unlock(blocksSnapshot); } catch {} }
-     return;
-   }
-    //new
-    // ⛔️ Si mes locks ne sont plus valides → stop, surtout pas de relock
-    if (onlyExtendIfValid && !haveMyValidLocksStrict(hbBlocks, skewMs)) {
+    if (elapsed > hbMaxMs) {
+      console.log('[LockManager] Heartbeat max duration reached, stopping');
       stopHeartbeat();
-      // on n'appelle pas unlock ici : ils ne sont plus à nous
+      if (hbAutoUnlock && blocksSnapshot.length) { 
+        try { await unlock(blocksSnapshot); } catch {} 
+      }
       return;
     }
 
-    // OK : prolongation côté serveur (sans optimisme local)
-    if (hbBlocks.length) lock(hbBlocks, ttlMs, { optimistic: false }).catch(()=>{});
-  }, Math.max(500, intervalMs));
+    // Inactivité prolongée
+    if (hbRequireActivity && (now - lastActivityTs > IDLE_LIMIT_MS)) {
+      console.log('[LockManager] User inactive for too long, stopping heartbeat');
+      stopHeartbeat();
+      if (hbAutoUnlock && blocksSnapshot.length) { 
+        try { await unlock(blocksSnapshot); } catch {} 
+      }
+      return;
+    }
+
+    // Renouvellement (PAS d'optimisme local - on fait confiance au serveur)
+    if (blocksSnapshot.length) {
+      try {
+        const result = await lock(blocksSnapshot, ttlMs, { optimistic: false });
+        if (!result || !result.ok) {
+          console.warn('[LockManager] Heartbeat renewal failed - server rejected:', result?.error);
+          // NE PAS arrêter le heartbeat pour un échec ponctuel
+          // Le serveur peut être temporairement surchargé
+        } else {
+          console.log('[LockManager] Heartbeat renewal success');
+        }
+      } catch (e) {
+        console.warn('[LockManager] Heartbeat renewal failed - network error:', e);
+        // NE PAS arrêter le heartbeat pour un échec ponctuel
+      }
+    }
+  }, Math.max(1000, intervalMs));
 }
 
-//new
-function stopHeartbeat(){
-  if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
-  hbBlocks = [];
-  hbStartedAt = 0;
-}
-
+  function stopHeartbeat(){
+    if (hbTimer) { 
+      clearInterval(hbTimer); 
+      hbTimer = null; 
+      console.log('[LockManager] Heartbeat stopped');
+    }
+    hbBlocks = [];
+    hbStartedAt = 0;
+  }
 
   function setHeartbeatBlocks(blocks){
     hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
   }
 
   function getSnapshot(){
-    // Shallow copy
     return { locks: { ...localLocks }, uid };
   }
 

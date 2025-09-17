@@ -262,9 +262,9 @@
       setPayPalEnabled(ok);
 
       // Si expiré, on coupe le "keepalive" pour éviter tout relock
-      /*if (!ok) {
+      if (!ok) {
         window.LockManager.heartbeat.stop();
-      }*/
+      }
 
     }, 5000); // Check moins fréquent (5 secondes au lieu de 1,5)
   }
@@ -430,9 +430,9 @@
           setPayPalEnabled(ok);
 
           // Si expiré, on coupe le "keepalive" pour éviter tout relock
-          /*if (!ok) {
+          if (!ok) {
             window.LockManager.heartbeat.stop();
-          }*/
+          }
         }
       }
 
