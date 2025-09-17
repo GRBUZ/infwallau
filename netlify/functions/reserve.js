@@ -23,6 +23,50 @@ function genRegionId(uid, blocks){
   return crypto.createHash('sha1').update(seed).digest('hex').slice(0, 12);
 }
 
+// --- helpers pagination (anti-cap 1000)
+async function selectAllLocks(supabase, { thresholdIso }) {
+  const page = 1000;
+  let from = 0;
+  let out = [];
+  for (;;) {
+    const { data, error } = await supabase
+      .from('locks')
+      .select('idx, uid, until')
+      .gt('until', thresholdIso)
+      .order('idx', { ascending: true })
+      .range(from, from + page - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    out = out.concat(data);
+    if (data.length < page) break;
+    from += page;
+  }
+  return out;
+}
+
+async function selectAllMyLocksFor(supabase, { uid, idxs, thresholdIso }) {
+  if (!Array.isArray(idxs) || !idxs.length) return [];
+  const page = 1000;
+  let from = 0;
+  let out = [];
+  for (;;) {
+    const { data, error } = await supabase
+      .from('locks')
+      .select('until, idx')
+      .eq('uid', uid)
+      .in('idx', idxs)
+      .gt('until', thresholdIso)
+      .order('idx', { ascending: true })
+      .range(from, from + page - 1);
+    if (error) throw error;
+    if (!data || !data.length) break;
+    out = out.concat(data);
+    if (data.length < page) break;
+    from += page;
+  }
+  return out;
+}
+
 exports.handler = async (event) => {
   try{
     if (event.httpMethod !== 'POST') return bad(405, 'METHOD_NOT_ALLOWED');
@@ -85,16 +129,13 @@ exports.handler = async (event) => {
     soldSet.forEach(i => reqSet.delete(i)); // déjà exclus, mais on peut les compter comme conflits
     const conflicts = Array.from(reqSet);
 
-    // 4) Reconstituer l'état des locks pour le front (tous les locks courants)
-    const nowIso = new Date().toISOString();
-    const { data: lockRows, error: lockErr } = await supabase
-      .from('locks')
-      .select('idx, uid, until')
-      .gt('until', new Date(Date.now() - 15000).toISOString());
-      //.gt('until', nowIso);
-
-    if (lockErr) {
-      console.error('[reserve] Locks query failed:', lockErr);
+    // 4) Reconstituer l'état des locks pour le front (TOUS les locks courants, paginés)
+    const thresholdIso = new Date(Date.now() - 15000).toISOString(); // petite fenêtre de grâce
+    let lockRows;
+    try {
+      lockRows = await selectAllLocks(supabase, { thresholdIso });
+    } catch (lockErr) {
+      console.error('[reserve] Locks query (paged) failed:', lockErr);
       return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr.message });
     }
 
@@ -105,19 +146,18 @@ exports.handler = async (event) => {
       locks[k] = { uid: r.uid, until: untilMs };
     }
 
-    // 5) regionId + until (max des until pour les blocs lockés par ce user)
+    // 5) regionId + until (max des until pour les blocs lockés par ce user) — paginé
     let until = 0;
     if (locked.length) {
-      const { data: myLockRows, error: myErr } = await supabase
-        .from('locks')
-        .select('until')
-        .eq('uid', uid)
-        .in('idx', locked)
-        .gt('until', new Date(Date.now() - 15000).toISOString());
-        //.gt('until', nowIso);
-
-      if (myErr) {
-        console.error('[reserve] Self locks query failed:', myErr);
+      let myLockRows = [];
+      try {
+        myLockRows = await selectAllMyLocksFor(supabase, {
+          uid,
+          idxs: locked,
+          thresholdIso
+        });
+      } catch (myErr) {
+        console.error('[reserve] Self locks query (paged) failed:', myErr);
         return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: myErr.message });
       }
       
@@ -137,7 +177,7 @@ exports.handler = async (event) => {
       until
     };
 
-    console.log(`[reserve] Success: locked=${locked.length}, conflicts=${conflicts.length}, until=${new Date(until).toISOString()}`);
+    console.log(`[reserve] Success: locked=${locked.length}, conflicts=${conflicts.length}, until=${until ? new Date(until).toISOString() : '0'}`);
 
     return ok(result);
 
