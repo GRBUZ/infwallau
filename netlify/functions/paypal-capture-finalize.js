@@ -239,19 +239,6 @@ exports.handler = async (event) => {
     const imageUrl = order.image_url || null;
     const amount   = Number(capValue);
 
-    // 🔒 (Ré)appliquer les locks 2 min juste avant la RPC
-    /*try {
-      const until = new Date(Date.now() + 2 * 60 * 1000).toISOString();
-      const upsertRows = blocksOk.map(idx => ({ idx, uid, until }));
-      const { error: upsertErr } = await supabase.from('locks').upsert(upsertRows, { onConflict: 'idx' });
-      if (upsertErr) {
-        return bad(500, 'LOCKS_UPSERT_FAILED', { message: upsertErr.message });
-      }
-    } catch (e) {
-      return bad(500, 'LOCKS_UPSERT_FAILED', { message: String(e?.message || e) });
-    }*/
-    
-      //new
       // 🔍 STRICT LOCK VALIDATION (pas de ré-upsert)
     {
       const nowIso = new Date().toISOString();
@@ -285,19 +272,6 @@ exports.handler = async (event) => {
 
 
         const weOwnRefund = !claimErr && Array.isArray(claimRows) && claimRows.length > 0;
-        /*if (!weOwnRefund) {
-          return ok({
-            status: 'completed',
-            orderId,
-            regionId,
-            imageUrl: imageUrl || null,
-            paypalOrderId,
-            paypalCaptureId: captureId,
-            unitPrice,
-            total: serverTotal,
-            currency
-          });
-        }*/
           if (!weOwnRefund) {
   // Re-read the order to see what happened meanwhile (webhook likely acted)
   const { data: fresh } = await supabase
@@ -387,8 +361,6 @@ exports.handler = async (event) => {
       }
     }
 
-      //new
-
     // 4) Finalisation atomique via RPC
     const orderUuid = (await import('node:crypto')).randomUUID();
     const { error: rpcErr } = await supabase.rpc('finalize_paid_order', {
@@ -432,19 +404,6 @@ exports.handler = async (event) => {
 
       const weOwnRefund = !claimErr && Array.isArray(claimRows) && claimRows.length > 0;
 
-      /*if (!weOwnRefund) {
-        return ok({
-          status: 'completed',
-          orderId,
-          regionId,
-          imageUrl: imageUrl || null,
-          paypalOrderId,
-          paypalCaptureId: captureId,
-          unitPrice,
-          total: serverTotal,
-          currency
-        });
-      }*/
      if (!weOwnRefund) {
   // Re-read the order to see what happened meanwhile (webhook likely acted)
   const { data: fresh } = await supabase
@@ -475,7 +434,6 @@ exports.handler = async (event) => {
   // Neither completed nor refunded → just surface the lock error.
   return bad(409, 'LOCK_MISSING_OR_EXPIRED');
 }
-
 
       // On a le "claim" → on tente le refund
       let refundedOk = false;

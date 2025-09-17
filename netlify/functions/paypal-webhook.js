@@ -270,7 +270,6 @@ exports.handler = async (event) => {
       return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
     }
 
-    //new
     // 🔍 STRICT LOCK VALIDATION (pas de ré-upsert)
 {
   const nowIso = new Date().toISOString();
@@ -341,7 +340,6 @@ exports.handler = async (event) => {
   }
 }
 
-    //new
     // --- 5) Prix serveur
     const { count, error: countErr } = await supabase
       .from('cells')
