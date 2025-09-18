@@ -61,32 +61,37 @@ exports.handler = async (event) => {
 
     //new pagination
     // Dans status.js, remplacer la requête locks par :
+// ===== 2) LOCKS: verrous non expirés (paginé)
 const lockRows = [];
 let from = 0;
 const pageSize = 1000;
-const nowIso = new Date().toISOString();
-let allLocks = [];
+// petite grâce pour éviter les clignotements côté UI
+const cutoff = new Date(Date.now() - 15_000).toISOString();
+
 while (true) {
   const { data, error } = await supabase
     .from('locks')
     .select('idx, uid, until')
-    .gt('until', nowIso)
+    .gt('until', cutoff)
+    .order('idx', { ascending: true })
     .range(from, from + pageSize - 1);
-    
+
   if (error) return bad(500, 'DB_LOCKS_QUERY_FAILED', { message: error.message });
   if (!data || data.length === 0) break;
-  
+
   lockRows.push(...data);
   if (data.length < pageSize) break;
   from += pageSize;
 }
+
 // Transformer en objet clé=idx (string) -> { uid, until }
 const locks = {};
-for (const r of allLocks) {
+for (const r of lockRows) {           // <-- ICI: utiliser lockRows, pas allLocks
   const k = String(r.idx);
   const untilMs = r.until ? new Date(r.until).getTime() : 0;
   locks[k] = { uid: r.uid, until: untilMs };
 }
+
     //new pagination
 
     // ===== 2) LOCKS: verrous non expirés
