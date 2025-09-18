@@ -64,7 +64,7 @@ exports.handler = async (event) => {
 const lockRows = [];
 let from = 0;
 const pageSize = 1000;
-
+const nowIso = new Date().toISOString();
 while (true) {
   const { data, error } = await supabase
     .from('locks')
