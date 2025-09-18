@@ -292,12 +292,14 @@ function resetModalAppState() {
   }
 
   function openModal(){
+    
     //new reset modal
-    resetModalAppState();
+    //resetModalAppState();
 
     // Notifier les autres modules (finalize-addon.js) pour leur propre cleanup
-    document.dispatchEvent(new CustomEvent('modal:opening'));
+    //document.dispatchEvent(new CustomEvent('modal:opening'));
     //new rest modal
+    
     modal.classList.remove('hidden');
 
     // Stats
@@ -324,7 +326,7 @@ function resetModalAppState() {
   
   function closeModal(){
     // Notifier les autres modules de la fermeture (pour cleanup)
-    document.dispatchEvent(new CustomEvent('modal:closing'));
+    //document.dispatchEvent(new CustomEvent('modal:closing'));
     modal.classList.add('hidden');
     window.LockManager.heartbeat.stop();
     stopModalMonitor();
