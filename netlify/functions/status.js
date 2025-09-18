@@ -60,41 +60,27 @@ exports.handler = async (event) => {
     }
 
     //new pagination
-    // --- Récupérer TOUS les locks actifs, au-delà de 1000 ---
-// Remplace ton appel .from('locks').select(...).gt('until', ...) par ceci.
-const PAGE = 5000; // tu peux mettre 5000 ou 10000
+    // Dans status.js, remplacer la requête locks par :
+const lockRows = [];
 let from = 0;
-let to   = PAGE - 1;
-let allLocks = [];
+const pageSize = 1000;
 
-for (;;) {
+while (true) {
   const { data, error } = await supabase
     .from('locks')
     .select('idx, uid, until')
-    .gt('until', new Date(Date.now() - 15000).toISOString()) // même filtre que ton reserve.js
-    .order('idx', { ascending: true })
-    .range(from, to); // <<< IMPORTANT
-
-  if (error) {
-    console.error('[status] locks page error:', error);
-    return bad(500, 'LOCKS_QUERY_FAILED', { message: error.message });
-  }
-
-  allLocks = allLocks.concat(data || []);
-  if (!data || data.length < PAGE) break; // dernière page
-  from += PAGE;
-  to   += PAGE;
+    .gt('until', nowIso)
+    .range(from, from + pageSize - 1);
+    
+  if (error) return bad(500, 'DB_LOCKS_QUERY_FAILED', { message: error.message });
+  if (!data || data.length === 0) break;
+  
+  lockRows.push(...data);
+  if (data.length < pageSize) break;
+  from += pageSize;
 }
-
-// Transformer en objet clé=idx (string) -> { uid, until }
-const locks = {};
-for (const r of allLocks) {
-  const k = String(r.idx);
-  const untilMs = r.until ? new Date(r.until).getTime() : 0;
-  locks[k] = { uid: r.uid, until: untilMs };
-}
-
     //new pagination
+
     // ===== 2) LOCKS: verrous non expirés
     /*const nowIso = new Date().toISOString();
     const { data: lockRows, error: lockErr } = await supabase
