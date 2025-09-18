@@ -124,6 +124,17 @@
       body: JSON.stringify({ blocks: indices, ttl: ttlMs })
     });
 
+    //debug
+    // 🔍 AJOUTE CE DEBUG
+console.log('🔍 Reserve API Response:', {
+  ok: res?.ok,
+  locked_count: res?.locked?.length,
+  requested_count: indices.length,
+  first_10_locked: res?.locked?.slice(0, 10),
+  last_10_locked: res?.locked?.slice(-10)
+});
+    //debug
+
     if (!res || !res.ok) {
       // Si on était en optimiste:false, on n'a rien modifié localement.
       return { ok:false, locked: [], conflicts: (res && res.conflicts) || [], locks: localLocks, error: res && res.error };
