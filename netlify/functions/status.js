@@ -65,6 +65,7 @@ const lockRows = [];
 let from = 0;
 const pageSize = 1000;
 const nowIso = new Date().toISOString();
+let allLocks = [];
 while (true) {
   const { data, error } = await supabase
     .from('locks')
