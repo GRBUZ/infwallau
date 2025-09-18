@@ -79,6 +79,13 @@ while (true) {
   if (data.length < pageSize) break;
   from += pageSize;
 }
+// Transformer en objet clé=idx (string) -> { uid, until }
+const locks = {};
+for (const r of allLocks) {
+  const k = String(r.idx);
+  const untilMs = r.until ? new Date(r.until).getTime() : 0;
+  locks[k] = { uid: r.uid, until: untilMs };
+}
     //new pagination
 
     // ===== 2) LOCKS: verrous non expirés
