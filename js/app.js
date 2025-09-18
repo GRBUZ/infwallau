@@ -210,6 +210,24 @@
     toggleCell(idx);
   });
 
+  //new reset modal
+  // --- reset uniquement l'état "app.js" (formulaire de base + input fichier)
+function resetModalAppState() {
+  if (linkInput)  linkInput.value  = '';
+  if (nameInput)  nameInput.value  = '';
+  if (emailInput) emailInput.value = '';
+
+  const fileInput =
+    document.getElementById('avatar') ||
+    document.getElementById('file')   ||
+    document.querySelector('input[type="file"]');
+
+  if (fileInput) {
+    fileInput.value = '';
+    // On NE touche PAS à fileInput.dataset.regionId : c'est finalize-addon qui gère.
+  }
+}
+  //new reset modal
   //new fermeture modal paypal
   function setPayPalEnabled(enabled){
     const c = document.getElementById('paypal-button-container');
@@ -274,6 +292,12 @@
   }
 
   function openModal(){
+    //new reset modal
+    resetModalAppState();
+
+    // Notifier les autres modules (finalize-addon.js) pour leur propre cleanup
+    document.dispatchEvent(new CustomEvent('modal:opening'));
+    //new rest modal
     modal.classList.remove('hidden');
 
     // Stats
@@ -299,6 +323,8 @@
   }
   
   function closeModal(){
+    // Notifier les autres modules de la fermeture (pour cleanup)
+    document.dispatchEvent(new CustomEvent('modal:closing'));
     modal.classList.add('hidden');
     window.LockManager.heartbeat.stop();
     stopModalMonitor();
