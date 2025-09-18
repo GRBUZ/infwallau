@@ -324,12 +324,54 @@ function showPaypalButton(orderId, currency){
         }
 
         // 1) tagguer paypalOrderId côté serveur
-        const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
-          method: 'POST',
-          body: JSON.stringify({ orderId, paypalOrderId: data.orderID })
-        });
+        //const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
+          //method: 'POST',
+          //body: JSON.stringify({ orderId, paypalOrderId: data.orderID })
+        //});
         
-        if (!res?.ok) throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
+        //if (!res?.ok) throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
+
+        //new retry paypal
+        const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
+  method: 'POST',
+  body: JSON.stringify({ orderId, paypalOrderId: data.orderID })
+});
+
+// 🔁 Cas PayPal "INSTRUMENT_DECLINED" → relancer le flux sans casser les locks
+if (!res?.ok) {
+  const name   = res?.details?.name || '';
+  const issues = Array.isArray(res?.details?.details) ? res.details.details.map(d => d.issue) : [];
+  const isInstrDeclined = res?.error === 'INSTRUMENT_DECLINED'
+                       || (name === 'UNPROCESSABLE_ENTITY' && issues.includes('INSTRUMENT_DECLINED'));
+
+  if (isInstrDeclined) {
+    // Laisser l'utilisateur re-tenter le paiement : on conserve les locks et on ne stoppe pas le heartbeat
+    const msgEl = ensureMsgEl();
+    msgEl.textContent = 'Paiement refusé par la banque. Veuillez réessayer dans PayPal…';
+
+    // Le wrapper doit exposer un redémarrage; sinon, on re-render le bouton
+    if (window.PayPalIntegration?.restart) {
+      window.PayPalIntegration.restart(data);   // passe l’ordre courant au wrapper
+    } else {
+      // fallback: re-render le bouton
+      removePaypalContainer();
+      window.PayPalIntegration.initAndRender({
+        orderId,
+        currency,
+        onApproved: arguments.callee,            // réutilise le même handler
+        onCancel:   this.onCancel,
+        onError:    this.onError
+      });
+    }
+
+    btnBusy(false);
+    return; // ⛔ ne pas poursuivre ni libérer les locks
+  }
+
+  // Autres erreurs → flux normal d’erreur
+  throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
+}
+        //new retry paypal
 
         // 2) attendre la finalisation par le webhook
         const ok = await waitForCompleted(orderId, 60);

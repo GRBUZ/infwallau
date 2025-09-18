@@ -188,7 +188,50 @@ exports.handler = async (event) => {
     }
 
     // CAPTURE si nécessaire
-    let capture;
+    //new retry
+    // CAPTURE si nécessaire
+let capture;
+if (ppOrder.status !== 'COMPLETED') {
+  const captureRes = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders/${paypalOrderId}/capture`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    },
+    body: JSON.stringify({})
+  });
+
+  const capJson = await captureRes.json().catch(()=> ({}));
+
+  if (!captureRes.ok) {
+    // Cas classique PayPal pour moyens de paiement refusés : demander au client de redémarrer le flux
+    const name   = (capJson && capJson.name) || '';
+    const issues = Array.isArray(capJson?.details) ? capJson.details.map(d => d.issue) : [];
+    const isInstrDeclined = name === 'UNPROCESSABLE_ENTITY' && issues.includes('INSTRUMENT_DECLINED');
+
+    if (isInstrDeclined) {
+      return bad(409, 'INSTRUMENT_DECLINED', {
+        retriable: true,
+        details: capJson
+      });
+    }
+
+    return bad(502, 'PAYPAL_CAPTURE_FAILED', { details: capJson });
+  }
+
+  capture = capJson;
+
+  if (capture.status !== 'COMPLETED') {
+    // Ex: PAYER_ACTION_REQUIRED ou autre état non-terminal
+    return bad(502, 'PAYPAL_CAPTURE_NOT_COMPLETED', { paypalStatus: capture.status, details: capture });
+  }
+} else {
+  capture = ppOrder;
+}
+
+    //new retry paypal
+    /*let capture;
     if (ppOrder.status !== 'COMPLETED') {
       const captureRes = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders/${paypalOrderId}/capture`, {
         method: 'POST',
@@ -209,7 +252,7 @@ exports.handler = async (event) => {
       }
     } else {
       capture = ppOrder;
-    }
+    }*/
 
     // Extraire captureId + montants
     const pu0 = (capture.purchase_units && capture.purchase_units[0]) || {};
