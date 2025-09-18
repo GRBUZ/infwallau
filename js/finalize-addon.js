@@ -412,7 +412,19 @@
           try { window.LockManager?.heartbeat?.stop?.(); } catch {}
           try { await unlockSelection(); } catch {}
           await refreshStatus();
+
+          //new fix
+          // ✅ Forcer le rendu immédiat (URL + blocage de sélection)
+          try { if (typeof window.paintAll === 'function') window.paintAll(); } catch {}
+
           try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
+
+          // ✅ Filet de sécurité : recheck + repaint juste après la fermeture
+          setTimeout(async () => {
+            try { await refreshStatus(); if (typeof window.paintAll === 'function') window.paintAll(); } catch {}
+          }, 200);
+          //new fix
+          //try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
 
         } catch (e) {
           uiError(e, 'PayPal');
