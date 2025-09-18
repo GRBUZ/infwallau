@@ -295,111 +295,94 @@ function showPaypalButton(orderId, currency){
     orderId,
     currency: currency || 'USD',
 
-    onApproved: async (data) => {
-      // NE PAS arrêter le heartbeat ici - on en a besoin pour valider les locks
-      try { clearInterval(__watch); } catch {}
-      
-      try {
-        btnBusy(true);
-        const msg = ensureMsgEl();
-        msg.textContent = 'Paiement confirmé. Finalisation en cours…';
+onApproved: async (data, actions) => {
+  // NE PAS arrêter le heartbeat ici - on en a besoin pour valider les locks
+  try { clearInterval(__watch); } catch {}
 
-        // Garde-fou final : vérifier les locks AVANT d'arrêter le heartbeat
-        if (window.LockManager) {
-          const me = window.CoreManager?.uid;
-          const t = Date.now() + 1000;
-          const loc = window.LockManager.getLocalLocks();
-          const blocks = getSelectedIndices();
-          const stillOk = blocks.length && blocks.every(i => {
-            const l = loc[String(i)];
-            return l && l.uid === me && l.until > t;
-          });
-          
-          if (!stillOk) {
-            msg.textContent = 'Reservation expired — reselect';
-            try { await unlockSelection(); } catch {}
-            btnBusy(false);
-            return;
-          }
-        }
+  try {
+    btnBusy(true);
+    const msg = ensureMsgEl();
+    msg.textContent = 'Paiement confirmé. Finalisation en cours…';
 
-        // 1) tagguer paypalOrderId côté serveur
-        //const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
-          //method: 'POST',
-          //body: JSON.stringify({ orderId, paypalOrderId: data.orderID })
-        //});
-        
-        //if (!res?.ok) throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
-
-        //new retry paypal
-        const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
-  method: 'POST',
-  body: JSON.stringify({ orderId, paypalOrderId: data.orderID })
-});
-
-// 🔁 Cas PayPal "INSTRUMENT_DECLINED" → relancer le flux sans casser les locks
-if (!res?.ok) {
-  const name   = res?.details?.name || '';
-  const issues = Array.isArray(res?.details?.details) ? res.details.details.map(d => d.issue) : [];
-  const isInstrDeclined = res?.error === 'INSTRUMENT_DECLINED'
-                       || (name === 'UNPROCESSABLE_ENTITY' && issues.includes('INSTRUMENT_DECLINED'));
-
-  if (isInstrDeclined) {
-    // Laisser l'utilisateur re-tenter le paiement : on conserve les locks et on ne stoppe pas le heartbeat
-    const msgEl = ensureMsgEl();
-    msgEl.textContent = 'Paiement refusé par la banque. Veuillez réessayer dans PayPal…';
-
-    // Le wrapper doit exposer un redémarrage; sinon, on re-render le bouton
-    if (window.PayPalIntegration?.restart) {
-      window.PayPalIntegration.restart(data);   // passe l’ordre courant au wrapper
-    } else {
-      // fallback: re-render le bouton
-      removePaypalContainer();
-      window.PayPalIntegration.initAndRender({
-        orderId,
-        currency,
-        onApproved: arguments.callee,            // réutilise le même handler
-        onCancel:   this.onCancel,
-        onError:    this.onError
+    // Garde-fou final : vérifier les locks AVANT d'arrêter le heartbeat
+    if (window.LockManager) {
+      const me = window.CoreManager?.uid;
+      const t = Date.now() + 1000;
+      const loc = window.LockManager.getLocalLocks();
+      const blocks = getSelectedIndices();
+      const stillOk = blocks.length && blocks.every(i => {
+        const l = loc[String(i)];
+        return l && l.uid === me && l.until > t;
       });
+      if (!stillOk) {
+        msg.textContent = 'Reservation expired — reselect';
+        try { await unlockSelection(); } catch {}
+        btnBusy(false);
+        return;
+      }
     }
 
-    btnBusy(false);
-    return; // ⛔ ne pas poursuivre ni libérer les locks
-  }
+    // 1) capture côté serveur
+    const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
+      method: 'POST',
+      body: JSON.stringify({ orderId, paypalOrderId: data.orderID })
+    });
 
-  // Autres erreurs → flux normal d’erreur
-  throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
-}
-        //new retry paypal
+    // 🔁 Cas PayPal "INSTRUMENT_DECLINED" → redémarrer le flux PayPal sans casser les locks
+    if (!res?.ok) {
+      const name   = res?.details?.name || '';
+      const issues = Array.isArray(res?.details?.details) ? res.details.details.map(d => d.issue) : [];
+      const isInstrDeclined = res?.error === 'INSTRUMENT_DECLINED'
+                           || (name === 'UNPROCESSABLE_ENTITY' && issues.includes('INSTRUMENT_DECLINED'));
 
-        // 2) attendre la finalisation par le webhook
-        const ok = await waitForCompleted(orderId, 60);
-        
-        if (!ok) {
-          msg.textContent = 'Paiement enregistré, finalisation en attente… Vous pourrez vérifier plus tard.';
-          // Garder le heartbeat actif
-          return;
+      if (isInstrDeclined) {
+        const msgEl = ensureMsgEl();
+        msgEl.textContent = 'Paiement refusé par la banque. Veuillez réessayer dans PayPal…';
+
+        // ✅ voie officielle du SDK
+        if (actions && typeof actions.restart === 'function') {
+          btnBusy(false);
+          await actions.restart();
+          return; // ne pas poursuivre
         }
 
-        // 3) succès - MAINTENANT on peut arrêter le heartbeat
-        msg.textContent = 'Commande finalisée ✅';
-        try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-        try { await unlockSelection(); } catch {}
-        await refreshStatus();
-        try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
-        
-      } catch (e) {
-        uiError(e, 'PayPal');
-        const msg = ensureMsgEl();
-        msg.textContent = 'Erreur pendant la finalisation.';
-        // En cas d'erreur, libérer les locks
-        try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-        try { await unlockSelection(); } catch {}
-      } finally {
+        // Fallback minimal si jamais actions.restart n’est pas dispo
         btnBusy(false);
+        uiWarn('Impossible de relancer automatiquement le paiement. Merci de recliquer sur le bouton PayPal.');
+        return;
       }
-    },
+
+      // Autres erreurs → flux normal d’erreur
+      throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
+    }
+
+    // 2) attendre la finalisation par le webhook
+    const ok = await waitForCompleted(orderId, 60);
+    if (!ok) {
+      msg.textContent = 'Paiement enregistré, finalisation en attente… Vous pourrez vérifier plus tard.';
+      // Garder le heartbeat actif
+      btnBusy(false);
+      return;
+    }
+
+    // 3) succès - MAINTENANT on peut arrêter le heartbeat
+    msg.textContent = 'Commande finalisée ✅';
+    try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+    try { await unlockSelection(); } catch {}
+    await refreshStatus();
+    try { if (modal && !modal.classList.contains('hidden')) modal.classList.add('hidden'); } catch {}
+
+  } catch (e) {
+    uiError(e, 'PayPal');
+    const msg = ensureMsgEl();
+    msg.textContent = 'Erreur pendant la finalisation.';
+    // En cas d'erreur, libérer les locks
+    try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+    try { await unlockSelection(); } catch {}
+  } finally {
+    btnBusy(false);
+  }
+},
 
     onCancel: async () => {
       try { clearInterval(__watch); } catch {}
