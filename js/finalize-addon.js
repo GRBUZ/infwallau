@@ -88,9 +88,9 @@
 
     // 5. Reset fichier dataset (responsabilité finalize)
     const fileInput = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
-    if (fileInput && fileInput.dataset.regionId) {
-      delete fileInput.dataset.regionId;
-    }
+    //if (fileInput && fileInput.dataset.regionId) {
+      //delete fileInput.dataset.regionId;
+    //}
     
     finalizeState.isProcessing = false;
   }
