@@ -96,13 +96,13 @@
   }
 
   // Écouter les événements du modal
-  document.addEventListener('modal:opening', () => {
-    resetFinalizeState();
-  });
+  //document.addEventListener('modal:opening', () => {
+    //resetFinalizeState();
+  //});
 
-  document.addEventListener('modal:closing', () => {
-    resetFinalizeState();
-  });
+  //document.addEventListener('modal:closing', () => {
+    //resetFinalizeState();
+  //});
 
   function haveMyValidLocks(blocks, graceMs = 2000){
     if (!Array.isArray(blocks) || !blocks.length) return false;
