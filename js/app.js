@@ -135,9 +135,9 @@
     const selectedPixels = selected.size * 100;
     if (selectedPixels > 0) {
       const total = selectedPixels * currentPrice;
-      buyBtn.textContent = `Buy Pixels — ${formatInt(selectedPixels)} px (${formatMoney(total)})`;
+      buyBtn.textContent = `💎 Claim your spot — ${formatInt(selectedPixels)} px (${formatMoney(total)})`;
       buyBtn.disabled = false;
-    } else { buyBtn.textContent = `Buy Pixels`; buyBtn.disabled = true; }
+    } else { buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = true; }
   }
 
   function clearSelection(){
