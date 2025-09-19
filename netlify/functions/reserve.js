@@ -88,7 +88,7 @@ exports.handler = async (event) => {
     // Garde une borne 30s..300s pour éviter les TTL délirants (5 minutes max pour PayPal)
     ttlSec = Math.max(30, Math.min(300, ttlSec));
 
-    console.log(`[reserve] uid=${uid}, blocks=${blocks.length}, ttlSec=${ttlSec}`);
+    //console.log(`[reserve] uid=${uid}, blocks=${blocks.length}, ttlSec=${ttlSec}`);
 
     // ESM import (compat require/exports.handler)
     const { createClient } = await import('@supabase/supabase-js');
@@ -104,7 +104,7 @@ exports.handler = async (event) => {
     }
 
     const reserved = Array.isArray(reservedArr) ? reservedArr.map(Number) : [];
-    console.log(`[reserve] Reserved ${reserved.length}/${blocks.length} blocks`);
+    //console.log(`[reserve] Reserved ${reserved.length}/${blocks.length} blocks`);
 
     // 2) Filtrer les blocs déjà vendus (au cas où)
     const { data: soldRows, error: soldErr } = await supabase
@@ -121,7 +121,7 @@ exports.handler = async (event) => {
     const soldSet = new Set((soldRows||[]).map(r=>Number(r.idx)));
     const locked = reserved.filter(i => !soldSet.has(i));
 
-    console.log(`[reserve] Final locked: ${locked.length} (${soldSet.size} already sold)`);
+    //console.log(`[reserve] Final locked: ${locked.length} (${soldSet.size} already sold)`);
 
     // 3) Construire conflicts = demandés – locked
     const reqSet = new Set(blocks);
@@ -177,7 +177,7 @@ exports.handler = async (event) => {
       until
     };
 
-    console.log(`[reserve] Success: locked=${locked.length}, conflicts=${conflicts.length}, until=${until ? new Date(until).toISOString() : '0'}`);
+    //console.log(`[reserve] Success: locked=${locked.length}, conflicts=${conflicts.length}, until=${until ? new Date(until).toISOString() : '0'}`);
 
     return ok(result);
 

@@ -210,7 +210,6 @@
     toggleCell(idx);
   });
 
-  //new reset modal
   // --- reset uniquement l'état "app.js" (formulaire de base + input fichier)
 function resetModalAppState() {
   if (linkInput)  linkInput.value  = '';
@@ -227,8 +226,7 @@ function resetModalAppState() {
     // On NE touche PAS à fileInput.dataset.regionId : c'est finalize-addon qui gère.
   }
 }
-  //new reset modal
-  //new fermeture modal paypal
+ 
   function setPayPalEnabled(enabled){
     const c = document.getElementById('paypal-button-container');
     if (!c) return;
@@ -253,7 +251,6 @@ function resetModalAppState() {
       badge.remove();
     }
   }
-  //new fermeture modal paypal
 
   // === Garde-fous d'expiration côté client (simplifié) ===
   function haveMyValidLocks(arr, graceMs = 2000){
@@ -266,27 +263,6 @@ function resetModalAppState() {
     return true;
   }
   
-  /*function startModalMonitor(){
-    stopModalMonitor();
-    modalLockTimer = setInterval(() => {
-      // Don't touch while finalize flow is running
-      if (confirmBtn.textContent === 'Processing…') return;
-
-      const blocks = currentLock.length ? currentLock : Array.from(selected);
-      const ok = haveMyValidLocks(blocks, 5000); // grâce de 5 secondes
-
-      confirmBtn.disabled = !ok;
-      confirmBtn.textContent = ok ? 'Confirm' : 'Reservation expired — reselect';
-      setPayPalEnabled(ok);
-
-      // Si expiré, on coupe le "keepalive" pour éviter tout relock
-      if (!ok) {
-        window.LockManager.heartbeat.stop();
-      }
-
-    }, 5000); // Check moins fréquent (5 secondes au lieu de 1,5)
-  }*/
-  //new reset confirm button
   function startModalMonitor(warmupMs = 1200){
   stopModalMonitor();
 
@@ -322,11 +298,7 @@ function resetModalAppState() {
   // premier tick après warmup, sinon flicker
   modalLockTimer = setTimeout(start, Math.max(0, warmupMs|0));
 }
-  //new reset confirm button
-  //function stopModalMonitor(){
-    //if (modalLockTimer){ clearInterval(modalLockTimer); modalLockTimer = null; }
-  //}
-  //new reset confirm button
+
   function stopModalMonitor(){
   if (modalLockTimer){
     // peu importe si c'était un timeout ou un interval → on clear les deux
@@ -335,16 +307,12 @@ function resetModalAppState() {
     modalLockTimer = null;
   }
 }
-  //new reset confirm button
 
   function openModal(){
-    
-    //new reset modal
     resetModalAppState();
 
     // Notifier les autres modules (finalize-addon.js) pour leur propre cleanup
     document.dispatchEvent(new CustomEvent('modal:opening'));
-    //new rest modal
     
     modal.classList.remove('hidden');
 
@@ -534,10 +502,7 @@ function resetModalAppState() {
     const size = firstCell ? firstCell.offsetWidth : 10;
 
     const regionLink = {};
-    //for (const [idx, s] of Object.entries(window.sold || {})) {
-      //if (s && s.regionId && !regionLink[s.regionId] && s.linkUrl) regionLink[s.regionId] = s.linkUrl;
-    //}
-    //new
+  
     for (const [idx, s] of Object.entries(window.sold || {})) {
   // Essayer les deux formats (camelCase et snake_case)
   const regionId = s.regionId || s.region_id;
@@ -546,7 +511,6 @@ function resetModalAppState() {
     regionLink[regionId] = linkUrl;
   }
 }
-    //new
 
     for (const [rid, reg] of Object.entries(window.regions || {})) {
       if (!reg || !reg.rect || !reg.imageUrl) continue;

@@ -188,8 +188,6 @@ exports.handler = async (event) => {
     }
 
     // CAPTURE si nécessaire
-    //new retry
-    // CAPTURE si nécessaire
 let capture;
 if (ppOrder.status !== 'COMPLETED') {
   const captureRes = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders/${paypalOrderId}/capture`, {
@@ -229,7 +227,6 @@ if (ppOrder.status !== 'COMPLETED') {
 } else {
   capture = ppOrder;
 }
-    //new retry paypal
 
     // Extraire captureId + montants
     const pu0 = (capture.purchase_units && capture.purchase_units[0]) || {};
@@ -259,7 +256,6 @@ if (ppOrder.status !== 'COMPLETED') {
     const imageUrl = order.image_url || null;
     const amount   = Number(capValue);
 
-      // 🔍 STRICT LOCK VALIDATION (pas de ré-upsert)
 // 🔍 STRICT LOCK VALIDATION (count-only, anti-cap 1000)
 {
   const nowIso = new Date().toISOString();
@@ -272,10 +268,6 @@ if (ppOrder.status !== 'COMPLETED') {
     .in('idx', blocksOk)
     .gt('until', nowIso)
     .eq('uid', uid);
-
-  // Log utile pour confirmer l’hypothèse "pile 1000"
-  console.log('[DEBUG][STRICT VALIDATION] validCount vs expected =',
-              validCount, '/', blocksOk.length);
 
   if (lockErr2) {
     return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr2.message });
@@ -384,7 +376,6 @@ if (ppOrder.status !== 'COMPLETED') {
     }
   }
 }
-
 
     // 4) Finalisation atomique via RPC
     const orderUuid = (await import('node:crypto')).randomUUID();

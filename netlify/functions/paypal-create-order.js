@@ -67,7 +67,6 @@ exports.handler = async (event) => {
     if (order.expires_at && new Date(order.expires_at).getTime() < Date.now()) {
       // on passe en expiré (best-effort)
       try {
-        //await supabase.from('orders').update({ status: 'expired', updated_at: new Date().toISOString() }).eq('id', order.id);
         await supabase.from('orders').update({ status: 'expired', updated_at: new Date().toISOString() }).eq('order_id', orderId);
       } catch (_) {}
       return bad(409, 'ORDER_EXPIRED');
@@ -117,7 +116,6 @@ exports.handler = async (event) => {
           server_total: total,
           updated_at: new Date().toISOString()
         })
-        //.eq('id', order.id);
         .eq('order_id', orderId);
       } catch(_) {}
       return bad(409, 'PRICE_CHANGED', { serverUnitPrice: unitPrice, serverTotal: total, currency });
@@ -167,7 +165,6 @@ exports.handler = async (event) => {
         provider: 'paypal',
         updated_at: new Date().toISOString()
       })
-      //.eq('id', order.id);
       .eq('order_id', orderId);
     } catch (_) {}
 

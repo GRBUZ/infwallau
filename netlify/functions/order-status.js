@@ -66,7 +66,6 @@ exports.handler = async (event) => {
           status: 'expired',
           updated_at: new Date().toISOString()
         })
-        //.eq('id', order.id);
         .eq('order_id', orderId);
       } catch (_) {}
       status = 'expired';
@@ -98,7 +97,6 @@ exports.handler = async (event) => {
             status: 'completed',
             updated_at: new Date().toISOString()
           })
-          //.eq('id', order.id);
           .eq('order_id', orderId);
         } catch (_) {}
 

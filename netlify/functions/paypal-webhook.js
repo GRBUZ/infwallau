@@ -270,7 +270,6 @@ exports.handler = async (event) => {
       return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
     }
 
-    // 🔍 STRICT LOCK VALIDATION (pas de ré-upsert)
 // 🔍 STRICT LOCK VALIDATION (count-only, anti-cap 1000)
 {
   const nowIso = new Date().toISOString();
@@ -283,10 +282,6 @@ exports.handler = async (event) => {
     .in('idx', blocks)
     .gt('until', nowIso)
     .eq('uid', uid);
-
-  // Petit log pour vérifier l'hypothèse “pile 1000”
-  console.log('[WEBHOOK][STRICT VALIDATION] validCount / expected =',
-              validCount, '/', blocks.length);
 
   if (lockErr2) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr2.message });
 
@@ -386,7 +381,7 @@ exports.handler = async (event) => {
         updated_at: new Date().toISOString()
       })
       .eq('order_id', orderId);
-      //.eq('id', order.id);
+      
       //new journal
       if (!refundedOk) {
         try {
