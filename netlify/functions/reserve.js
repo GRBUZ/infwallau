@@ -23,6 +23,60 @@ function genRegionId(uid, blocks){
   return crypto.createHash('sha1').update(seed).digest('hex').slice(0, 12);
 }
 
+//helper gros gros blocs
+// Helper: fetchSoldIdxSmart — évite les URLs trop longues (414) en chunkant
+async function fetchSoldIdxSmart(supabase, indices, hardChunkSize = 400, concurrency = 4) {
+  // Cas simple: peu d'indices → une seule requête
+  if (!Array.isArray(indices) || indices.length === 0) return [];
+  if (indices.length <= 800) {
+    const { data, error } = await supabase
+      .from('cells')
+      .select('idx')
+      .in('idx', indices)
+      .not('sold_at', 'is', null);
+    if (error) {
+      const err = new Error(error.message || 'CELLS_QUERY_FAILED');
+      err._supabase = error;
+      throw err;
+    }
+    return data || [];
+  }
+
+  // Cas large: on découpe en chunks et on exécute en parallèle (concurrence limitée)
+  const chunks = [];
+  for (let i = 0; i < indices.length; i += hardChunkSize) {
+    chunks.push(indices.slice(i, i + hardChunkSize));
+  }
+
+  const out = [];
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < chunks.length) {
+      const mine = cursor++;
+      const slice = chunks[mine];
+
+      const { data, error } = await supabase
+        .from('cells')
+        .select('idx')
+        .in('idx', slice)
+        .not('sold_at', 'is', null);
+
+      if (error) {
+        const err = new Error(error.message || 'CELLS_QUERY_FAILED');
+        err._supabase = error;
+        throw err;
+      }
+      if (data?.length) out.push(...data);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, chunks.length) }, worker);
+  await Promise.all(workers);
+  return out;
+}
+//helper gros gros blocs
+
 // --- helpers pagination (anti-cap 1000)
 async function selectAllLocks(supabase, { thresholdIso }) {
   const page = 1000;
@@ -107,7 +161,7 @@ exports.handler = async (event) => {
     //console.log(`[reserve] Reserved ${reserved.length}/${blocks.length} blocks`);
 
     // 2) Filtrer les blocs déjà vendus (au cas où)
-    const { data: soldRows, error: soldErr } = await supabase
+    /*const { data: soldRows, error: soldErr } = await supabase
       .from('cells')
       .select('idx')
       .in('idx', blocks)
@@ -116,7 +170,18 @@ exports.handler = async (event) => {
     if (soldErr) {
       console.error('[reserve] Sold check failed:', soldErr);
       return bad(500, 'CELLS_QUERY_FAILED', { message: soldErr.message });
-    }
+    }*/
+
+      //new gros gros blocs
+      // 2) Filtrer les blocs déjà vendus (au cas où) — version paginée anti-414
+let soldRows = [];
+try {
+  soldRows = await fetchSoldIdxSmart(supabase, blocks, 400, 4);
+} catch (e) {
+  console.error('[reserve] Sold check failed (smart):', e._supabase || e);
+  return bad(500, 'CELLS_QUERY_FAILED', { message: e.message || 'Bad Request' });
+}
+      //new gros gros blocs
 
     const soldSet = new Set((soldRows||[]).map(r=>Number(r.idx)));
     const locked = reserved.filter(i => !soldSet.has(i));

@@ -119,10 +119,16 @@
     if (optimistic) setLocalLocks(indices, ttlMs);
 
     // Appel serveur
-    const res = await apiCall('/reserve', {
-      method: 'POST',
-      body: JSON.stringify({ blocks: indices, ttl: ttlMs })
-    });
+    //const res = await apiCall('/reserve', {
+      //method: 'POST',
+      //body: JSON.stringify({ blocks: indices, ttl: ttlMs })
+    //});
+
+    const res = await window.CoreManager.apiCall('/reserve', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ blocks, ttl: ttlMs })
+});
 
 
     if (!res || !res.ok) {
