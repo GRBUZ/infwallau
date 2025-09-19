@@ -159,7 +159,7 @@ const locked = reserved.filter(i => !soldSet.has(i));
     }
 
     // 5) regionId + until (max des until pour les blocs lockés par ce user) — paginé
-    let until = 0;
+    /*let until = 0;
     if (locked.length) {
       let myLockRows = [];
       try {
@@ -187,7 +187,36 @@ const locked = reserved.filter(i => !soldSet.has(i));
       ttlSeconds: ttlSec,
       regionId,
       until
-    };
+    };*/
+
+    // 5) regionId + until (max des until pour les blocs lockés par ce user)
+//    → passer par RPC pour éviter un .in(...) en querystring (414)
+let until = 0;
+if (locked.length) {
+  const { data: myLockRows, error: myErr } = await supabase
+    .rpc('locks_by_uid_in', { _uid: uid, _blocks: locked });
+
+  if (myErr) {
+    console.error('[reserve] Self locks RPC failed:', myErr);
+    return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: myErr.message });
+  }
+
+  for (const r of (myLockRows || [])) {
+    const t = r.until ? new Date(r.until).getTime() : 0;
+    if (t > until) until = t;
+  }
+}
+
+const regionId = genRegionId(uid, locked);
+
+const result = {
+  locked,
+  conflicts,
+  locks,
+  ttlSeconds: ttlSec,
+  regionId,
+  until
+};
 
     //console.log(`[reserve] Success: locked=${locked.length}, conflicts=${conflicts.length}, until=${until ? new Date(until).toISOString() : '0'}`);
 
