@@ -356,11 +356,6 @@ onApproved: async (data, actions) => {
       throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
     }
 
-    //new
-    // Tirer l’état tout de suite après l’init de finalisation
-    await refreshStatus().catch(()=>{});
-    //new
-
     // 2) attendre la finalisation par le webhook
     const ok = await waitForCompleted(orderId, 60);
     if (!ok) {
@@ -369,14 +364,6 @@ onApproved: async (data, actions) => {
       btnBusy(false);
       return;
     }
-
-    //new
-    // Double rafraîchissement pour garantir sold + linkUrl à jour
-await refreshStatus().catch(()=>{});
-await new Promise(r => setTimeout(r, 300));
-await refreshStatus().catch(()=>{});
-
-    //new
 
     // 3) succès - MAINTENANT on peut arrêter le heartbeat
     msg.textContent = 'Commande finalisée ✅';

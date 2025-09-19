@@ -190,6 +190,7 @@ exports.handler = async (event) => {
     // CAPTURE si nécessaire
     //new retry
     // CAPTURE si nécessaire
+    /*
 let capture;
 if (ppOrder.status !== 'COMPLETED') {
   const captureRes = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders/${paypalOrderId}/capture`, {
@@ -229,9 +230,9 @@ if (ppOrder.status !== 'COMPLETED') {
 } else {
   capture = ppOrder;
 }
-
+*/
     //new retry paypal
-    /*let capture;
+    let capture;
     if (ppOrder.status !== 'COMPLETED') {
       const captureRes = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders/${paypalOrderId}/capture`, {
         method: 'POST',
@@ -252,7 +253,7 @@ if (ppOrder.status !== 'COMPLETED') {
       }
     } else {
       capture = ppOrder;
-    }*/
+    }
 
     // Extraire captureId + montants
     const pu0 = (capture.purchase_units && capture.purchase_units[0]) || {};
