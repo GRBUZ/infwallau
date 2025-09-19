@@ -266,7 +266,7 @@ function resetModalAppState() {
     return true;
   }
   
-  function startModalMonitor(){
+  /*function startModalMonitor(){
     stopModalMonitor();
     modalLockTimer = setInterval(() => {
       // Don't touch while finalize flow is running
@@ -285,11 +285,57 @@ function resetModalAppState() {
       }
 
     }, 5000); // Check moins fréquent (5 secondes au lieu de 1,5)
-  }
+  }*/
+  //new reset confirm button
+  function startModalMonitor(warmupMs = 1200){
+  stopModalMonitor();
 
+  // État optimiste immédiat pour éviter le flash "expired"
+  confirmBtn.disabled = false;
+  confirmBtn.textContent = 'Confirm';
+  setPayPalEnabled(true);
+
+  const tick = () => {
+    // ne rien faire pendant le processing
+    if (confirmBtn.textContent === 'Processing…') return;
+
+    const blocks = currentLock.length ? currentLock : Array.from(selected);
+    const ok = haveMyValidLocks(blocks, 5000); // grâce 5s
+
+    confirmBtn.disabled = !ok;
+    confirmBtn.textContent = ok ? 'Confirm' : 'Reservation expired — reselect';
+    setPayPalEnabled(ok);
+
+    // si on n'a plus de blocks (ex: UI vient d’être vidée), ne coupe pas le heartbeat ici
+    if (!ok && blocks && blocks.length) {
+      window.LockManager.heartbeat.stop();
+    }
+  };
+
+  // On laisse ~1.2s au cache local / heartbeat pour se stabiliser, puis on lance le polling
+  const start = () => {
+    tick();
+    // on stocke l’ID de l’interval dans la même var pour pouvoir le clear
+    modalLockTimer = setInterval(tick, 5000);
+  };
+
+  // premier tick après warmup, sinon flicker
+  modalLockTimer = setTimeout(start, Math.max(0, warmupMs|0));
+}
+  //new reset confirm button
+  //function stopModalMonitor(){
+    //if (modalLockTimer){ clearInterval(modalLockTimer); modalLockTimer = null; }
+  //}
+  //new reset confirm button
   function stopModalMonitor(){
-    if (modalLockTimer){ clearInterval(modalLockTimer); modalLockTimer = null; }
+  if (modalLockTimer){
+    // peu importe si c'était un timeout ou un interval → on clear les deux
+    try { clearTimeout(modalLockTimer); } catch {}
+    try { clearInterval(modalLockTimer); } catch {}
+    modalLockTimer = null;
   }
+}
+  //new reset confirm button
 
   function openModal(){
     
