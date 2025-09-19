@@ -36,14 +36,28 @@ exports.handler = async (event) => {
       auth: { persistSession: false }
     });
 
-    // ===== 1) SOLD: cells vendues + métadonnées région
+    // ===== 1) SOLD: cells vendues + métadonnées région (PAGINATION)
     // idx, region_id, sold_at (joint aux regions pour name/link_url)
-    const { data: soldRows, error: soldErr } = await supabase
-      .from('cells')
-      .select('idx, region_id, sold_at, regions!inner ( id, name, link_url )', { count: 'exact' })
-      .not('sold_at', 'is', null);
+    const soldRows = [];
+    {
+      const pageSize = 1000;                  // ajuste si besoin (1000 suffit)
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from('cells')
+          .select('idx, region_id, sold_at, regions!inner ( id, name, link_url )')
+          .not('sold_at', 'is', null)
+          .order('idx', { ascending: true })
+          .range(from, from + pageSize - 1);
 
-    if (soldErr) return bad(500, 'DB_SOLD_QUERY_FAILED', { message: soldErr.message });
+        if (error) return bad(500, 'DB_SOLD_QUERY_FAILED', { message: error.message });
+        if (!data || data.length === 0) break;
+
+        soldRows.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+    }
 
     const sold = {};
     for (const row of (soldRows || [])) {
@@ -59,56 +73,37 @@ exports.handler = async (event) => {
       }
     }
 
-    //new pagination
-    // Dans status.js, remplacer la requête locks par :
-// ===== 2) LOCKS: verrous non expirés (paginé)
-const lockRows = [];
-let from = 0;
-const pageSize = 1000;
-// petite grâce pour éviter les clignotements côté UI
-const cutoff = new Date(Date.now() - 15_000).toISOString();
+    // ===== 2) LOCKS: verrous non expirés (paginé)
+    // NOTE: ta version + correctif (utiliser lockRows)
+    const lockRows = [];
+    let from = 0;
+    const pageSize = 1000;
+    // petite grâce pour éviter les clignotements côté UI
+    const cutoff = new Date(Date.now() - 15_000).toISOString();
 
-while (true) {
-  const { data, error } = await supabase
-    .from('locks')
-    .select('idx, uid, until')
-    .gt('until', cutoff)
-    .order('idx', { ascending: true })
-    .range(from, from + pageSize - 1);
+    while (true) {
+      const { data, error } = await supabase
+        .from('locks')
+        .select('idx, uid, until')
+        .gt('until', cutoff)
+        .order('idx', { ascending: true })
+        .range(from, from + pageSize - 1);
 
-  if (error) return bad(500, 'DB_LOCKS_QUERY_FAILED', { message: error.message });
-  if (!data || data.length === 0) break;
+      if (error) return bad(500, 'DB_LOCKS_QUERY_FAILED', { message: error.message });
+      if (!data || data.length === 0) break;
 
-  lockRows.push(...data);
-  if (data.length < pageSize) break;
-  from += pageSize;
-}
+      lockRows.push(...data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
 
-// Transformer en objet clé=idx (string) -> { uid, until }
-const locks = {};
-for (const r of lockRows) {           // <-- ICI: utiliser lockRows, pas allLocks
-  const k = String(r.idx);
-  const untilMs = r.until ? new Date(r.until).getTime() : 0;
-  locks[k] = { uid: r.uid, until: untilMs };
-}
-
-    //new pagination
-
-    // ===== 2) LOCKS: verrous non expirés
-    /*const nowIso = new Date().toISOString();
-    const { data: lockRows, error: lockErr } = await supabase
-      .from('locks')
-      .select('idx, uid, until')
-      .gt('until', nowIso);
-
-    if (lockErr) return bad(500, 'DB_LOCKS_QUERY_FAILED', { message: lockErr.message });
-
+    // Transformer en objet clé=idx (string) -> { uid, until }
     const locks = {};
-    for (const r of (lockRows || [])) {
+    for (const r of lockRows) {           // <-- on itère bien sur lockRows
       const k = String(r.idx);
       const untilMs = r.until ? new Date(r.until).getTime() : 0;
       locks[k] = { uid: r.uid, until: untilMs };
-    }*/
+    }
 
     // ===== 3) REGIONS: rectangles + image_url
     const { data: regionRows, error: regErr } = await supabase

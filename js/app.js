@@ -294,10 +294,10 @@ function resetModalAppState() {
   function openModal(){
     
     //new reset modal
-    //resetModalAppState();
+    resetModalAppState();
 
     // Notifier les autres modules (finalize-addon.js) pour leur propre cleanup
-    //document.dispatchEvent(new CustomEvent('modal:opening'));
+    document.dispatchEvent(new CustomEvent('modal:opening'));
     //new rest modal
     
     modal.classList.remove('hidden');
@@ -326,7 +326,7 @@ function resetModalAppState() {
   
   function closeModal(){
     // Notifier les autres modules de la fermeture (pour cleanup)
-    //document.dispatchEvent(new CustomEvent('modal:closing'));
+    document.dispatchEvent(new CustomEvent('modal:closing'));
     modal.classList.add('hidden');
     window.LockManager.heartbeat.stop();
     stopModalMonitor();
@@ -480,79 +480,54 @@ function resetModalAppState() {
   // Regions overlay (unchanged)
   window.regions = window.regions || {};
   
-  // Ajoutez ce code de debug dans la fonction renderRegions() juste après la construction du regionLink
+  function renderRegions() {
+    const gridEl = document.getElementById('grid');
+    if (!gridEl) return;
+    gridEl.querySelectorAll('.region-overlay').forEach(n => n.remove());
+    const firstCell = gridEl.querySelector('.cell');
+    const size = firstCell ? firstCell.offsetWidth : 10;
 
-function renderRegions() {
-  const gridEl = document.getElementById('grid');
-  if (!gridEl) return;
-  gridEl.querySelectorAll('.region-overlay').forEach(n => n.remove());
-  const firstCell = gridEl.querySelector('.cell');
-  const size = firstCell ? firstCell.offsetWidth : 10;
-
-  const regionLink = {};
-  for (const [idx, s] of Object.entries(window.sold || {})) {
-    const regionId = s.regionId || s.region_id;
-    const linkUrl = s.linkUrl || s.link_url;
-    if (s && regionId && !regionLink[regionId] && linkUrl) {
-      regionLink[regionId] = linkUrl;
-    }
+    const regionLink = {};
+    //for (const [idx, s] of Object.entries(window.sold || {})) {
+      //if (s && s.regionId && !regionLink[s.regionId] && s.linkUrl) regionLink[s.regionId] = s.linkUrl;
+    //}
+    //new
+    for (const [idx, s] of Object.entries(window.sold || {})) {
+  // Essayer les deux formats (camelCase et snake_case)
+  const regionId = s.regionId || s.region_id;
+  const linkUrl = s.linkUrl || s.link_url;
+  if (s && regionId && !regionLink[regionId] && linkUrl) {
+    regionLink[regionId] = linkUrl;
   }
-
-  // ===== DEBUG CODE - AJOUTEZ CES LIGNES =====
-  console.log('=== DEBUG RENDERREGIONS ===');
-  console.log('window.sold:', window.sold);
-  console.log('window.regions:', window.regions);
-  console.log('regionLink mapping:', regionLink);
-  
-  // Exemple d'une entrée sold pour voir la structure
-  const soldEntries = Object.entries(window.sold || {});
-  if (soldEntries.length > 0) {
-    console.log('Premier élément sold:', soldEntries[0]);
-  }
-  
-  // Voir si on trouve des régions
-  const regionEntries = Object.entries(window.regions || {});
-  if (regionEntries.length > 0) {
-    console.log('Premier élément regions:', regionEntries[0]);
-  }
-  // ===== FIN DEBUG CODE =====
-
-  for (const [rid, reg] of Object.entries(window.regions || {})) {
-    if (!reg || !reg.rect || !reg.imageUrl) continue;
-    const { x, y, w, h } = reg.rect;
-    const idxTL = y * 100 + x;
-    const tl = gridEl.querySelector(`.cell[data-idx="${idxTL}"]`);
-    if (!tl) continue;
-    
-    const a = document.createElement('a');
-    a.className = 'region-overlay';
-    
-    // ===== DEBUG CODE - AJOUTEZ CES LIGNES =====
-    console.log(`Région ${rid}: linkUrl trouvé =`, regionLink[rid]);
-    // ===== FIN DEBUG CODE =====
-    
-    if (regionLink[rid]) { 
-      a.href = regionLink[rid]; 
-      a.target = '_blank'; 
-      a.rel = 'noopener nofollow'; 
-    }
-    Object.assign(a.style, {
-      position: 'absolute',
-      left: tl.offsetLeft + 'px',
-      top:  tl.offsetTop  + 'px',
-      width:  (w * size) + 'px',
-      height: (h * size) + 'px',
-      backgroundImage: `url("${reg.imageUrl}")`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-      zIndex: 999
-    });
-    gridEl.appendChild(a);
-  }
-  gridEl.style.position = 'relative';
-  gridEl.style.zIndex = 2;
 }
+    //new
+
+    for (const [rid, reg] of Object.entries(window.regions || {})) {
+      if (!reg || !reg.rect || !reg.imageUrl) continue;
+      const { x, y, w, h } = reg.rect;
+      const idxTL = y * 100 + x;
+      const tl = gridEl.querySelector(`.cell[data-idx="${idxTL}"]`);
+      if (!tl) continue;
+      const a = document.createElement('a');
+      a.className = 'region-overlay';
+      if (regionLink[rid]) { a.href = regionLink[rid]; a.target = '_blank'; a.rel = 'noopener nofollow'; }
+      Object.assign(a.style, {
+        position: 'absolute',
+        left: tl.offsetLeft + 'px',
+        top:  tl.offsetTop  + 'px',
+        width:  (w * size) + 'px',
+        height: (h * size) + 'px',
+        backgroundImage: `url("${reg.imageUrl}")`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        zIndex: 999
+      });
+      gridEl.appendChild(a);
+    }
+    gridEl.style.position = 'relative';
+    gridEl.style.zIndex = 2;
+  }
 
   window.renderRegions = renderRegions;
 
