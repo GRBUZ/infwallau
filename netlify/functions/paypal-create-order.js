@@ -9,6 +9,73 @@ const PAYPAL_BASE_URL      = PAYPAL_ENV === 'live' ? 'https://api-m.paypal.com' 
 const SUPABASE_URL     = process.env.SUPABASE_URL;
 const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// ---- anti-414 helpers ----
+const CHUNK_SIZE = 400; // assez petit pour l’URL Supabase REST
+
+function chunk(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+async function tryRpc(supabase, fn, args) {
+  try {
+    const { data, error } = await supabase.rpc(fn, args);
+    if (error) throw error; // fera tomber dans le fallback
+    return { ok: true, data };
+  } catch (_) {
+    return { ok: false, data: null };
+  }
+}
+
+async function getSoldIdxs(supabase, blocks) {
+  // 1) Tente une RPC (si tu l’as créée côté DB) :
+  // create or replace function public.cells_sold_in(p_blocks int[])
+  // returns table(idx int) language sql as $$
+  //   select idx from public.cells where idx = any(p_blocks) and sold_at is not null
+  // $$;
+  const viaRpc = await tryRpc(supabase, 'cells_sold_in', { p_blocks: blocks });
+  if (viaRpc.ok) return viaRpc.data || [];
+
+  // 2) Fallback: batch .in(...).not(...) pour éviter une URL géante
+  const batches = chunk(blocks, CHUNK_SIZE);
+  const sold = [];
+  for (const b of batches) {
+    const { data, error } = await supabase
+      .from('cells').select('idx')
+      .in('idx', b)
+      .not('sold_at', 'is', null);
+    if (error) throw Object.assign(new Error('CELLS_QUERY_FAILED'), { details: error });
+    if (data?.length) sold.push(...data.map(r => Number(r.idx)));
+  }
+  return sold;
+}
+
+async function getLockConflicts(supabase, blocks, uid, nowIso) {
+  // 1) Tente une RPC (si dispo) :
+  // create or replace function public.locks_conflicts(p_blocks int[], p_uid uuid, p_now timestamptz)
+  // returns table(idx int, uid uuid, until timestamptz) language sql as $$
+  //   select idx, uid, until from public.locks
+  //   where idx = any(p_blocks) and until > p_now and uid <> p_uid
+  // $$;
+  const viaRpc = await tryRpc(supabase, 'locks_conflicts', { p_blocks: blocks, p_uid: uid, p_now: nowIso });
+  if (viaRpc.ok) return viaRpc.data || [];
+
+  // 2) Fallback: batch .in(...).gt(...).neq(...)
+  const batches = chunk(blocks, CHUNK_SIZE);
+  const conflicts = [];
+  for (const b of batches) {
+    const { data, error } = await supabase
+      .from('locks').select('idx, uid, until')
+      .in('idx', b)
+      .gt('until', nowIso)
+      .neq('uid', uid);
+    if (error) throw Object.assign(new Error('LOCKS_QUERY_FAILED'), { details: error });
+    if (data?.length) conflicts.push(...data);
+  }
+  return conflicts;
+}
+
 function j(status, obj){
   return {
     statusCode: status,
@@ -16,8 +83,8 @@ function j(status, obj){
     body: JSON.stringify(obj)
   };
 }
-const bad = (s,e,extra={}) => j(s, { ok:false, error:e, ...extra, signature:'paypal-create-order.v3' });
-const ok  = (b)           => j(200,{ ok:true,  signature:'paypal-create-order.v3', ...b });
+const bad = (s,e,extra={}) => j(s, { ok:false, error:e, ...extra, signature:'paypal-create-order.v4' });
+const ok  = (b)           => j(200,{ ok:true,  signature:'paypal-create-order.v4', ...b });
 
 async function getPayPalAccessToken() {
   if (!PAYPAL_CLIENT_ID || !PAYPAL_CLIENT_SECRET) throw new Error('PAYPAL_CONFIG_MISSING');
@@ -37,7 +104,7 @@ exports.handler = async (event) => {
   try {
     // --- AUTH ---
     const auth = requireAuth(event);
-    if (auth?.statusCode) return auth; // middleware renvoie déjà une réponse 401 JSON
+    if (auth?.statusCode) return auth;
     const { uid } = auth;
     if (!uid) return bad(401, 'UNAUTHORIZED');
 
@@ -53,7 +120,7 @@ exports.handler = async (event) => {
     const { createClient } = await import('@supabase/supabase-js');
     const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession: false } });
 
-    // 1) Charger l’ordre préparé par /start-order (table orders)
+    // 1) Charger l’ordre
     const { data: order, error: getErr } = await supabase
       .from('orders')
       .select('*')
@@ -61,13 +128,14 @@ exports.handler = async (event) => {
       .single();
 
     if (getErr || !order) return bad(404, 'ORDER_NOT_FOUND');
-
     if (order.uid && order.uid !== uid) return bad(403, 'FORBIDDEN');
     if (order.status === 'completed')   return bad(409, 'ALREADY_COMPLETED');
+
     if (order.expires_at && new Date(order.expires_at).getTime() < Date.now()) {
-      // on passe en expiré (best-effort)
       try {
-        await supabase.from('orders').update({ status: 'expired', updated_at: new Date().toISOString() }).eq('order_id', orderId);
+        await supabase.from('orders')
+          .update({ status: 'expired', updated_at: new Date().toISOString() })
+          .eq('order_id', orderId);
       } catch (_) {}
       return bad(409, 'ORDER_EXPIRED');
     }
@@ -75,24 +143,27 @@ exports.handler = async (event) => {
     const blocks = Array.isArray(order.blocks) ? order.blocks.map(n => parseInt(n, 10)).filter(Number.isFinite) : [];
     if (!blocks.length) return bad(400, 'NO_BLOCKS');
 
-    // 2) Vérifs Supabase: déjà vendus ? locks par autre ?
-    const { data: soldRows, error: soldErr } = await supabase
-      .from('cells').select('idx')
-      .in('idx', blocks)
-      .not('sold_at', 'is', null);
-    if (soldErr) return bad(500, 'CELLS_QUERY_FAILED', { message: soldErr.message });
-    if (soldRows && soldRows.length) return bad(409, 'ALREADY_SOLD', { idx: Number(soldRows[0].idx) });
+    // 2) Vérifs "sold" & "locks" -> RPC si dispo, sinon batch .in(...)
+    let soldRows, lockRows;
+    try {
+      const soldIdxs = await getSoldIdxs(supabase, blocks);
+      soldRows = soldIdxs?.map(idx => ({ idx: Number(idx) })) || [];
+    } catch (e) {
+      if (e.message === 'CELLS_QUERY_FAILED') return bad(500, 'CELLS_QUERY_FAILED', { message: e.details?.message || String(e.details || e) });
+      throw e;
+    }
+    if (soldRows.length) return bad(409, 'ALREADY_SOLD', { idx: Number(soldRows[0].idx) });
 
     const nowIso = new Date().toISOString();
-    const { data: lockRows, error: lockErr } = await supabase
-      .from('locks').select('idx, uid, until')
-      .in('idx', blocks)
-      .gt('until', nowIso)
-      .neq('uid', uid);
-    if (lockErr) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr.message });
-    if (lockRows && lockRows.length) return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
+    try {
+      lockRows = await getLockConflicts(supabase, blocks, uid, nowIso);
+    } catch (e) {
+      if (e.message === 'LOCKS_QUERY_FAILED') return bad(500, 'LOCKS_QUERY_FAILED', { message: e.details?.message || String(e.details || e) });
+      throw e;
+    }
+    if (lockRows?.length) return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
 
-    // 3) Prix serveur (toujours la source de vérité)
+    // 3) Prix serveur
     const { count, error: countErr } = await supabase
       .from('cells')
       .select('idx', { count: 'exact', head: true })
@@ -106,22 +177,19 @@ exports.handler = async (event) => {
     const total       = Math.round(unitPrice * totalPixels * 100) / 100;
     const currency    = String(order.currency || 'USD').toUpperCase();
 
-    // Si la ligne orders contient déjà un prix différent -> signaler PRICE_CHANGED
     if ((order.unit_price != null && Number(order.unit_price) !== unitPrice) ||
         (order.total      != null && Number(order.total)      !== total)) {
-      // journal DB (best-effort)
       try {
         await supabase.from('orders').update({
           server_unit_price: unitPrice,
           server_total: total,
           updated_at: new Date().toISOString()
-        })
-        .eq('order_id', orderId);
+        }).eq('order_id', orderId);
       } catch(_) {}
       return bad(409, 'PRICE_CHANGED', { serverUnitPrice: unitPrice, serverTotal: total, currency });
     }
 
-    // 4) Créer la commande PayPal avec le montant serveur
+    // 4) Créer l’ordre PayPal
     const accessToken = await getPayPalAccessToken();
     const ppOrderData = {
       intent: 'CAPTURE',
@@ -155,7 +223,7 @@ exports.handler = async (event) => {
 
     const ppOrder = await createResponse.json();
 
-    // 5) Persister paypal_order_id + prix serveur (source de vérité)
+    // 5) Persister
     try {
       await supabase.from('orders').update({
         paypal_order_id: ppOrder.id,
@@ -164,8 +232,7 @@ exports.handler = async (event) => {
         currency: currency,
         provider: 'paypal',
         updated_at: new Date().toISOString()
-      })
-      .eq('order_id', orderId);
+      }).eq('order_id', orderId);
     } catch (_) {}
 
     return ok({ id: ppOrder.id, status: ppOrder.status || 'CREATED' });
