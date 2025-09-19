@@ -6,126 +6,119 @@
   <title>Influencers Wall</title>
   <link rel="stylesheet" href="css/style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700&family=Poppins:wght@700;800&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
-<link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:,">
 </head>
 <body>
- <header class="masthead">
-  <!-- 1) Titre tout en haut -->
-  <h1 class="masthead-title">Influencers Wall</h1>
+  <header class="masthead">
+    <!-- 1) Titre tout en haut -->
+    <h1 class="masthead-title">Influencers Wall</h1>
 
-  <!-- 2) Bande violette -->
-  <div class="masthead-strip">
-    <div class="masthead-inner">
-      <!-- Accroche à gauche -->
-      <p class="masthead-tagline">
-        The place to be for the most popular Influencers.<br>
-        Claim your spot on the wall.<br>
-        Be unmissable.
-      </p>
+    <!-- 2) Bande violette -->
+    <div class="masthead-strip">
+      <div class="masthead-inner">
+        <!-- Accroche à gauche -->
+        <p class="masthead-tagline">
+          Own your space. Own your fame.<br>
+          Where influence meets immortality.<br>
+          Your story deserves the spotlight.
+        </p>
 
-      <!-- Stats à droite -->
-      <div class="masthead-meta">
-        <div class="pixels-left" id="pixelsLeft">1,000,000 pixels</div>
-        <div class="price-line" id="priceLine">1 pixel = $1.22</div>
-        <div class="note">Every 1,000 pixels sold, price +$0.01</div>
+        <!-- Stats à droite -->
+        <div class="masthead-meta">
+          <div class="pixels-left" id="pixelsLeft">1,000,000 pixels</div>
+          <div class="price-line" id="priceLine">1 pixel = $1.22</div>
+          <div class="note">Every 1,000 pixels sold, price +$0.01</div>
+        </div>
+      </div>
+
+      <!-- 3) Boutons au bas de la bande -->
+      <div class="masthead-actions">
+        <button id="buyBtn" class="pill pill-primary">💎 Claim your spot</button>
+        <a id="contactBtn" href="#contact" class="pill pill-secondary">💬 Contact</a>
       </div>
     </div>
-  </div>
-
-  <!-- 3) Boutons flottants qui chevauchent la bande -->
-  <div class="masthead-actions">
-    <button id="buyBtn" class="pill pill-primary">Buy Pixels</button>
-    <a id="contactBtn" href="#contact" class="pill pill-secondary">Contact me</a>
-  </div>
-</header>
-
+  </header>
 
   <main>
     <div id="grid" class="grid" aria-label="pixel grid"></div>
   </main>
 
-  <!-- Modal (with Profile Photo upload + URL field) -->
+  <!-- Modal amélioré -->
   <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="backdrop" data-close></div>
     <div class="panel">
-      <div class="header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-        <h2 style="margin:0;">Buy Pixels</h2>
-        <div id="modalStats" style="font-size:13px;color:#555;"></div>
-        <button class="close" title="Close" data-close>&times;</button>
+      <div class="header">
+        <h2 style="margin:0; font-weight: 700;">💎 Claim your spot</h2>
+        <div id="modalStats" style="font-size:13px;color:#6b7280;font-weight:600;"></div>
+        <button class="close" style="border:none;background:none;font-size:24px;cursor:pointer;color:#9ca3af;" title="Close" data-close>&times;</button>
       </div>
       <form id="form" class="body">
-        <label>Pseudo (Display name)
+        <label>🏷️ Pseudo (Display name)
           <input id="name" name="name" placeholder="@yourname" maxlength="40" required />
         </label>
-        <label>Email
-          <input id="email" name="email" type="email" placeholder="you@example.com" required />
-        </label>
-        <label>Profile URL
+        <label>🔗 Profile URL
           <input id="link" name="linkUrl" placeholder="https://instagram.com/your-handle" required />
         </label>
 
-        <div class="hr"></div>
+        <hr style="border: none; height: 1px; background: #e5e7eb; margin: 8px 0;">
 
-        <label>Profile Photo
+        <label>📸 Profile Photo
           <input id="image" type="file" accept="image/*" />
-          <small class="hint">Max ~1.5 MB.</small>
+          <small style="color: #6b7280; font-size: 12px;">Max ~1.5 MB. JPG, PNG, GIF accepted.</small>
         </label>
 
         <div class="footer">
           <button type="button" class="btn" data-close>Cancel</button>
-          <button type="submit" id="confirm" class="btn primary">Confirm</button>
+          <button type="submit" id="confirm" class="btn primary">✨ Confirm Purchase</button>
         </div>
       </form>
     </div>
   </div>
 
-<footer class="site-footer">
-  <div class="footer-inner">
-    <nav class="footer-links">
-      <a href="/terms.html" target="_blank" rel="noopener noreferrer">Terms of Use</a>
-    </nav>
-    <div class="footer-copy">© 2025 Influencers Wall. All rights reserved.</div>
-  </div>
-</footer>
-
-
-  <!-- Contact Modal (paste this just before your closing </body> tag, after your existing purchase modal) -->
-<div id="contactModal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="backdrop" data-close></div>
-  <div class="panel">
-    <div class="header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-      <h2 style="margin:0;">Contact</h2>
-      <button class="close" title="Close" data-close>&times;</button>
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <nav class="footer-links">
+        <a href="/terms.html" target="_blank" rel="noopener noreferrer">📋 Terms of Use</a>
+        <a href="/privacy.html" target="_blank" rel="noopener noreferrer">🔒 Privacy Policy</a>
+        <a href="/faq.html" target="_blank" rel="noopener noreferrer">❓ FAQ</a>
+      </nav>
+      <div class="footer-copy">© 2025 Influencers Wall. All rights reserved.</div>
     </div>
+  </footer>
 
-    <!-- Netlify Forms: ensure this form exists in HTML at build time -->
-    <form name="contact" method="POST" action="/contact-success.html"
-          data-netlify="true" netlify-honeypot="bot-field" class="body">
-      <input type="hidden" name="form-name" value="contact" />
-      <p hidden><label>Don’t fill this out: <input name="bot-field" /></label></p>
-
-      <label>Your name
-        <input name="name" placeholder="Your name" required />
-      </label>
-      <label>Your email
-        <input name="email" type="email" placeholder="you@example.com" required />
-      </label>
-      <label>Message
-        <textarea name="message" placeholder="How can we help?" rows="5" required></textarea>
-      </label>
-
-      <div class="footer">
-        <button type="button" class="btn" data-close>Cancel</button>
-        <button type="submit" class="btn primary">Send</button>
+  <!-- Contact Modal -->
+  <div id="contactModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="backdrop" data-close></div>
+    <div class="panel">
+      <div class="header">
+        <h2 style="margin:0; font-weight: 700;">💬 Contact Us</h2>
+        <button class="close" style="border:none;background:none;font-size:24px;cursor:pointer;color:#9ca3af;" title="Close" data-close>&times;</button>
       </div>
-    </form>
+
+      <form name="contact" method="POST" action="/contact-success.html" data-netlify="true" netlify-honeypot="bot-field" class="body">
+        <input type="hidden" name="form-name" value="contact" />
+        <p hidden><label>Don't fill this out: <input name="bot-field" /></label></p>
+
+        <label>👤 Your name
+          <input name="name" placeholder="Your name" required />
+        </label>
+        <label>📧 Your email
+          <input name="email" type="email" placeholder="you@example.com" required />
+        </label>
+        <label>💭 Message
+          <textarea name="message" placeholder="How can we help?" rows="5" required></textarea>
+        </label>
+
+        <div class="footer">
+          <button type="button" class="btn" data-close>Cancel</button>
+          <button type="submit" class="btn primary">📨 Send Message</button>
+        </div>
+      </form>
+    </div>
   </div>
-</div>
 
   <script src="js/errors.js"></script> 
   <script src="js/core-manager.js"></script>
@@ -133,10 +126,6 @@
   <script src="js/locks.js"></script> <!-- NOUVEAU -->
   <script src="js/upload-manager.js"></script>
   <script src="js/upload-addon.js"></script>
-  <script>
-  window.PAYPAL_CLIENT_ID = "Ae_mhLuL6FbRVTkQNt4XZZfnFII_WVgtsyqitpvyyzJkQkyvOXrkDMMBvY9PxlYlkqvAEq4pIspOwbPa";
-  window.PAYPAL_CURRENCY = "USD";
-  </script>
   <script src="/js/paypal-integration.js"></script>
   <script src="js/finalize-addon.js"></script>
   <script src="js/app.js"></script>

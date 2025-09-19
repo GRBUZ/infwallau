@@ -1,18 +1,19 @@
-/* purchase-ui.css — Styles pour la nouvelle interface d'achat */
+/* purchase-ui.css — Interface d'achat moderne cohérente */
 
-/* Progress overlay */
+/* ====== Progress overlay moderne ====== */
 .purchase-progress {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(15, 23, 42, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(12px);
+  animation: fadeIn 0.3s ease;
 }
 
 .purchase-progress.hidden {
@@ -20,22 +21,41 @@
 }
 
 .progress-content {
-  background: white;
-  padding: 2rem;
-  border-radius: 12px;
+  background: #ffffff;
+  padding: 2.5rem;
+  border-radius: 20px;
   text-align: center;
-  min-width: 300px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  min-width: 350px;
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.8);
+  border: 1px solid #e2e8f0;
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Spinner moderne avec gradient */
 .progress-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #3498db;
+  width: 48px;
+  height: 48px;
+  border: 4px solid #f1f5f9;
+  border-top: 4px solid transparent;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin: 0 auto 1rem;
+  margin: 0 auto 1.5rem;
+  position: relative;
+}
+
+.progress-spinner::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 50%;
+  border: 4px solid transparent;
+  border-top: 4px solid #8b5cf6;
+  animation: spin 1.5s linear infinite reverse;
 }
 
 @keyframes spin {
@@ -44,128 +64,349 @@
 }
 
 .progress-text {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 0.5rem;
+  font-family: "Inter", sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.1px;
 }
 
 .progress-detail {
-  font-size: 0.9rem;
-  color: #666;
-  font-style: italic;
+  font-family: "Inter", sans-serif;
+  font-size: 0.95rem;
+  color: #6b7280;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
-/* File input status */
+/* ====== PayPal buttons container ====== */
+.paypal-container {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+  animation: slideInUp 0.4s ease;
+}
+
+.paypal-container h3 {
+  font-family: "Inter", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 12px;
+  text-align: center;
+  letter-spacing: -0.1px;
+}
+
+.paypal-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Override PayPal button styles */
+.paypal-buttons .paypal-button {
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.2s ease !important;
+}
+
+.paypal-buttons .paypal-button:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* ====== File status moderne ====== */
 .file-status {
+  font-family: "Inter", sans-serif;
   font-size: 0.85rem;
-  margin-top: 0.5rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  display: inline-block;
+  font-weight: 600;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.file-status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .file-status.success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%);
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.file-status.success::before {
+  background: #22c55e;
 }
 
 .file-status.error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.file-status.error::before {
+  background: #ef4444;
 }
 
 .file-status.info {
-  background: #d1ecf1;
-  color: #0c5460;
-  border: 1px solid #bee5eb;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
 }
 
-/* Form error states */
+.file-status.info::before {
+  background: #3b82f6;
+}
+
+/* ====== Form error states améliorés ====== */
 input.error,
 textarea.error,
 select.error {
-  border-color: #dc3545 !important;
-  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+  background-color: rgba(239, 68, 68, 0.02) !important;
+  animation: shake 0.5s ease;
 }
 
-/* Enhanced modal styles */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+/* ====== Enhanced modal styles ====== */
 .modal .panel {
-  max-width: 500px;
-  width: 90vw;
+  max-width: 520px;
+  width: 92vw;
 }
 
 .modal .body {
-  max-height: 70vh;
+  max-height: 75vh;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #e5e7eb #f9fafb;
 }
 
-/* Button states */
+.modal .body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal .body::-webkit-scrollbar-track {
+  background: #f9fafb;
+  border-radius: 3px;
+}
+
+.modal .body::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 3px;
+}
+
+.modal .body::-webkit-scrollbar-thumb:hover {
+  background: #d1d5db;
+}
+
+/* ====== Button states améliorés ====== */
 .btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .btn.processing {
   position: relative;
+  color: transparent;
+  pointer-events: none;
 }
 
 .btn.processing::after {
   content: '';
   position: absolute;
-  width: 16px;
-  height: 16px;
-  margin: auto;
-  border: 2px solid transparent;
-  border-top-color: currentColor;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  margin-top: -9px;
+  margin-left: -9px;
+  border: 2px solid #ffffff;
+  border-top-color: transparent;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-  top: 0;
-  bottom: 0;
-  left: 8px;
+  animation: spin 0.8s linear infinite;
 }
 
-/* Grid cell selections */
+.btn.primary.processing::after {
+  border-color: rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+}
+
+/* ====== Grid cell selections modernisées ====== */
 .cell.sel {
-  background: rgba(59, 130, 246, 0.8) !important;
-  border: 2px solid #3b82f6 !important;
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
+  border: 2px solid #6d28d9 !important;
+  box-shadow: 
+    0 0 12px rgba(139, 92, 246, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+  position: relative;
+  z-index: 2;
+}
+
+.cell.sel::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  border-radius: 2px;
+  background: linear-gradient(45deg, transparent, rgba(255,255,255,0.2), transparent);
+  animation: shine-cell 2s infinite;
+  pointer-events: none;
+}
+
+@keyframes shine-cell {
+  0% { transform: translateX(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) rotate(45deg); }
 }
 
 .cell.pending {
-  background: rgba(245, 158, 11, 0.6) !important;
-  border: 1px solid #f59e0b;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+  border: 2px solid #d97706 !important;
+  animation: pulse-pending 2s infinite;
+}
+
+@keyframes pulse-pending {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
 }
 
 .cell.sold {
-  background: rgba(239, 68, 68, 0.8) !important;
-  border: 1px solid #ef4444;
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%) !important;
+  border: 1px solid #374151 !important;
   cursor: not-allowed;
+  opacity: 0.7;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .progress-content {
-    margin: 1rem;
-    padding: 1.5rem;
-    min-width: unset;
-  }
-  
-  .modal .panel {
-    width: 95vw;
-    margin: 0.5rem;
-  }
-}
-
-/* Animation for success state */
+/* ====== Success states ====== */
 @keyframes success-pulse {
   0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  50% { transform: scale(1.03); }
   100% { transform: scale(1); }
 }
 
 .success-animation {
-  animation: success-pulse 0.6s ease-in-out;
+  animation: success-pulse 0.8s ease-in-out;
+}
+
+/* Notification success */
+.success-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  padding: 16px 20px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  z-index: 11000;
+  animation: slideInRight 0.5s ease, fadeOut 0.5s ease 4.5s forwards;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+/* ====== Responsive adjustments ====== */
+@media (max-width: 768px) {
+  .progress-content {
+    margin: 1rem;
+    padding: 2rem;
+    min-width: unset;
+    border-radius: 16px;
+  }
+  
+  .modal .panel {
+    width: 96vw;
+    margin: 0.5rem;
+    border-radius: 12px;
+  }
+
+  .progress-spinner {
+    width: 40px;
+    height: 40px;
+  }
+
+  .progress-text {
+    font-size: 1.1rem;
+  }
+
+  .paypal-container {
+    margin-top: 16px;
+    padding-top: 12px;
+  }
+}
+
+/* ====== Micro-interactions ====== */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading overlay pour PayPal */
+.paypal-loading {
+  position: relative;
+}
+
+.paypal-loading::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  border-radius: 12px;
+}
+
+/* Transition fluide pour les états */
+.paypal-buttons,
+.file-status,
+.btn {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }

@@ -1,429 +1,480 @@
-*{box-sizing:border-box}html,body{height:100%}body{margin:0;font-family:system-ui,Segoe UI,Arial,sans-serif;color:#111;background:#fff}
-.topbar{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #eee;background:#fff;position:sticky;top:0;z-index:10}
-.brand h1{margin:0;font-size:18px}
-.brand p{margin:2px 0 0;color:#555;font-size:12px}
-.meta{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
-.price{font-weight:700}
-.left{font-size:12px;color:#444}
-.actions .btn{background:#6d28d9;color:#fff;border:1px solid #6d28d9;border-radius:10px;padding:8px 12px;cursor:pointer}
-.actions .btn[disabled]{opacity:.4;cursor:not-allowed}
+/* Reset et base */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:"Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;color:#111;background:#fff;overflow-x:hidden}
 
-main{display:flex;justify-content:center;padding:16px}
-.grid{position:relative;width:1000px;height:1000px;display:grid;grid-template-columns:repeat(100,10px);grid-template-rows:repeat(100,10px);gap:0;background:#fafafa;border:1px solid #eee;user-select:none}
-
-.cell{width:10px;height:10px;background:#fff;border:1px solid #f0f0f0}
-.cell.sold{background:#ddd;border-color:#ddd}
-.cell.pending{background:#fff6cc;border-color:#ffd66b}
-.cell.sel{outline:1px solid #8b5cf6;background:#f5f3ff}
-
-.modal.hidden{display:none}
-.modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:1000}
-.modal .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.35)}
-.modal .panel{position:relative;background:#fff;border:1px solid #eee;border-radius:12px;box-shadow:0 20px 40px rgba(0,0,0,.15);width:min(480px,92vw);overflow:hidden}
-.modal .header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #f2f2f2}
-.modal .body{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
-.modal label{display:flex;flex-direction:column;gap:6px;font-size:14px}
-.modal .footer{display:flex;justify-content:flex-end;gap:8px;padding:12px 14px;border-top:1px solid #f2f2f2}
-.btn{background:#fff;border:1px solid #ddd;border-radius:10px;padding:8px 12px;cursor:pointer}
-.btn.primary{background:#6d28d9;color:#fff;border-color:#6d28d9}
-
-.footer{padding:12px 16px;color:#666;border-top:1px solid #eee;margin-top:16px}
-
-.region-link{display:block;width:10px;height:10px}
-/* Make the Buy button text a bit smaller (and consistent) */
-.actions .btn {
-  font-size: 14px;
-  line-height: 1.1;
+/* ====== Header amélioré ====== */
+.masthead{
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
 }
 
-/* Modal header summary (pixels + amount): same style as button */
-#modalStats {
+.masthead-title{
+  font-family:"Clash Display", "Inter", sans-serif;
+  font-weight: 700;
+  font-size: clamp(18px, 2.2vw, 22px);
+  line-height: 1.05;
+  letter-spacing: -0.5px;
+  margin: 0;
+  padding: 10px 0 6px;
+  text-align: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  color: transparent;
+  background-clip: text;
+  -webkit-background-clip: text;
+  background-image: linear-gradient(135deg, #d946ef 0%, #c026d3 50%, #a21caf 100%);
+  border-bottom: 1px solid rgba(203, 213, 225, 0.5);
+  position: relative;
+}
+
+/* Effet de brillance subtile */
+.masthead-title::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: titleShine 4s ease-in-out infinite;
+}
+
+@keyframes titleShine {
+  0% { left: -100%; }
+  50% { left: 100%; }
+  100% { left: 100%; }
+}
+
+/* Bande violette avec gradient moderne */
+.masthead-strip{
+  background: linear-gradient(135deg, #d946ef 0%, #c026d3 25%, #a21caf 75%, #86198f 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Effet de brillance subtile */
+.masthead-strip::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  animation: shine 3s ease-in-out infinite;
+}
+
+@keyframes shine {
+  0% { left: -100%; }
+  50% { left: 100%; }
+  100% { left: 100%; }
+}
+
+.masthead-inner{
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 18px 20px; /* Réduit de 24px à 20px */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+  z-index: 2;
+}
+
+.masthead-tagline{
+  font-family:"Inter", sans-serif;
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.3;
+  font-size: clamp(14px, 2vw, 17px);
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0,0,0,.2);
+  letter-spacing: -0.2px;
+}
+
+.masthead-meta{
+  text-align: right;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: "Inter", sans-serif;
+}
+
+.masthead-meta .pixels-left{ 
+  font-size: clamp(14px, 2vw, 17px); /* Même taille que tagline */
+  margin-bottom: 3px;
+  text-shadow: 0 2px 4px rgba(0,0,0,.2);
+  font-weight: 600; /* Même poids que tagline */
+  letter-spacing: -0.2px;
+}
+
+.masthead-meta .price-line{ 
+  font-size: clamp(14px, 2vw, 17px); /* Même taille que tagline */
+  margin-bottom: 3px;
+  opacity: 0.95;
+  font-weight: 600; /* Même poids que tagline */
+  letter-spacing: -0.2px;
+}
+
+.masthead-meta .note{ 
+  font-size: clamp(12px, 1.6vw, 14px); /* Légèrement augmenté mais reste plus petit */
+  opacity: 0.85;
+  font-weight: 500;
+  letter-spacing: -0.1px;
+}
+
+/* ====== Boutons repositionnés ====== */
+.masthead-actions{
+  position: absolute;
+  bottom: -2px; /* Remontés de 2px par rapport au bas */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  z-index: 3;
+}
+
+/* Pills modernes avec micro-interactions */
+.pill{
+  font-family: "Inter", sans-serif;
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 20px;
+  border-radius: 50px;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.2;
+  letter-spacing: -0.1px;
+  border: 2px solid rgba(255,255,255,0.9);
+  box-shadow: 
+    0 4px 14px rgba(0,0,0,.15),
+    0 0 0 0 rgba(255,255,255,0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.pill::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left 0.5s ease;
+}
+
+.pill:hover::before {
+  left: 100%;
+}
+
+.pill:hover{ 
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 
+    0 8px 25px rgba(0,0,0,.2),
+    0 0 0 3px rgba(255,255,255,0.2);
+}
+
+.pill:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+.pill-primary{
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 50%, #ea580c 100%);
+  border-color: rgba(255,255,255,0.95);
+}
+
+.pill-secondary{
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
+  border-color: rgba(255,255,255,0.85);
+}
+
+/* ====== Main content avec espacement réduit ====== */
+body {
+  padding-top: 125px; /* Encore réduit car header plus compact */
+}
+
+main{
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px; /* Réduit encore */
+}
+
+.grid{
+  position: relative;
+  width: 1000px;
+  height: 1000px;
+  display: grid;
+  grid-template-columns: repeat(100,10px);
+  grid-template-rows: repeat(100,10px);
+  gap: 0;
+  background: #fafafa;
+  border: 1px solid #eee;
+  user-select: none;
+}
+
+.cell{
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+}
+
+.cell.sold{
+  background: #ddd;
+  border-color: #ddd;
+}
+
+.cell.pending{
+  background: #fff6cc;
+  border-color: #ffd66b;
+}
+
+.cell.sel{
+  outline: 1px solid #8b5cf6;
+  background: #f5f3ff;
+}
+
+/* ====== Modal amélioré ====== */
+.modal.hidden{display:none}
+.modal{
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(8px);
+}
+
+.modal .backdrop{
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal .panel{
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow: 
+    0 25px 50px rgba(0,0,0,.15),
+    0 0 0 1px rgba(255,255,255,0.8);
+  width: min(500px, 95vw);
+  overflow: hidden;
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal .header{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
+}
+
+.modal .body{
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal label{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   font-size: 14px;
   font-weight: 600;
+  color: #374151;
+  font-family: "Inter", sans-serif;
 }
+
+.modal input, .modal textarea {
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 14px;
+  font-family: "Inter", sans-serif;
+  transition: all 0.2s ease;
+  background: #ffffff;
+}
+
+.modal input:focus, .modal textarea:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.modal .footer{
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid #f1f5f9;
+  background: #fafafa;
+}
+
+.btn{
+  background: #ffffff;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  font-family: "Inter", sans-serif;
+  transition: all 0.2s ease;
+}
+
+.btn:hover{
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.btn.primary{
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: #fff;
+  border-color: #8b5cf6;
+}
+
+.btn.primary:hover{
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+/* ====== Footer violet subtil mais visible ====== */
+.site-footer{
+  margin-top: 40px;
+  background: linear-gradient(135deg, #a855f7 0%, #9333ea 50%, #7c3aed 100%);
+  color: #ffffff;
+  border-top: 1px solid rgba(255,255,255,0.2);
+  position: relative;
+  opacity: 0.7; /* Plus subtil que le header mais clairement violet */
+}
+
+.footer-inner{
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 18px 20px;
+  text-align: center;
+}
+
+.footer-links{
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.footer-links a{
+  color: #f3f4f6;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: "Inter", sans-serif;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.footer-links a:hover{
+  background: rgba(255,255,255,0.15);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.footer-copy{
+  font-size: 13px;
+  opacity: 0.8;
+  font-weight: 500;
+  font-family: "Inter", sans-serif;
+}
+
+/* ====== Responsive amélioré ====== */
+@media (max-width: 768px){
+  body {
+    padding-top: 110px; /* Plus compact sur mobile */
+  }
+  
+  .masthead-inner{ 
+    grid-template-columns: 1fr; 
+    text-align: center;
+    padding: 12px 18px 16px; /* Plus compact en bas */
+  }
+  
+  .masthead-meta{ text-align: center; }
+  
+  .masthead-actions{ 
+    gap: 12px;
+    bottom: 0;
+  }
+  
+  .pill {
+    padding: 9px 16px;
+    font-size: 13px;
+  }
+
+  main {
+    padding: 16px;
+  }
+}
+
+/* Améliorations UX */
+.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Smooth scroll pour toute la page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Effet de focus pour l'accessibilité */
+.pill:focus-visible,
+.btn:focus-visible {
+  outline: 2px solid #8b5cf6;
+  outline-offset: 2px;
+}
+
+/* overlays cliqueables au-dessus de la grille */
+.region-overlay{ position:absolute; z-index:999; display:block; text-decoration:none; }
+/* s'il y a un overlay rouge d'interdiction, qu'il ne bloque pas les clics */
+#invalidRect{ pointer-events:none; }
+/* s'assurer que la grille est cliquable */
+#grid{ position:relative; z-index:2; }
+
 /* Invalid selection overlay */
 #invalidRect{
   box-shadow: 0 0 0 2px rgba(239,68,68,0.35) inset;
   border-radius: 2px;
 }
-
-/* === Purple hero header like your screenshot === */
-.hero{
-  background: linear-gradient(180deg, #7C3AED 0%, #6D28D9 20%, #6A21CF 60%, #5B21B6 100%);
-  color: #fff;
-}
-.container{
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 16px;
-}
-
-.hero-top{
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 16px;
-  padding: 24px 0 22px;
-}
-.brand h1{
-  margin: 0;
-  font-weight: 500;
-  font-size: clamp(20px, 3.2vw, 28px);
-  letter-spacing: .2px;
-  text-shadow: 0 1px 0 rgba(0,0,0,0.08);
-}
-.brand p{
-  margin: 6px 0 0;
-  font-size: clamp(12px, 1.7vw, 16px);
-  opacity: .95;
-}
-
-.meta{
-  text-align: right;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.meta .price{
-  font-weight: 800;
-  font-size: clamp(14px, 2.2vw, 18px);
-}
-.meta .note,
-.meta .left{
-  font-size: 13px;
-  color: #F3E8FF;
-  opacity: .95;
-}
-
-/* thin divider + action bar */
-.hero-actions{
-  border-top: 1px solid rgba(255,255,255,0.3);
-  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.04));
-  padding: 10px 0 12px;
-}
-.actions-center{
-  display: flex;
-  justify-content: center;
-  gap: 18px;
-}
-
-/* Pill buttons */
-.btn{
-  font-weight: 700;
-  font-size: 16px;
-  line-height: 1.1;
-  cursor: pointer;
-  border-radius: 9999px;
-  padding: 10px 18px;
-  border: 1px solid rgba(255,255,255,0.55);
-  color: #fff;
-  background: rgba(255,255,255,0.06);
-  transition: background .15s ease, transform .06s ease, border-color .15s ease;
-  text-decoration: none;
-}
-.btn:hover{ background: rgba(255,255,255,0.12); transform: translateY(-1px); }
-.btn:disabled{ opacity: .6; cursor: not-allowed; transform: none; }
-.btn.primary{
-  background: rgba(255,255,255,0.12);
-  border-color: rgba(255,255,255,0.75);
-}
-.btn.primary:hover{ background: rgba(255,255,255,0.18); }
-
-/* Mobile layout: stack */
-@media (max-width: 760px){
-  .hero-top{ grid-template-columns: 1fr; text-align: center; }
-  .meta{ text-align: center; }
-}
-/* === HOTFIX: restore visible buttons inside the modal === */
-.modal .btn{
-  background:#f8f8f8;
-  color:#222;
-  border:1px solid #d0d0d0;
-}
-.modal .btn:hover{ background:#f2f2f2; }
-
-.modal .btn.primary{
-  background:#111;
-  color:#fff;
-  border-color:#111;
-}
-.modal .btn.primary:hover{ background:#000; }
-/* === Compact hero header (makes the top thinner) === */
-.hero-top{
-  padding: 10px 0 8px;           /* avant ~24px/22px */
-}
-.brand h1{
-  font-size: clamp(18px, 2.4vw, 22px);
-  line-height: 1.1;
-  margin: 0;
-}
-.brand p{
-  margin: 2px 0 4px;             /* espace sous le titre plus petit */
-  font-size: clamp(11px, 1.5vw, 13px);
-}
-.meta{
-  gap: 2px;                       /* resserre les lignes prix/note/left */
-}
-.meta .price{
-  font-size: clamp(13px, 2vw, 16px);
-}
-.meta .note,
-.meta .left{
-  font-size: 12px;
-}
-
-/* (optionnel) si tu veux aussi tasser un peu la barre des boutons */
-.hero-actions{
-  padding: 6px 0 8px;             /* plus fin que la valeur actuelle */
-}
-
-/* (optionnel) sur mobile, on compacte encore un peu */
-@media (max-width: 760px){
-  .hero-top{ padding: 8px 0 6px; }
-  /* .brand p{ display:none; } */ /* décommente pour cacher le sous-titre sur mobile */
-}
-/* Footer centered + link above */
-.footer{
-  text-align: center;
-  padding: 16px 0 20px;
-  border-top: 1px solid #eee;
-}
-.footer-links{
-  margin-bottom: 6px;
-}
-.footer-links a{
-  color: #555;
-  text-decoration: none;
-  font-size: 13px;
-}
-.footer-links a:hover{
-  text-decoration: underline;
-}
-.footer-copy{
-  color:#fff;
-  font-size: 13px;
-}
-/* Creator-style typography */
-.brand .title{
-  font-family: "Poppins", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  font-weight: 800;
-  letter-spacing: 0.2px;
-}
-
-.hero .brand .tagline{
-  /*font-family: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;*/
-  font-family:"Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  font-weight: 600;
-  color: #F5F3FF;              /* readable on the purple header */
-  text-shadow: 0 1px 0 rgba(0,0,0,.25);
-  font-size: clamp(14px, 2vw, 18px);
-  line-height: 1.35;
-}
-/* overlays cliqueables au-dessus de la grille */
-.region-overlay{ position:absolute; z-index:999; display:block; text-decoration:none; }
-/* s’il y a un overlay rouge d’interdiction, qu’il ne bloque pas les clics */
-#invalidRect{ pointer-events:none; }
-/* s’assurer que la grille est cliquable */
-#grid{ position:relative; z-index:2; }
-
-
-/* ====== Titre en haut ====== */
-
-.masthead-title{
-  /*font-family: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;*/
-  /*font-family:"Sora", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;*/
-  font-family:"Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-
-  font-weight: 700;
-  font-size: clamp(18px, 2.2vw, 22px); /* compact comme tu voulais */
-  line-height: 1.05;
-  letter-spacing: 0.2px;
-  margin: 4px 0 2px;
-  text-align: center;
-  color: #b93ad4; /* violet comme sur ta capture */
-}
-
-
-/* ====== Bande violette ====== */
-.masthead-strip{
-  background: linear-gradient(180deg, #c13abd 0%, #9b34d3 40%, #8a2cd9 100%);
-  color: #fff;
-  border-top: 1px solid rgba(255,255,255,0.15);
-  border-bottom: 1px solid rgba(0,0,0,0.06);
-  position: relative;
-  z-index: 1;
-}
-.masthead-inner{
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 16px 18px;           /* hauteur similaire à ta capture */
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: center;
-  gap: 16px;
-}
-.masthead-tagline{
-  font-family:"Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  margin: 0;
-  font-weight: 800;
-  line-height: 1.25;
-  font-size: clamp(18px, 2.2vw, 24px);
-  text-shadow: 0 1px 0 rgba(0,0,0,.15);
-}
-.masthead-meta{
-  text-align: right;
-  font-weight: 800;
-}
-.masthead-meta .pixels-left{ font-size: clamp(18px, 2.2vw, 24px); }
-.masthead-meta .price-line{   font-size: clamp(14px, 2vw, 18px); }
-.masthead-meta .note{         font-size: 14px; }
-
-/* ====== Boutons chevauchants ====== */
-.masthead-actions{
-  position: relative;
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  top: -22px;                  /* fait chevaucher ~50% la bande */
-  z-index: 2;                  /* au-dessus de la bande */
-}
-
-/* Pills */
-.pill{
-  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  display: inline-block;
-  padding: 10px 18px;
-  border-radius: 9999px;
-  color: #fff;
-  text-decoration: none;
-  font-weight: 700;
-  font-size: 16px;
-  line-height: 1.1;
-  border: 2px solid rgba(255,255,255,0.85);
-  box-shadow: 0 4px 10px rgba(0,0,0,.15);
-  transition: transform .06s ease, filter .15s ease;
-}
-.pill:hover{ transform: translateY(-1px); filter: brightness(1.05); }
-
-.pill-primary{
-  background: linear-gradient(180deg, #ff2ea6 0%, #b926c8 100%);
-}
-.pill-secondary{
-  background: linear-gradient(180deg, #2f6fd4 0%, #1f5fbf 100%);
-}
-
-/* Mobile */
-@media (max-width:760px){
-  .masthead-inner{ grid-template-columns: 1fr; text-align: center; }
-  .masthead-meta{ text-align: center; }
-  .masthead-actions{ top: -18px; gap: 12px; }
-}
-
-/* Option mobile : encore plus compact */
-@media (max-width: 760px){
-  .masthead-title{ font-size: clamp(17px, 4.5vw, 20px); }
-  .masthead-tagline{ font-size: clamp(14px, 4vw, 18px); }
-}
-
-/* == Compact header sizes == */
-.masthead-title{
-  font-size: clamp(18px, 2.2vw, 22px);
-  line-height: 1.05;
-  margin: 4px 0 2px;   /* moins d’espace autour */
-  font-weight: 800;    /* garde l’impact, mais tu peux mettre 700 */
-  letter-spacing: .1px;
-}
-
-.masthead-inner{
-  padding: 12px 16px; /* un peu moins haut */
-}
-.masthead-tagline{
-  font-size: clamp(16px, 2vw, 18px);
-}
-.masthead-meta .pixels-left{
-  font-size: clamp(16px, 2vw, 16px);
-}
-.masthead-meta .price-line{
-  font-size: clamp(13px, 1.8vw, 16px);
-}
-.masthead-meta .note{
-  font-size: 12px;
-}
-
-/* Boutons un peu plus petits, même chevauchement */
-.pill{
-  font-size: 15px;
-  padding: 9px 16px;
-}
-.masthead-actions{ top: -18px; }
-
-@media (max-width:760px){
-  .masthead-actions{ top: -16px; }
-}
-
-/* Le header reste collé en haut pendant le scroll */
-.masthead{
-  position: sticky;
-  top: 0;
-  z-index: 1000;           /* au-dessus de la grille */
-}
-
-/* (Option) évite que les boutons chevauchent trop la grille */
-main{ padding-top: 18px; }  /* ajuste 12–28px selon ton recouvrement */
-
-/* Footer style assorti au header, mais plus léger */
-.site-footer{
-  margin-top: 24px;
-  background: linear-gradient(180deg,#c13abd 0%, #9b34d3 40%, #8a2cd9 100%);
-  color:#fff;
-  border-top: 1px solid rgba(255,255,255,0.25);
-}
-.footer-inner{
-  max-width:1100px;
-  margin:0 auto;
-  padding:12px 16px 16px;  /* compact */
-  text-align:center;
-}
-.footer-links{
-  display:flex;
-  justify-content:center;
-  gap:14px;
-  flex-wrap:wrap;
-  margin-bottom:6px;
-}
-.footer-links a{
-  color:#fff;
-  text-decoration:none;
-  font-size:13px;
-  font-weight:700;
-  border-bottom:1px dashed rgba(255,255,255,0.6);
-}
-.footer-links a:hover{ border-bottom-color:#fff; }
-.footer-copy{
-  font-size:12px;
-  opacity:.9;
-}
-
-/* Option: version ultra-compacte */
-@media (max-width:760px){
-  .footer-links a{ font-size:12px; }
-  .footer-copy{ font-size:11px; }
-}
-
-/* Right meta in Plus Jakarta Sans */
-.masthead-meta,
-.masthead-meta .pixels-left,
-.masthead-meta .price-line,
-.masthead-meta .note{
-  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  color: #fff;
-  text-shadow: 0 1px 0 rgba(0,0,0,.15);
-  font-variant-numeric: tabular-nums;        /* chiffres alignés */
-  font-feature-settings: "tnum";
-}
-
-/*pour image obligatoire*/
-/* Ajoutez à votre fichier CSS */
 
 /* Style pour les champs requis */
 input[data-required="true"]:not([data-has-image="true"]) {
