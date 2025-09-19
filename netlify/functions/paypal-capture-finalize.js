@@ -190,7 +190,6 @@ exports.handler = async (event) => {
     // CAPTURE si nécessaire
     //new retry
     // CAPTURE si nécessaire
-    /*
 let capture;
 if (ppOrder.status !== 'COMPLETED') {
   const captureRes = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders/${paypalOrderId}/capture`, {
@@ -230,30 +229,7 @@ if (ppOrder.status !== 'COMPLETED') {
 } else {
   capture = ppOrder;
 }
-*/
     //new retry paypal
-    let capture;
-    if (ppOrder.status !== 'COMPLETED') {
-      const captureRes = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders/${paypalOrderId}/capture`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
-        },
-        body: JSON.stringify({})
-      });
-      const capJson = await captureRes.json().catch(()=>({}));
-      if (!captureRes.ok) {
-        return bad(502, 'PAYPAL_CAPTURE_FAILED', { details: capJson });
-      }
-      capture = capJson;
-      if (capture.status !== 'COMPLETED') {
-        return bad(502, 'PAYPAL_CAPTURE_NOT_COMPLETED', { paypalStatus: capture.status });
-      }
-    } else {
-      capture = ppOrder;
-    }
 
     // Extraire captureId + montants
     const pu0 = (capture.purchase_units && capture.purchase_units[0]) || {};

@@ -487,9 +487,19 @@ function resetModalAppState() {
     const size = firstCell ? firstCell.offsetWidth : 10;
 
     const regionLink = {};
+    //for (const [idx, s] of Object.entries(window.sold || {})) {
+      //if (s && s.regionId && !regionLink[s.regionId] && s.linkUrl) regionLink[s.regionId] = s.linkUrl;
+    //}
+    //new
     for (const [idx, s] of Object.entries(window.sold || {})) {
-      if (s && s.regionId && !regionLink[s.regionId] && s.linkUrl) regionLink[s.regionId] = s.linkUrl;
-    }
+  // Essayer les deux formats (camelCase et snake_case)
+  const regionId = s.regionId || s.region_id;
+  const linkUrl = s.linkUrl || s.link_url;
+  if (s && regionId && !regionLink[regionId] && linkUrl) {
+    regionLink[regionId] = linkUrl;
+  }
+}
+    //new
 
     for (const [rid, reg] of Object.entries(window.regions || {})) {
       if (!reg || !reg.rect || !reg.imageUrl) continue;
