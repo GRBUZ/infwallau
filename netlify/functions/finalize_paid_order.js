@@ -1,15 +1,14 @@
 // netlify/functions/finalize_paid_order.js
-// Finalisation atomique via Supabase RPC finalize_paid_order (100% Supabase, plus de state.json/GitHub).
+// Finalisation atomique via Supabase RPC finalize_paid_order (100% Supabase).
 // Modes:
 //  A) POST { name, linkUrl, blocks[], regionId?, imageUrl?, amount? }  -> finalise direct
-//  B) POST { orderId }  -> charge la ligne dans table 'orders' (order_id), vérifie ownership, finalise
+//  B) POST { orderId }  -> charge 'orders' (order_id), vérifie ownership, finalise
 //
 // Réponse: { ok:true, status:"completed", regionId, imageUrl, orderId? }
 
 const { requireAuth } = require('./auth-middleware');
 const { guardFinalizeInput } = require('./_validation');
 
-// --- Supabase
 const SUPABASE_URL     = process.env.SUPABASE_URL;
 const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -20,12 +19,33 @@ function json(status, obj){
     body: JSON.stringify(obj),
   };
 }
-const bad = (s,e,extra={}) => json(s, { ok:false, error:e, ...extra, signature:'finalize_paid_order.supabase.v1' });
-const ok  = (b)           => json(200,{ ok:true,  signature:'finalize_paid_order.supabase.v1', ...b });
+const bad = (s,e,extra={}) => json(s, { ok:false, error:e, ...extra, signature:'finalize_paid_order.supabase.v2' });
+const ok  = (b)           => json(200,{ ok:true,  signature:'finalize_paid_order.supabase.v2', ...b });
 
 function isUuid(v){
   return typeof v === 'string' &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+}
+
+// utils
+const CHUNK = 1000;
+const chunk = (arr, n=CHUNK) => {
+  const out = [];
+  for (let i=0;i<arr.length;i+=n) out.push(arr.slice(i, i+n));
+  return out;
+};
+const normalizeBlocks = (arr) =>
+  Array.from(new Set((Array.isArray(arr) ? arr : [])
+    .map(x => parseInt(x,10))
+    .filter(Number.isFinite)));
+
+async function releaseLocks(supabase, blocks, uid) {
+  try {
+    if (!Array.isArray(blocks) || !blocks.length || !uid) return;
+    for (const slice of chunk(blocks)) {
+      await supabase.from('locks').delete().in('idx', slice).eq('uid', uid);
+    }
+  } catch (_) { /* best-effort */ }
 }
 
 exports.handler = async (event) => {
@@ -51,7 +71,6 @@ exports.handler = async (event) => {
       orderId = String(body.orderId || '').trim();
       if (!orderId) return bad(400, 'MISSING_ORDER_ID');
 
-      // Charger la commande en base
       const { data: ord, error: selErr } = await supabase
         .from('orders')
         .select('uid, name, link_url, blocks, region_id, image_url, amount, total, currency, status, updated_at')
@@ -62,25 +81,24 @@ exports.handler = async (event) => {
       if (!ord)   return bad(404, 'ORDER_NOT_FOUND');
 
       if (ord.uid && ord.uid !== uid) return bad(403, 'FORBIDDEN');
-      if (!Array.isArray(ord.blocks) || !ord.blocks.length) return bad(400, 'NO_BLOCKS');
 
-      // Si déjà finalisée, idempotence
+      blocks   = normalizeBlocks(ord.blocks);
+      if (!blocks.length) return bad(400, 'NO_BLOCKS');
+
+      // Idempotence
       if (String(ord.status || '').toLowerCase() === 'completed') {
         return ok({ status:'completed', orderId, regionId: ord.region_id, imageUrl: ord.image_url || null });
       }
 
       name     = String(ord.name || '').trim();
       linkUrl  = String(ord.link_url || '').trim();
-      blocks   = ord.blocks.map(n=>parseInt(n,10)).filter(Number.isFinite);
       regionId = String(ord.region_id || '').trim();
       imageUrl = ord.image_url || null;
-      // montant: si amount présent, sinon total, sinon null
       amount   = (ord.amount != null) ? Number(ord.amount) : (ord.total != null ? Number(ord.total) : null);
 
       if (!name || !linkUrl || !blocks.length) return bad(400, 'MISSING_FIELDS');
       if (!isUuid(regionId)) regionId = (await import('node:crypto')).randomUUID();
 
-      // Appel RPC atomique
       const orderUuid = (await import('node:crypto')).randomUUID();
       const { error: rpcErr } = await supabase.rpc('finalize_paid_order', {
         _order_id:  orderUuid,
@@ -95,21 +113,23 @@ exports.handler = async (event) => {
 
       if (rpcErr) {
         const msg = (rpcErr.message || '').toUpperCase();
-        if (msg.includes('LOCKS_INVALID'))                          return bad(409, 'LOCK_MISSING_OR_EXPIRED');
+        if (msg.includes('LOCKS_INVALID'))                            return bad(409, 'LOCK_MISSING_OR_EXPIRED');
         if (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) return bad(409, 'ALREADY_SOLD');
-        if (msg.includes('NO_BLOCKS'))                              return bad(400, 'NO_BLOCKS');
-        if (msg.includes('PRICE_CHANGED'))                          return bad(409, 'PRICE_CHANGED');
+        if (msg.includes('NO_BLOCKS'))                                return bad(400, 'NO_BLOCKS');
+        if (msg.includes('PRICE_CHANGED'))                            return bad(409, 'PRICE_CHANGED');
         return bad(500, 'RPC_FINALIZE_FAILED', { message: rpcErr.message });
       }
 
       // Marquer la ligne comme complétée (best-effort)
       try {
-        const { error: upErr } = await supabase
+        await supabase
           .from('orders')
           .update({ status: 'completed', updated_at: new Date().toISOString() })
           .eq('order_id', orderId);
-        if (upErr) console.warn('[finalize_paid_order] orders.update failed:', upErr.message);
       } catch (_) {}
+
+      // Libération des locks (best-effort, comme capture/webhook)
+      try { await releaseLocks(supabase, blocks, uid); } catch (_) {}
 
       return ok({ status:'completed', orderId, regionId, imageUrl: imageUrl || null });
 
@@ -118,11 +138,13 @@ exports.handler = async (event) => {
       const validated = await guardFinalizeInput(event);
       name    = validated.name;
       linkUrl = validated.linkUrl;
-      blocks  = validated.blocks;
+      blocks  = normalizeBlocks(validated.blocks);
 
       const candidateRegion = String(body.regionId || '').trim();
       regionId = isUuid(candidateRegion) ? candidateRegion : (await import('node:crypto')).randomUUID();
       imageUrl = (typeof body.imageUrl === 'string' && body.imageUrl.trim()) ? body.imageUrl.trim() : null;
+
+      if (!blocks.length) return bad(400, 'NO_BLOCKS');
 
       if (body.amount != null) {
         const a = Number(body.amount);
@@ -144,12 +166,15 @@ exports.handler = async (event) => {
 
       if (rpcErr) {
         const msg = (rpcErr.message || '').toUpperCase();
-        if (msg.includes('LOCKS_INVALID'))                          return bad(409, 'LOCK_MISSING_OR_EXPIRED');
+        if (msg.includes('LOCKS_INVALID'))                            return bad(409, 'LOCK_MISSING_OR_EXPIRED');
         if (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) return bad(409, 'ALREADY_SOLD');
-        if (msg.includes('NO_BLOCKS'))                              return bad(400, 'NO_BLOCKS');
-        if (msg.includes('PRICE_CHANGED'))                          return bad(409, 'PRICE_CHANGED');
+        if (msg.includes('NO_BLOCKS'))                                return bad(400, 'NO_BLOCKS');
+        if (msg.includes('PRICE_CHANGED'))                            return bad(409, 'PRICE_CHANGED');
         return bad(500, 'RPC_FINALIZE_FAILED', { message: rpcErr.message });
       }
+
+      // Libération des locks (best-effort)
+      try { await releaseLocks(supabase, blocks, uid); } catch (_) {}
 
       return ok({ status:'completed', regionId, imageUrl: imageUrl || null });
     }

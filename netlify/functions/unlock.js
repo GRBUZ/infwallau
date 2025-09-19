@@ -20,7 +20,7 @@ exports.handler = async (event) => {
   try{
     // Auth obligatoire
     const auth = requireAuth(event);
-    if (auth.statusCode) return auth;
+    if (auth?.statusCode) return auth;
     const uid = auth.uid;
 
     if (event.httpMethod !== 'POST')            return bad(405,'METHOD_NOT_ALLOWED');
@@ -29,24 +29,29 @@ exports.handler = async (event) => {
     // Parse body
     let body = {};
     try { body = JSON.parse(event.body || '{}'); } catch { return bad(400,'BAD_JSON'); }
-    const blocks = Array.isArray(body.blocks)
+    let blocks = Array.isArray(body.blocks)
       ? body.blocks.map(x=>parseInt(x,10)).filter(Number.isFinite)
       : [];
     if (!blocks.length) return bad(400,'NO_BLOCKS');
+
+    // Dédup pour éviter des clauses IN plus grosses que nécessaire
+    blocks = Array.from(new Set(blocks));
 
     // Supabase client (import ESM dynamique)
     const { createClient } = await import('@supabase/supabase-js');
     const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession:false } });
 
-    // 1) Delete my locks for these blocks (idempotent)
-    //   - on supprime même si expirés; aucun impact négatif.
-    const { error: delErr } = await supabase
-      .from('locks')
-      .delete()
-      .eq('uid', uid)
-      .in('idx', blocks);
-
-    if (delErr) return bad(500,'LOCKS_DELETE_FAILED', { message: delErr.message });
+    // 1) Delete my locks for these blocks (idempotent) — en tranches
+    const CHUNK = 1000;
+    for (let i = 0; i < blocks.length; i += CHUNK) {
+      const slice = blocks.slice(i, i + CHUNK);
+      const { error: delErr } = await supabase
+        .from('locks')
+        .delete()
+        .eq('uid', uid)
+        .in('idx', slice);
+      if (delErr) return bad(500,'LOCKS_DELETE_FAILED', { message: delErr.message });
+    }
 
     // 2) Retourner l'état actuel des locks non expirés pour que le front reste sync
     const nowIso = new Date().toISOString();

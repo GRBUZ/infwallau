@@ -44,7 +44,7 @@ async function getPayPalAccessToken() {
   return j.access_token;
 }
 
-// Refund PayPal
+// --- helpers ---
 async function refundPayPalCapture(accessToken, captureId, amount, currency) {
   try {
     const resp = await fetch(`${PAYPAL_BASE_URL}/v2/payments/captures/${captureId}/refund`, {
@@ -65,17 +65,30 @@ async function refundPayPalCapture(accessToken, captureId, amount, currency) {
   }
 }
 
-// Libération des locks
 async function releaseLocks(supabase, blocks, uid) {
   try {
     if (!Array.isArray(blocks) || !blocks.length || !uid) return;
-    await supabase.from('locks').delete().in('idx', blocks).eq('uid', uid);
+    const CHUNK = 1000;
+    for (let i = 0; i < blocks.length; i += CHUNK) {
+      const slice = blocks.slice(i, i + CHUNK);
+      await supabase.from('locks').delete().in('idx', slice).eq('uid', uid);
+    }
   } catch (_) { /* best-effort */ }
 }
 
 function isUuid(v){
   return typeof v === 'string' &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+}
+
+async function tryRpc(supabase, fn, params) {
+  try {
+    const { data, error } = await supabase.rpc(fn, params);
+    if (error) return { data: null, error };
+    return { data, error: null };
+  } catch (e) {
+    return { data: null, error: e };
+  }
 }
 
 exports.handler = async (event) => {
@@ -188,45 +201,42 @@ exports.handler = async (event) => {
     }
 
     // CAPTURE si nécessaire
-let capture;
-if (ppOrder.status !== 'COMPLETED') {
-  const captureRes = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders/${paypalOrderId}/capture`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=representation'
-    },
-    body: JSON.stringify({})
-  });
-
-  const capJson = await captureRes.json().catch(()=> ({}));
-
-  if (!captureRes.ok) {
-    // Cas classique PayPal pour moyens de paiement refusés : demander au client de redémarrer le flux
-    const name   = (capJson && capJson.name) || '';
-    const issues = Array.isArray(capJson?.details) ? capJson.details.map(d => d.issue) : [];
-    const isInstrDeclined = name === 'UNPROCESSABLE_ENTITY' && issues.includes('INSTRUMENT_DECLINED');
-
-    if (isInstrDeclined) {
-      return bad(409, 'INSTRUMENT_DECLINED', {
-        retriable: true,
-        details: capJson
+    let capture;
+    if (ppOrder.status !== 'COMPLETED') {
+      const captureRes = await fetch(`${PAYPAL_BASE_URL}/v2/checkout/orders/${paypalOrderId}/capture`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({})
       });
+
+      const capJson = await captureRes.json().catch(()=> ({}));
+
+      if (!captureRes.ok) {
+        const name   = (capJson && capJson.name) || '';
+        const issues = Array.isArray(capJson?.details) ? capJson.details.map(d => d.issue) : [];
+        const isInstrDeclined = name === 'UNPROCESSABLE_ENTITY' && issues.includes('INSTRUMENT_DECLINED');
+
+        if (isInstrDeclined) {
+          return bad(409, 'INSTRUMENT_DECLINED', {
+            retriable: true,
+            details: capJson
+          });
+        }
+        return bad(502, 'PAYPAL_CAPTURE_FAILED', { details: capJson });
+      }
+
+      capture = capJson;
+
+      if (capture.status !== 'COMPLETED') {
+        return bad(502, 'PAYPAL_CAPTURE_NOT_COMPLETED', { paypalStatus: capture.status, details: capture });
+      }
+    } else {
+      capture = ppOrder;
     }
-
-    return bad(502, 'PAYPAL_CAPTURE_FAILED', { details: capJson });
-  }
-
-  capture = capJson;
-
-  if (capture.status !== 'COMPLETED') {
-    // Ex: PAYER_ACTION_REQUIRED ou autre état non-terminal
-    return bad(502, 'PAYPAL_CAPTURE_NOT_COMPLETED', { paypalStatus: capture.status, details: capture });
-  }
-} else {
-  capture = ppOrder;
-}
 
     // Extraire captureId + montants
     const pu0 = (capture.purchase_units && capture.purchase_units[0]) || {};
@@ -244,141 +254,158 @@ if (ppOrder.status !== 'COMPLETED') {
       return bad(409, 'CAPTURE_AMOUNT_MISMATCH', { expected: serverTotal, got: capValue });
     }
 
-    // Préparer données de finalisation
+    // ========= 3.5) VALIDATION STRICTE DES LOCKS (anti-414 / anti-1000) =========
+    // - 3.5.a : via RPC, vérifier qu'aucun lock d'un autre uid n'existe
+    // - 3.5.b : compter (par tranches) nos propres locks encore valides et comparer au total
+    const blocksOk = blocks;
+    const nowIso = new Date().toISOString();
+
+    // petite util pour centraliser le refund flow existant
+    const doRefundFor = async (reason) => {
+      const { data: claimRows, error: claimErr } = await supabase
+        .from('orders')
+        .update({
+          status: 'refund_pending',
+          fail_reason: reason,
+          paypal_order_id: paypalOrderId,
+          paypal_capture_id: captureId,
+          server_unit_price: unitPrice,
+          server_total: serverTotal,
+          currency,
+          updated_at: new Date().toISOString()
+        })
+        .eq('order_id', orderId)
+        .not('status', 'in', ['completed','refunded','refund_failed','refund_pending'])
+        .select('id');
+
+      const weOwnRefund = !claimErr && Array.isArray(claimRows) && claimRows.length > 0;
+      if (!weOwnRefund) {
+        const { data: fresh } = await supabase
+          .from('orders')
+          .select('status, region_id, image_url, unit_price, total, currency, paypal_capture_id, paypal_order_id')
+          .eq('order_id', orderId)
+          .single();
+
+        if (fresh?.status === 'completed') {
+          return ok({
+            status: 'completed',
+            orderId,
+            regionId: order.region_id,
+            imageUrl: order.image_url || fresh.image_url || null,
+            paypalOrderId: fresh.paypal_order_id || paypalOrderId,
+            paypalCaptureId: fresh.paypal_capture_id || captureId,
+            unitPrice,
+            total: serverTotal,
+            currency
+          });
+        }
+        if (fresh?.status === 'refunded') {
+          return bad(500, 'FINALIZE_FAILED_REFUNDED', { message: reason });
+        }
+        return bad(409, 'LOCK_MISSING_OR_EXPIRED');
+      }
+
+      let refundedOk = false;
+      let refundObj  = null;
+      try {
+        refundObj  = await refundPayPalCapture(accessToken, captureId, capValue, currency);
+        refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+      } catch (_) {}
+
+      try { await releaseLocks(supabase, blocksOk, uid); } catch(_) {}
+
+      if (refundedOk) {
+        const refundId = refundObj?.id
+          || refundObj?.refund_id
+          || refundObj?.purchase_units?.[0]?.payments?.refunds?.[0]?.id
+          || null;
+
+        await supabase.from('orders').update({
+          status: 'refunded',
+          refund_status: 'succeeded',
+          needs_manual_refund: false,
+          refund_attempted_at: new Date().toISOString(),
+          refund_id: refundId,
+          updated_at: new Date().toISOString()
+        }).eq('order_id', orderId);
+
+        return bad(500, 'FINALIZE_FAILED_REFUNDED', { message: reason });
+      } else {
+        await supabase.from('orders').update({
+          status: 'refund_failed',
+          refund_status: 'failed',
+          needs_manual_refund: true,
+          refund_attempted_at: new Date().toISOString(),
+          refund_error: 'REFUND_FAILED',
+          updated_at: new Date().toISOString()
+        }).eq('order_id', orderId);
+
+        try {
+          await logManualRefundNeeded({
+            route: 'capture-finalize',
+            orderId,
+            uid,
+            regionId: order.region_id,
+            blocks: blocksOk,
+            amount: capValue,
+            currency,
+            paypalOrderId,
+            paypalCaptureId: captureId,
+            reason,
+            error: 'REFUND_FAILED'
+          });
+        } catch (_) {}
+
+        return bad(409, 'LOCK_MISSING_OR_EXPIRED');
+      }
+    };
+
+    // 3.5.a — conflits (locks d’un autre uid) via RPC si dispo
+    {
+      const viaRpc = await tryRpc(supabase, 'locks_conflicts_in', { p_blocks: blocksOk, p_uid: uid, p_now: nowIso });
+      if (!viaRpc.error && Array.isArray(viaRpc.data) && viaRpc.data.length > 0) {
+        // quelqu’un d’autre détient un lock en cours → on traite comme lock invalide
+        const r = await doRefundFor('LOCKS_INVALID');
+        return r;
+      }
+    }
+
+    // 3.5.b — compter nos locks valides par tranches (pas de .in() géant)
+    {
+      const CHUNK = 1000;
+      let myValid = 0;
+
+      for (let i = 0; i < blocksOk.length; i += CHUNK) {
+        const slice = blocksOk.slice(i, i + CHUNK);
+        const { count: c, error: e } = await supabase
+          .from('locks')
+          .select('idx', { count: 'exact', head: true })
+          .in('idx', slice)
+          .gt('until', nowIso)
+          .eq('uid', uid);
+
+        if (e) return bad(500, 'LOCKS_QUERY_FAILED', { message: e.message });
+        myValid += (c || 0);
+      }
+
+      if (myValid !== blocksOk.length) {
+        const r = await doRefundFor('LOCKS_INVALID');
+        return r;
+      }
+    }
+
+    // 4) Finalisation atomique via RPC
     const name     = String(order.name || '').trim();
     const linkUrl  = String(order.link_url || '').trim();
-    const blocksOk = blocks;
-    if (!name || !linkUrl || !blocksOk.length) return bad(400, 'MISSING_FIELDS');
+    if (!name || !linkUrl) return bad(400, 'MISSING_FIELDS');
 
     let regionId = String(order.region_id || '').trim();
     if (!isUuid(regionId)) regionId = (await import('node:crypto')).randomUUID();
 
     const imageUrl = order.image_url || null;
     const amount   = Number(capValue);
-
-// 🔍 STRICT LOCK VALIDATION (count-only, anti-cap 1000)
-{
-  const nowIso = new Date().toISOString();
-
-  // On ne récupère PAS les lignes (qui seraient tronquées à 1000),
-  // on demande SEULEMENT le COUNT exact via head:true.
-  const { count: validCount, error: lockErr2 } = await supabase
-    .from('locks')
-    .select('idx', { count: 'exact', head: true })
-    .in('idx', blocksOk)
-    .gt('until', nowIso)
-    .eq('uid', uid);
-
-  if (lockErr2) {
-    return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr2.message });
-  }
-
-  if ((validCount ?? 0) !== blocksOk.length) {
-    // 👉 même logique qu’avant (claim + refund + release + retours),
-    //    tu réutilises exactement TON code existant à partir d’ici :
-    const reason = 'LOCKS_INVALID';
-
-    const { data: claimRows, error: claimErr } = await supabase
-      .from('orders')
-      .update({
-        status: 'refund_pending',
-        fail_reason: reason,
-        paypal_order_id: paypalOrderId,
-        paypal_capture_id: captureId,
-        server_unit_price: unitPrice,
-        server_total: serverTotal,
-        currency,
-        updated_at: new Date().toISOString()
-      })
-      .eq('order_id', orderId)
-      .not('status', 'in', ['completed','refunded','refund_failed','refund_pending'])
-      .select('id');
-
-    const weOwnRefund = !claimErr && Array.isArray(claimRows) && claimRows.length > 0;
-    if (!weOwnRefund) {
-      const { data: fresh } = await supabase
-        .from('orders')
-        .select('status, region_id, image_url, unit_price, total, currency, paypal_capture_id, paypal_order_id')
-        .eq('order_id', orderId)
-        .single();
-
-      if (fresh?.status === 'completed') {
-        return ok({
-          status: 'completed',
-          orderId,
-          regionId,
-          imageUrl: imageUrl || fresh.image_url || null,
-          paypalOrderId: fresh.paypal_order_id || paypalOrderId,
-          paypalCaptureId: fresh.paypal_capture_id || captureId,
-          unitPrice,
-          total: serverTotal,
-          currency
-        });
-      }
-      if (fresh?.status === 'refunded') {
-        return bad(500, 'FINALIZE_FAILED_REFUNDED', { message: 'LOCKS_INVALID' });
-      }
-      return bad(409, 'LOCK_MISSING_OR_EXPIRED');
-    }
-
-    let refundedOk = false;
-    let refundObj  = null;
-    try {
-      refundedOk = !!(refundObj = await refundPayPalCapture(accessToken, captureId, capValue, currency))
-                && !!(refundObj.id || refundObj.status);
-    } catch (_) {}
-
-    try { await releaseLocks(supabase, blocksOk, uid); } catch(_) {}
-
-    if (refundedOk) {
-      const refundId = refundObj?.id
-        || refundObj?.refund_id
-        || refundObj?.purchase_units?.[0]?.payments?.refunds?.[0]?.id
-        || null;
-
-      await supabase.from('orders').update({
-        status: 'refunded',
-        refund_status: 'succeeded',
-        needs_manual_refund: false,
-        refund_attempted_at: new Date().toISOString(),
-        refund_id: refundId,
-        updated_at: new Date().toISOString()
-      }).eq('order_id', orderId);
-
-      return bad(500, 'FINALIZE_FAILED_REFUNDED', { message: 'LOCKS_INVALID' });
-    } else {
-      await supabase.from('orders').update({
-        status: 'refund_failed',
-        refund_status: 'failed',
-        needs_manual_refund: true,
-        refund_attempted_at: new Date().toISOString(),
-        refund_error: 'REFUND_FAILED',
-        updated_at: new Date().toISOString()
-      }).eq('order_id', orderId);
-
-      try {
-        await logManualRefundNeeded({
-          route: 'capture-finalize',
-          orderId,
-          uid,
-          regionId,
-          blocks: blocksOk,
-          amount: capValue,
-          currency,
-          paypalOrderId,
-          paypalCaptureId: captureId,
-          reason: 'LOCKS_INVALID',
-          error: 'REFUND_FAILED'
-        });
-      } catch (_) {}
-
-      return bad(409, 'LOCK_MISSING_OR_EXPIRED');
-    }
-  }
-}
-
-    // 4) Finalisation atomique via RPC
     const orderUuid = (await import('node:crypto')).randomUUID();
+
     const { error: rpcErr } = await supabase.rpc('finalize_paid_order', {
       _order_id:  orderUuid,
       _uid:       uid,
@@ -393,7 +420,6 @@ if (ppOrder.status !== 'COMPLETED') {
     if (rpcErr) {
       const msg = (rpcErr.message || '').toUpperCase();
 
-      // 🧠 Décision refund: on "claim" d'abord le droit de rembourser
       const reason =
         msg.includes('LOCKS_INVALID') ? 'LOCKS_INVALID'
       : (msg.includes('ALREADY_SOLD') || msg.includes('CONFLICT')) ? 'ALREADY_SOLD'
@@ -414,44 +440,36 @@ if (ppOrder.status !== 'COMPLETED') {
         })
         .eq('order_id', orderId)
         .not('status', 'in', ['completed','refunded','refund_failed','refund_pending'])
-        //.not('status', 'in', ['completed','failed_refunded','failed','expired'])// ↑ Exclure les états finaux, inclure 'pending'
         .select('id');
-
 
       const weOwnRefund = !claimErr && Array.isArray(claimRows) && claimRows.length > 0;
 
-     if (!weOwnRefund) {
-  // Re-read the order to see what happened meanwhile (webhook likely acted)
-  const { data: fresh } = await supabase
-    .from('orders')
-    .select('status, region_id, image_url, unit_price, total, currency, paypal_capture_id, paypal_order_id')
-    .eq('order_id', orderId)
-    .single();
+      if (!weOwnRefund) {
+        const { data: fresh } = await supabase
+          .from('orders')
+          .select('status, region_id, image_url, unit_price, total, currency, paypal_capture_id, paypal_order_id')
+          .eq('order_id', orderId)
+          .single();
 
-  if (fresh?.status === 'completed') {
-    return ok({
-      status: 'completed',
-      orderId,
-      regionId,
-      imageUrl: imageUrl || fresh.image_url || null,
-      paypalOrderId: fresh.paypal_order_id || paypalOrderId,
-      paypalCaptureId: fresh.paypal_capture_id || captureId,
-      unitPrice,
-      total: serverTotal,
-      currency
-    });
-  }
+        if (fresh?.status === 'completed') {
+          return ok({
+            status: 'completed',
+            orderId,
+            regionId,
+            imageUrl: imageUrl || fresh.image_url || null,
+            paypalOrderId: fresh.paypal_order_id || paypalOrderId,
+            paypalCaptureId: fresh.paypal_capture_id || captureId,
+            unitPrice,
+            total: serverTotal,
+            currency
+          });
+        }
+        if (fresh?.status === 'refunded') {
+          return bad(500, 'FINALIZE_FAILED_REFUNDED', { message: 'LOCKS_INVALID' });
+        }
+        return bad(409, 'LOCK_MISSING_OR_EXPIRED');
+      }
 
-  if (fresh?.status === 'refunded') {
-    // Webhook already refunded → tell the UI it failed but money is back.
-    return bad(500, 'FINALIZE_FAILED_REFUNDED', { message: 'LOCKS_INVALID' });
-  }
-
-  // Neither completed nor refunded → just surface the lock error.
-  return bad(409, 'LOCK_MISSING_OR_EXPIRED');
-}
-
-      // On a le "claim" → on tente le refund
       let refundedOk = false;
       let refundObj  = null;
       try {
@@ -459,7 +477,6 @@ if (ppOrder.status !== 'COMPLETED') {
         refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
       } catch (_) {}
 
-      // libération des locks (best-effort)
       try { await releaseLocks(supabase, blocksOk, uid); } catch(_) {}
 
       if (refundedOk) {
@@ -486,7 +503,6 @@ if (ppOrder.status !== 'COMPLETED') {
           updated_at: new Date().toISOString()
         }).eq('order_id', orderId);
 
-        // Journal manuel GitHub en cas d'échec du refund
         try {
           await logManualRefundNeeded({
             route: 'capture-finalize',
@@ -530,8 +546,8 @@ if (ppOrder.status !== 'COMPLETED') {
     return ok({
       status:'completed',
       orderId,
-      regionId,
-      imageUrl: imageUrl || null,
+      regionId: order.region_id,
+      imageUrl: order.image_url || null,
       paypalOrderId,
       paypalCaptureId: captureId
     });

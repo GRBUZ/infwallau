@@ -58,7 +58,7 @@ async function getLockConflicts(supabase, blocks, uid, nowIso) {
   //   select idx, uid, until from public.locks
   //   where idx = any(p_blocks) and until > p_now and uid <> p_uid
   // $$;
-  const viaRpc = await tryRpc(supabase, 'locks_conflicts', { p_blocks: blocks, p_uid: uid, p_now: nowIso });
+  const viaRpc = await tryRpc(supabase, 'locks_conflicts_in', { p_blocks: blocks, p_uid: uid, p_now: nowIso });
   if (viaRpc.ok) return viaRpc.data || [];
 
   // 2) Fallback: batch .in(...).gt(...).neq(...)
