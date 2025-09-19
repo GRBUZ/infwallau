@@ -50,6 +50,14 @@ function isHttpUrl(u){
   try { const x = new URL(u); return x.protocol === 'http:' || x.protocol === 'https:'; } catch { return false; }
 }
 
+// --- helpers pour fallback chunké (éviter URL trop longues)
+const CHUNK = 800;
+function chunkArray(arr, size = CHUNK){
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
 exports.handler = async (event) => {
   try {
     // Auth
@@ -85,27 +93,66 @@ exports.handler = async (event) => {
     const { createClient } = await import('@supabase/supabase-js');
     const supabase = createClient(SUPABASE_URL, SUPA_SERVICE_KEY, { auth: { persistSession: false } });
 
-    // 1) déjà vendus ?
-    const { data: soldRows, error: soldErr } = await supabase
-      .from('cells')
-      .select('idx')
-      .in('idx', blocks)
-      .not('sold_at', 'is', null);
+    // 1) déjà vendus ? (→ RPC si dispo, sinon fallback chunké)
+    let soldIdxs = [];
+    let soldRpcFailed = false;
+    try {
+      // nécessite la fonction: create or replace function public.cells_sold_in(_blocks int[]) returns setof int ...
+      const { data: soldList, error: soldErr } = await supabase.rpc('cells_sold_in', { _blocks: blocks });
+      if (soldErr) throw soldErr;
+      soldIdxs = Array.isArray(soldList) ? soldList.map(Number) : [];
+    } catch (_) {
+      soldRpcFailed = true;
+    }
 
-    if (soldErr) return bad(500, 'CELLS_QUERY_FAILED', { message: soldErr.message });
-    if (soldRows && soldRows.length) return bad(409, 'ALREADY_SOLD', { idx: Number(soldRows[0].idx) });
+    if (soldRpcFailed) {
+      soldIdxs = [];
+      for (const part of chunkArray(blocks)) {
+        const { data, error } = await supabase
+          .from('cells')
+          .select('idx')
+          .in('idx', part)
+          .not('sold_at', 'is', null);
+        if (error) return bad(500, 'CELLS_QUERY_FAILED', { message: error.message });
+        if (data && data.length) soldIdxs.push(...data.map(r => Number(r.idx)));
+      }
+    }
 
-    // 2) lockés par un autre ?
+    if (soldIdxs.length) return bad(409, 'ALREADY_SOLD', { idx: soldIdxs[0] });
+
+    // 2) lockés par un autre ? (→ RPC si dispo, sinon fallback chunké)
     const nowIso = new Date().toISOString();
-    const { data: lockRows, error: lockErr } = await supabase
-      .from('locks')
-      .select('idx, uid, until')
-      .in('idx', blocks)
-      .gt('until', nowIso)
-      .neq('uid', uid);
+    let lockedByOther = [];
+    let lockRpcFailed = false;
+    try {
+      // nécessite la fonction:
+      // create or replace function public.locks_conflicts_in(_uid text, _blocks int[]) returns setof int
+      //   as $$ select idx from public.locks where idx = any(_blocks) and until > now() and uid <> _uid $$;
+      const { data: lockList, error: lockErr } = await supabase.rpc('locks_conflicts_in', {
+        _uid: uid,
+        _blocks: blocks
+      });
+      if (lockErr) throw lockErr;
+      lockedByOther = Array.isArray(lockList) ? lockList.map(Number) : [];
+    } catch (_) {
+      lockRpcFailed = true;
+    }
 
-    if (lockErr) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr.message });
-    if (lockRows && lockRows.length) return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
+    if (lockRpcFailed) {
+      lockedByOther = [];
+      for (const part of chunkArray(blocks)) {
+        const { data, error } = await supabase
+          .from('locks')
+          .select('idx')
+          .in('idx', part)
+          .gt('until', nowIso)
+          .neq('uid', uid);
+        if (error) return bad(500, 'LOCKS_QUERY_FAILED', { message: error.message });
+        if (data && data.length) lockedByOther.push(...data.map(r => Number(r.idx)));
+      }
+    }
+
+    if (lockedByOther.length) return bad(409, 'LOCKED_BY_OTHER', { idx: lockedByOther[0] });
 
     // 3) Prix côté serveur
     const { count, error: countErr } = await supabase
