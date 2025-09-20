@@ -270,7 +270,7 @@ function resetModalAppState() {
   }
 }
  
-  /*function setPayPalEnabled(enabled){
+  function setPayPalEnabled(enabled){
     const c = document.getElementById('paypal-button-container');
     if (!c) return;
     c.style.pointerEvents = enabled ? '' : 'none';
@@ -293,10 +293,10 @@ function resetModalAppState() {
     } else if (badge) {
       badge.remove();
     }
-  }*/
+  }
 
     //new modern style paypal
-    function setPayPalEnabled(enabled){
+  /*  function setPayPalEnabled(enabled){
   const c = document.getElementById('paypal-button-container');
   if (!c) return;
   
@@ -324,7 +324,7 @@ function resetModalAppState() {
     badge.style.opacity = '0';
     setTimeout(() => badge.remove(), 300);
   }
-}
+}*/
     //new modern style paypal
   // === Garde-fous d'expiration côté client (simplifié) ===
   function haveMyValidLocks(arr, graceMs = 2000){
