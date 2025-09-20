@@ -126,6 +126,27 @@
     refreshTopbar();
   }
 
+  //new modern style
+  // ====== MISE À JOUR INFO SÉLECTION ======
+function updateSelectionInfo() {
+  const selectionInfo = document.getElementById('selectionInfo');
+  if (!selectionInfo) return;
+  
+  const blocksSold = Object.keys(sold).length;
+  const pixelsSold = blocksSold * 100;
+  const currentPrice = 1 + Math.floor(pixelsSold / 1000) * 0.01;
+  const selectedPixels = selected.size * 100;
+  const total = (selectedPixels * currentPrice).toFixed(2);
+  
+  if (selectedPixels > 0) {
+    selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels sélectionnés • $${total}`;
+    selectionInfo.classList.add('show');
+  } else {
+    selectionInfo.classList.remove('show');
+  }
+}
+  //new modern style
+
   function refreshTopbar(){
     const blocksSold=Object.keys(sold).length, pixelsSold=blocksSold*100;
     const currentPrice = 1 + Math.floor(pixelsSold / 1000) * 0.01;
@@ -138,6 +159,10 @@
       buyBtn.textContent = `💎 Claim your spot — ${formatInt(selectedPixels)} px (${formatMoney(total)})`;
       buyBtn.disabled = false;
     } else { buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = true; }
+
+    //new modern style
+    updateSelectionInfo();
+    //new modern style
   }
 
   function clearSelection(){
@@ -227,7 +252,7 @@ function resetModalAppState() {
   }
 }
  
-  function setPayPalEnabled(enabled){
+  /*function setPayPalEnabled(enabled){
     const c = document.getElementById('paypal-button-container');
     if (!c) return;
     c.style.pointerEvents = enabled ? '' : 'none';
@@ -250,8 +275,39 @@ function resetModalAppState() {
     } else if (badge) {
       badge.remove();
     }
-  }
+  }*/
 
+    //new modern style paypal
+    function setPayPalEnabled(enabled){
+  const c = document.getElementById('paypal-button-container');
+  if (!c) return;
+  
+  // Animation fluide
+  c.style.transition = 'all 0.3s ease';
+  c.style.pointerEvents = enabled ? '' : 'none';
+  c.style.opacity = enabled ? '' : '0.5';
+  c.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  
+  // Badge d'expiration avec animation
+  let badge = c.querySelector('.pp-disabled-badge');
+  if (!enabled) {
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.className = 'pp-disabled-badge';
+      badge.textContent = '⏰ Reservation expired — reselect';
+      c.style.position = 'relative';
+      c.appendChild(badge);
+      // Animation d'apparition
+      badge.style.opacity = '0';
+      setTimeout(() => badge.style.opacity = '1', 10);
+    }
+  } else if (badge) {
+    // Animation de disparition
+    badge.style.opacity = '0';
+    setTimeout(() => badge.remove(), 300);
+  }
+}
+    //new modern style paypal
   // === Garde-fous d'expiration côté client (simplifié) ===
   function haveMyValidLocks(arr, graceMs = 2000){
     if (!arr || !arr.length) return false;

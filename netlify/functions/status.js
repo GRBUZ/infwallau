@@ -45,7 +45,8 @@ exports.handler = async (event) => {
       while (true) {
         const { data, error } = await supabase
           .from('cells')
-          .select('idx, region_id, sold_at, regions!inner ( id, name, link_url )')
+          //.select('idx, region_id, sold_at, regions!inner ( id, name, link_url )')
+          .select('idx, region_id, sold_at')
           .not('sold_at', 'is', null)
           .order('idx', { ascending: true })
           .range(from, from + pageSize - 1);
@@ -59,7 +60,7 @@ exports.handler = async (event) => {
       }
     }
 
-    const sold = {};
+    /*const sold = {};
     for (const row of (soldRows || [])) {
       const idx       = Number(row.idx);
       const rid       = row.region_id;
@@ -71,7 +72,25 @@ exports.handler = async (event) => {
       if (Number.isFinite(idx) && rid) {
         sold[idx] = { name, linkUrl, ts: soldAt, regionId: rid };
       }
-    }
+    }*/
+   //new archi rpc
+   // Re-construit SOLD en s’appuyant sur la map regions
+const sold = {};
+for (const row of (soldRows || [])) {
+  const idx    = Number(row.idx);
+  const rid    = row.region_id;
+  const soldAt = row.sold_at ? new Date(row.sold_at).getTime() : Date.now();
+  const meta   = regions[rid] || {};
+  if (Number.isFinite(idx) && rid) {
+    sold[idx] = {
+      name: meta.name || '',
+      linkUrl: meta.linkUrl || '',
+      ts: soldAt,
+      regionId: rid
+    };
+  }
+}
+   //new archi rpc
 
     // ===== 2) LOCKS: verrous non expirés (paginé)
     // NOTE: ta version + correctif (utiliser lockRows)
@@ -106,7 +125,7 @@ exports.handler = async (event) => {
     }
 
     // ===== 3) REGIONS: rectangles + image_url
-    const { data: regionRows, error: regErr } = await supabase
+    /*const { data: regionRows, error: regErr } = await supabase
       .from('regions')
       .select('id, x, y, w, h, image_url');
 
@@ -118,7 +137,25 @@ exports.handler = async (event) => {
         rect: { x: Number(r.x)||0, y: Number(r.y)||0, w: Number(r.w)||0, h: Number(r.h)||0 },
         imageUrl: r.image_url || ''
       };
-    }
+    }*/
+    //new archi rpc
+    const { data: regionRows, error: regErr } = await supabase
+  .from('regions')
+  .select('id, x, y, w, h, image_url, name, link_url'); // ← on ajoute name/link_url ici
+
+if (regErr) return bad(500, 'DB_REGIONS_QUERY_FAILED', { message: regErr.message });
+
+const regions = {};
+for (const r of (regionRows || [])) {
+  regions[r.id] = {
+    rect: { x: Number(r.x)||0, y: Number(r.y)||0, w: Number(r.w)||0, h: Number(r.h)||0 },
+    imageUrl: r.image_url || '',
+    // pour enrichir SOLD
+    name: r.name || '',
+    linkUrl: r.link_url || ''
+  };
+}
+    //new archi rpc
 
     return ok({ sold, locks, regions });
 

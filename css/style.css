@@ -507,3 +507,215 @@ button[id="confirm"]:has(+ form input[data-required="true"]:not([data-has-image=
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* ====== GLOW EFFECTS SUR SÉLECTION ====== */
+.cell.sel{
+  outline: none !important;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
+  border: 2px solid #6d28d9 !important;
+  z-index: 5;
+  position: relative;
+  animation: selectedGlow 1.5s infinite;
+}
+
+@keyframes selectedGlow {
+  0%, 100% {
+    box-shadow: 
+      0 0 8px rgba(139, 92, 246, 0.6),
+      0 0 16px rgba(139, 92, 246, 0.4),
+      0 0 24px rgba(139, 92, 246, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 0 12px rgba(139, 92, 246, 0.8),
+      0 0 24px rgba(139, 92, 246, 0.6),
+      0 0 36px rgba(139, 92, 246, 0.4);
+  }
+}
+
+/* Effet de brillance qui traverse */
+.cell.sel::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shine 2s infinite;
+  z-index: 1;
+  pointer-events: none;
+}
+
+@keyframes shine {
+  0% { transform: translateX(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) rotate(45deg); }
+}
+
+/* ====== INFO DE SÉLECTION EN BAS ====== */
+.selection-info {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(139, 92, 246, 0.95);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 14px;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) translateY(20px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4);
+  font-family: "Inter", sans-serif;
+}
+
+.selection-info.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.selection-info .count {
+  font-size: 16px;
+  margin-right: 8px;
+}
+
+/* Performance optimizations */
+.cell.sel {
+  will-change: transform, box-shadow;
+}
+
+/* ====== CONTAINER PAYPAL DANS TON MODAL ====== */
+#paypal-button-container {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+  animation: slideInUp 0.4s ease;
+  transition: all 0.2s ease;
+}
+
+/* Titre au-dessus des boutons PayPal */
+#paypal-button-container::before {
+  content: '💳 Choisir le mode de paiement';
+  display: block;
+  font-family: "Inter", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 12px;
+  text-align: center;
+  letter-spacing: -0.1px;
+}
+
+/* Override des styles PayPal */
+#paypal-button-container .paypal-button {
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.2s ease !important;
+  margin-bottom: 8px !important;
+}
+
+#paypal-button-container .paypal-button:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* États disabled du container PayPal */
+#paypal-button-container[aria-disabled="true"] {
+  pointer-events: none;
+  opacity: 0.5;
+  position: relative;
+}
+
+/* Badge d'expiration */
+.pp-disabled-badge {
+  position: absolute !important;
+  inset: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #b91c1c !important;
+  background: rgba(255,255,255,0.9) !important;
+  backdrop-filter: blur(4px) !important;
+  border-radius: 12px !important;
+  z-index: 10 !important;
+}
+
+/* Animation d'apparition */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading state pour PayPal */
+#paypal-button-container.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  z-index: 5;
+}
+
+/* Responsive PayPal */
+@media (max-width: 768px) {
+  #paypal-button-container::before {
+    font-size: 15px;
+  }
+}
+
+/* ====== PROGRESS OVERLAY PAYPAL ====== */
+.purchase-progress {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(15, 23, 42, 0.6) !important;
+  backdrop-filter: blur(12px) !important;
+  z-index: 10000 !important;
+}
+
+.progress-content {
+  background: #ffffff !important;
+  padding: 2.5rem !important;
+  border-radius: 20px !important;
+  box-shadow: 
+    0 25px 50px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.progress-text {
+  font-family: "Inter", sans-serif !important;
+  font-size: 1.2rem !important;
+  font-weight: 700 !important;
+  color: #1f2937 !important;
+  letter-spacing: -0.1px !important;
+}
+
+.progress-detail {
+  font-family: "Inter", sans-serif !important;
+  font-size: 0.95rem !important;
+  color: #6b7280 !important;
+  font-weight: 500 !important;
+}
