@@ -18,7 +18,7 @@
     return sdkPromise;
   }
 
-  // Récupère un éventuel JWT pour le fallback fetch
+  // JWT éventuel
   function getAuthToken() {
     try {
       if (typeof w.CoreManager?.getToken === 'function') return w.CoreManager.getToken() || '';
@@ -27,21 +27,20 @@
     } catch (_) { return ''; }
   }
 
-  // Convertit une éventuelle réponse HTML (ex: 414) en JSON lisible
+  // JSON safe (gère HTML 414)
   async function readJsonSafe(resp) {
     const text = await resp.text();
     try { return JSON.parse(text); }
     catch { return { ok: false, error: 'SERVER_HTML_ERROR', message: text.slice(0, 4000) }; }
   }
 
-  // --- injecte une micro feuille de style (une seule fois) ---
+  // Petite feuille de style injectée une fois
   function ensureStyles() {
     if (document.getElementById('pp-inline-style')) return;
     const css = `
-      .pp-wrap{border:1px solid #e9ecef;border-radius:12px;padding:12px 14px;background:#fafafa}
-      .pp-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+      .pp-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 10px}
       .pp-title{font-weight:600;font-size:14px}
-      .pp-cancel{all:unset;cursor:pointer;padding:6px 10px;border:1px solid #d0d7de;border-radius:8px;font-size:12px;line-height:1;background:#fff}
+      .pp-cancel{all:unset;cursor:pointer;padding:6px 10px;border:1px solid #d0d7de;border-radius:8px;font-size:12px;background:#fff}
       .pp-cancel:hover{background:#f6f8fa}
       #paypal-button-container{max-width:360px}
     `;
@@ -60,7 +59,6 @@
       await loadPayPalSdk(clientId, currency);
       ensureStyles();
 
-      // === Container PayPal (réutilisé) ===
       const containerId = 'paypal-button-container';
       let container = document.getElementById(containerId);
       if (!container) {
@@ -68,50 +66,33 @@
         container.id = containerId;
         const confirmBtn = document.getElementById('confirm');
         confirmBtn?.insertAdjacentElement('afterend', container);
+      } else {
+        container.innerHTML = ''; // évite double-render
       }
 
-      // === Wrapper « joli » avec titre + petit Cancel ===
-      const wrapId = 'paypal-wrap';
-      let wrap = document.getElementById(wrapId);
-      if (!wrap) {
-        wrap = document.createElement('div');
-        wrap.id = wrapId;
-        wrap.className = 'pp-wrap';
-        wrap.innerHTML = `
-          <div class="pp-header">
-            <div class="pp-title">Choose your payment method</div>
-            <button type="button" class="pp-cancel" id="pp-cancel-btn">Cancel</button>
-          </div>
-          <div class="pp-body"></div>
+      // === Ajout léger : header au-dessus du container, sans déplacer le container ===
+      const parent = container.parentElement || document.body;
+      let header = parent.querySelector('#pp-header-inline');
+      if (!header) {
+        header = document.createElement('div');
+        header.id = 'pp-header-inline';
+        header.className = 'pp-header';
+        header.innerHTML = `
+          <div class="pp-title">Choose your payment method</div>
+          <button type="button" class="pp-cancel" id="pp-cancel-btn-inline">Cancel</button>
         `;
-        // insérer le wrapper juste avant le container actuel puis y déplacer le container
-        container.parentNode.insertBefore(wrap, container);
-        wrap.querySelector('.pp-body').appendChild(container);
-
-        // petit bouton Cancel
-        wrap.querySelector('#pp-cancel-btn')?.addEventListener('click', () => {
+        parent.insertBefore(header, container); // juste AU-DESSUS du container
+        header.querySelector('#pp-cancel-btn-inline')?.addEventListener('click', () => {
           try { onCancel?.(); } catch (_) {}
         });
-      } else {
-        // si le wrapper existe déjà, s'assurer que le container est bien dedans
-        const body = wrap.querySelector('.pp-body');
-        if (body && container.parentElement !== body) {
-          body.appendChild(container);
-        }
       }
 
-      // éviter un double-render PayPal
-      container.innerHTML = '';
-
-      // --- Création d’ordre côté serveur (montant calculé serveur) ---
+      // --- Création d’ordre côté serveur ---
       const createOrder = async () => {
         const body = JSON.stringify({ orderId, currency });
         try {
           if (w.CoreManager?.apiCall) {
-            const res = await w.CoreManager.apiCall('/paypal-create-order', {
-              method: 'POST',
-              body
-            });
+            const res = await w.CoreManager.apiCall('/paypal-create-order', { method: 'POST', body });
             const data = (res && typeof res.json === 'function') ? await res.json() : res;
             const paypalId = data?.id || data?.paypalOrderId;
             if (!paypalId) throw new Error(data?.error || 'PAYPAL_CREATE_FAILED');
@@ -123,22 +104,14 @@
           if (token) headers['Authorization'] = `Bearer ${token}`;
 
           const resp = await fetch('/.netlify/functions/paypal-create-order', {
-            method: 'POST',
-            headers,
-            body,
-            credentials: 'same-origin'
+            method: 'POST', headers, body, credentials: 'same-origin'
           });
 
           const j = await readJsonSafe(resp);
-          if (j?.message && typeof j.message === 'string' && j.message.includes('414')) {
-            const e = new Error('REQUEST_URI_TOO_LARGE');
-            e.code = '414'; e.details = j.message;
-            throw e;
+          if (j?.message && j.message.includes('414')) {
+            const e = new Error('REQUEST_URI_TOO_LARGE'); e.code = '414'; e.details = j.message; throw e;
           }
-          if (!resp.ok) {
-            const e = new Error(j?.error || j?.message || 'PAYPAL_CREATE_FAILED');
-            e.details = j; throw e;
-          }
+          if (!resp.ok) { const e = new Error(j?.error || j?.message || 'PAYPAL_CREATE_FAILED'); e.details = j; throw e; }
 
           const paypalId = j?.id || j?.paypalOrderId;
           if (!paypalId) throw new Error('PAYPAL_CREATE_FAILED');
@@ -151,7 +124,7 @@
         }
       };
 
-      // --- Ne PAS capturer côté client : capture + finalisation côté serveur ---
+      // --- Approve → finalize serveur ---
       const onApprove = async (data, actions) => {
         try {
           if (typeof onApproved === 'function') {
@@ -160,7 +133,6 @@
             const headers = { 'Content-Type': 'application/json' };
             const token = getAuthToken();
             if (token) headers['Authorization'] = `Bearer ${token}`;
-
             const resp = await fetch('/.netlify/functions/paypal-capture-finalize', {
               method: 'POST',
               headers,
@@ -169,8 +141,7 @@
             });
             const j = await readJsonSafe(resp);
             if (!resp.ok || !j?.ok) {
-              const e = new Error(j?.error || j?.message || 'FINALIZE_FAILED');
-              e.details = j; throw e;
+              const e = new Error(j?.error || j?.message || 'FINALIZE_FAILED'); e.details = j; throw e;
             }
           }
         } catch (e) {
@@ -183,7 +154,7 @@
       const onCancelCb = () => onCancel?.();
       const onErrorCb  = (err) => onError?.(err);
 
-      // --- Rendu des boutons PayPal dans le MÊME container (maintenant dans le wrapper) ---
+      // === Rendu PayPal dans le MÊME container ===
       w.paypal.Buttons({
         style: { layout: 'vertical' },
         createOrder,

@@ -173,7 +173,7 @@ function updateSelectionInfo() {
     } else { buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = true; }
 
     // Gérer les animations selon la taille de sélection
-  if (selected.size > 1000) {
+  if (selected.size > 200) {
     document.body.classList.add('heavy-selection');
   } else {
     document.body.classList.remove('heavy-selection');
@@ -282,7 +282,7 @@ function resetModalAppState() {
       if (!badge) {
         badge = document.createElement('div');
         badge.className = 'pp-disabled-badge';
-        badge.textContent = 'Reservation expired — reselect';
+        badge.textContent = '⏰ Reservation expired — reselect';
         Object.assign(badge.style, {
           position: 'absolute', inset: '0', display:'grid', placeItems:'center',
           fontSize:'14px', fontWeight:'600', color:'#b91c1c', background:'rgba(255,255,255,0.6)'
@@ -295,37 +295,6 @@ function resetModalAppState() {
     }
   }
 
-    //new modern style paypal
-  /*  function setPayPalEnabled(enabled){
-  const c = document.getElementById('paypal-button-container');
-  if (!c) return;
-  
-  // Animation fluide
-  c.style.transition = 'all 0.3s ease';
-  c.style.pointerEvents = enabled ? '' : 'none';
-  c.style.opacity = enabled ? '' : '0.5';
-  c.setAttribute('aria-disabled', enabled ? 'false' : 'true');
-  
-  // Badge d'expiration avec animation
-  let badge = c.querySelector('.pp-disabled-badge');
-  if (!enabled) {
-    if (!badge) {
-      badge = document.createElement('div');
-      badge.className = 'pp-disabled-badge';
-      badge.textContent = '⏰ Reservation expired — reselect';
-      c.style.position = 'relative';
-      c.appendChild(badge);
-      // Animation d'apparition
-      badge.style.opacity = '0';
-      setTimeout(() => badge.style.opacity = '1', 10);
-    }
-  } else if (badge) {
-    // Animation de disparition
-    badge.style.opacity = '0';
-    setTimeout(() => badge.remove(), 300);
-  }
-}*/
-    //new modern style paypal
   // === Garde-fous d'expiration côté client (simplifié) ===
   function haveMyValidLocks(arr, graceMs = 2000){
     if (!arr || !arr.length) return false;
