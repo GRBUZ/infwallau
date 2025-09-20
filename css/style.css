@@ -510,12 +510,22 @@ button[id="confirm"]:has(+ form input[data-required="true"]:not([data-has-image=
 
 /* ====== GLOW EFFECTS SUR SÉLECTION ====== */
 .cell.sel{
-  outline: none !important;
   background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
   border: 2px solid #6d28d9 !important;
-  z-index: 5;
   position: relative;
-  animation: selectedGlow 1.5s infinite;
+  z-index: 2;
+  
+  /* Animation TRÈS légère - pas de box-shadow animé */
+  animation: pulseColor 2s ease-in-out infinite;
+}
+
+@keyframes pulseColor {
+  0%, 100% { 
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  }
+  50% { 
+    background: linear-gradient(135deg, #a855f7 0%, #8b5cf6 100%);
+  }
 }
 
 @keyframes selectedGlow {
@@ -531,20 +541,6 @@ button[id="confirm"]:has(+ form input[data-required="true"]:not([data-has-image=
       0 0 24px rgba(139, 92, 246, 0.6),
       0 0 36px rgba(139, 92, 246, 0.4);
   }
-}
-
-/* Effet de brillance qui traverse */
-.cell.sel::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
-  background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
-  animation: shine 2s infinite;
-  z-index: 1;
-  pointer-events: none;
 }
 
 @keyframes shine {
@@ -702,119 +698,141 @@ iframe[title*="PayPal"] {
   }
 }
 /* ====== RESPONSIVE MOBILE - ZOOM OUT EFFECT ====== */
-
+/*mobile responsive*/
+/* ====== RESPONSIVE MOBILE CORRIGÉ ====== */
 @media (max-width: 768px) {
-  /* Réduction proportionnelle de la grille */
-  .grid {
-    width: 350px;
-    height: 350px;
-    grid-template-columns: repeat(100, 3.5px);
-    grid-template-rows: repeat(100, 3.5px);
+  /* Header plus compact */
+  body {
+    padding-top: 85px; /* Réduit drastiquement */
   }
   
-  .cell {
-    width: 3.5px;
-    height: 3.5px;
-    border-width: 0.5px;
+  .masthead-title {
+    font-size: 18px;
+    padding: 6px 0 4px;
   }
   
-  /* Ajustement du main pour centrer */
-  main {
-    padding: 16px 8px;
-  }
-  
-  /* Modal adapté */
-  .modal .panel {
-    width: 95vw;
-    max-width: 400px;
-    margin: 1rem;
-    border-radius: 12px;
-  }
-  
-  .modal .body {
-    padding: 16px;
+  .masthead-inner {
+    padding: 8px 12px 14px; /* Plus serré */
     gap: 12px;
   }
   
-  .modal input, .modal textarea {
-    padding: 10px 14px;
-    font-size: 16px; /* Évite le zoom iOS */
+  .masthead-tagline {
+    font-size: 12px;
+    line-height: 1.2;
   }
   
-  /* Selection info compact */
+  .masthead-meta .pixels-left,
+  .masthead-meta .price-line {
+    font-size: 12px;
+  }
+  
+  .masthead-meta .note {
+    font-size: 10px;
+  }
+  
+  /* BOUTONS BEAUCOUP PLUS PETITS */
+  .pill {
+    padding: 6px 12px !important;
+    font-size: 11px !important;
+    gap: 8px;
+  }
+  
+  .masthead-actions {
+    bottom: -1px;
+    gap: 8px;
+  }
+  
+  /* GRILLE OPTIMISÉE POUR MOBILE */
+  main {
+    padding: 12px 8px; /* Minimal */
+  }
+  
+  .grid {
+    width: calc(100vw - 20px); /* Utilise toute la largeur */
+    height: calc(100vw - 20px); /* Carré parfait */
+    max-width: 380px;
+    max-height: 380px;
+    grid-template-columns: repeat(100, calc((100vw - 20px) / 100));
+    grid-template-rows: repeat(100, calc((100vw - 20px) / 100));
+  }
+  
+  .cell {
+    width: auto;
+    height: auto;
+    border-width: 0.3px; /* Bordures ultra-fines */
+  }
+  
+  /* Selection info plus petit */
   .selection-info {
-    bottom: 20px;
-    padding: 12px 18px;
-    font-size: 13px;
-    border-radius: 25px;
+    bottom: 15px;
+    padding: 8px 16px;
+    font-size: 11px;
+    border-radius: 20px;
   }
   
   .selection-info .count {
-    font-size: 14px;
+    font-size: 12px;
   }
   
-  /* PayPal responsive */
-  #paypal-button-container::before {
-    font-size: 14px;
+  /* Modal optimisé */
+  .modal .panel {
+    width: 95vw;
+    max-width: 350px;
+    margin: 0.5rem;
   }
   
-  /* Glow effects réduits sur mobile */
-  .cell.sel {
-    animation: selectedGlowMobile 1.5s infinite;
-  }
-  
-  @keyframes selectedGlowMobile {
-    0%, 100% {
-      box-shadow: 
-        0 0 4px rgba(139, 92, 246, 0.6),
-        0 0 8px rgba(139, 92, 246, 0.4);
-    }
-    50% {
-      box-shadow: 
-        0 0 6px rgba(139, 92, 246, 0.8),
-        0 0 12px rgba(139, 92, 246, 0.6);
-    }
+  .modal input, .modal textarea {
+    font-size: 16px; /* Évite le zoom iOS */
+    padding: 8px 12px;
   }
 }
 
 /* Très petits écrans */
 @media (max-width: 400px) {
+  .masthead-tagline {
+    font-size: 11px;
+  }
+  
+  .pill {
+    padding: 5px 10px !important;
+    font-size: 10px !important;
+  }
+  
   .grid {
-    width: 300px;
-    height: 300px;
-    grid-template-columns: repeat(100, 3px);
-    grid-template-rows: repeat(100, 3px);
-  }
-  
-  .cell {
-    width: 3px;
-    height: 3px;
-  }
-  
-  .selection-info {
-    padding: 10px 16px;
-    font-size: 12px;
+    width: calc(100vw - 16px);
+    height: calc(100vw - 16px);
+    grid-template-columns: repeat(100, calc((100vw - 16px) / 100));
+    grid-template-rows: repeat(100, calc((100vw - 16px) / 100));
   }
 }
 
-/* Landscape mobile */
+/* Landscape mobile - grille adaptée */
 @media (max-width: 768px) and (orientation: landscape) {
   body {
-    padding-top: 90px;
+    padding-top: 70px;
+  }
+  
+  .masthead-inner {
+    padding: 6px 12px 10px;
+  }
+  
+  .pill {
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+  }
+  
+  main {
+    padding: 8px;
   }
   
   .grid {
-    width: 320px;
-    height: 320px;
-    grid-template-columns: repeat(100, 3.2px);
-    grid-template-rows: repeat(100, 3.2px);
-  }
-  
-  .cell {
-    width: 3.2px;
-    height: 3.2px;
+    width: calc(100vh - 100px); /* Utilise la hauteur disponible */
+    height: calc(100vh - 100px);
+    grid-template-columns: repeat(100, calc((100vh - 100px) / 100));
+    grid-template-rows: repeat(100, calc((100vh - 100px) / 100));
   }
 }
+/*mobile responsive */
 
 /* paypal style gpt */
 /* wrapper Paypal compact */

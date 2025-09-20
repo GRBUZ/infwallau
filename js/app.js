@@ -101,6 +101,21 @@
     const s = sold[idx];
     const l = locks[idx];
 
+    //new style glow leger
+    const isSelected = selected.has(idx);
+  
+  // Si plus de 100 pixels sélectionnés, pas d'animations
+  const heavySelection = selected.size > 30000;
+  
+  d.classList.toggle('sel', isSelected);
+  
+  // Désactiver les animations coûteuses sur grandes sélections
+  if (heavySelection) {
+    d.style.animation = 'none';
+  } else {
+    d.style.animation = '';
+  }
+    //new style glow leger
     const reserved = l && l.until > Date.now() && !s;
     const reservedByOther = reserved && l.uid !== uid;
 
