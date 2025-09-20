@@ -121,7 +121,9 @@ for (const row of (soldRows || [])) {
     for (const r of lockRows) {           // <-- on itère bien sur lockRows
       const k = String(r.idx);
       const untilMs = r.until ? new Date(r.until).getTime() : 0;
+      //const untilMs = Math.max(0, r.until ? new Date(r.until).getTime() : 0); // ← mini vernis
       locks[k] = { uid: r.uid, until: untilMs };
+ 
     }
 
     // ===== 3) REGIONS: rectangles + image_url
@@ -139,25 +141,25 @@ for (const row of (soldRows || [])) {
       };
     }*/
     //new archi rpc
-    const { data: regionRows, error: regErr } = await supabase
+    // ===== 3) REGIONS: rectangles + image_url + name/link_url
+const { data: regionRows, error: regErr } = await supabase
   .from('regions')
-  .select('id, x, y, w, h, image_url, name, link_url'); // ← on ajoute name/link_url ici
+  .select('id, x, y, w, h, image_url, name, link_url'); // ← on garde name/link_url
 
 if (regErr) return bad(500, 'DB_REGIONS_QUERY_FAILED', { message: regErr.message });
 
-const regions = {};
+const regionsMap = {};
 for (const r of (regionRows || [])) {
-  regions[r.id] = {
+  regionsMap[r.id] = {
     rect: { x: Number(r.x)||0, y: Number(r.y)||0, w: Number(r.w)||0, h: Number(r.h)||0 },
     imageUrl: r.image_url || '',
-    // pour enrichir SOLD
     name: r.name || '',
     linkUrl: r.link_url || ''
   };
 }
     //new archi rpc
-
-    return ok({ sold, locks, regions });
+return ok({ sold, locks, regions: regionsMap });
+    //return ok({ sold, locks, regions });
 
   } catch (e) {
     return bad(500, 'SERVER_ERROR', { message: String(e?.message || e) });

@@ -601,7 +601,7 @@ button[id="confirm"]:has(+ form input[data-required="true"]:not([data-has-image=
 
 /* Titre au-dessus des boutons PayPal */
 #paypal-button-container::before {
-  content: '💳 Choisir le mode de paiement';
+  content: '💳 Choose your payment method';
   display: block;
   font-family: "Inter", sans-serif;
   font-size: 16px;
@@ -718,4 +718,120 @@ button[id="confirm"]:has(+ form input[data-required="true"]:not([data-has-image=
   font-size: 0.95rem !important;
   color: #6b7280 !important;
   font-weight: 500 !important;
+}
+
+
+/* ====== RESPONSIVE MOBILE - ZOOM OUT EFFECT ====== */
+
+@media (max-width: 768px) {
+  /* Réduction proportionnelle de la grille */
+  .grid {
+    width: 350px;
+    height: 350px;
+    grid-template-columns: repeat(100, 3.5px);
+    grid-template-rows: repeat(100, 3.5px);
+  }
+  
+  .cell {
+    width: 3.5px;
+    height: 3.5px;
+    border-width: 0.5px;
+  }
+  
+  /* Ajustement du main pour centrer */
+  main {
+    padding: 16px 8px;
+  }
+  
+  /* Modal adapté */
+  .modal .panel {
+    width: 95vw;
+    max-width: 400px;
+    margin: 1rem;
+    border-radius: 12px;
+  }
+  
+  .modal .body {
+    padding: 16px;
+    gap: 12px;
+  }
+  
+  .modal input, .modal textarea {
+    padding: 10px 14px;
+    font-size: 16px; /* Évite le zoom iOS */
+  }
+  
+  /* Selection info compact */
+  .selection-info {
+    bottom: 20px;
+    padding: 12px 18px;
+    font-size: 13px;
+    border-radius: 25px;
+  }
+  
+  .selection-info .count {
+    font-size: 14px;
+  }
+  
+  /* PayPal responsive */
+  #paypal-button-container::before {
+    font-size: 14px;
+  }
+  
+  /* Glow effects réduits sur mobile */
+  .cell.sel {
+    animation: selectedGlowMobile 1.5s infinite;
+  }
+  
+  @keyframes selectedGlowMobile {
+    0%, 100% {
+      box-shadow: 
+        0 0 4px rgba(139, 92, 246, 0.6),
+        0 0 8px rgba(139, 92, 246, 0.4);
+    }
+    50% {
+      box-shadow: 
+        0 0 6px rgba(139, 92, 246, 0.8),
+        0 0 12px rgba(139, 92, 246, 0.6);
+    }
+  }
+}
+
+/* Très petits écrans */
+@media (max-width: 400px) {
+  .grid {
+    width: 300px;
+    height: 300px;
+    grid-template-columns: repeat(100, 3px);
+    grid-template-rows: repeat(100, 3px);
+  }
+  
+  .cell {
+    width: 3px;
+    height: 3px;
+  }
+  
+  .selection-info {
+    padding: 10px 16px;
+    font-size: 12px;
+  }
+}
+
+/* Landscape mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+  body {
+    padding-top: 90px;
+  }
+  
+  .grid {
+    width: 320px;
+    height: 320px;
+    grid-template-columns: repeat(100, 3.2px);
+    grid-template-rows: repeat(100, 3.2px);
+  }
+  
+  .cell {
+    width: 3.2px;
+    height: 3.2px;
+  }
 }
