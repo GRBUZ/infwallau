@@ -815,3 +815,53 @@ iframe[title*="PayPal"] {
     height: 3.2px;
   }
 }
+
+/* paypal style gpt */
+/* wrapper Paypal compact */
+.pp-wrap {
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fafafa;
+}
+
+/* titre au-dessus et cancel compact à droite */
+.pp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.pp-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* petit bouton Cancel */
+.pp-cancel {
+  all: unset;
+  cursor: pointer;
+  padding: 6px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1;
+  background: #fff;
+}
+
+.pp-cancel:hover { background: #f6f8fa; }
+
+/* zone boutons PayPal */
+.pp-body {
+  display: block;           /* le texte reste au-dessus, pas en colonne */
+}
+
+/* optionnel : limiter la largeur des boutons PayPal et les centrer */
+#paypal-button-container {
+  max-width: 360px;
+}
+.pp-body #paypal-button-container { margin: 0; } /* ou margin: 0 auto; pour centrer */
+
+/*paypal style gpt */

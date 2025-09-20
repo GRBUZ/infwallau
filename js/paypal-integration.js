@@ -155,7 +155,40 @@
 
       const onCancelCb = () => onCancel?.();
       const onErrorCb  = (err) => onError?.(err);
+      //new style paypal
+      // -- au-dessus de "w.paypal.Buttons({...}).render('#' + containerId);"
+const wrapId = 'paypal-wrap';
+let wrap = document.getElementById(wrapId);
+if (!wrap) {
+  wrap = document.createElement('div');
+  wrap.id = wrapId;
+  wrap.className = 'pp-wrap';
 
+  wrap.innerHTML = `
+    <div class="pp-header">
+      <div class="pp-title">Choose your payment method</div>
+      <button type="button" class="pp-cancel" id="pp-cancel-btn">Cancel</button>
+    </div>
+    <div class="pp-body">
+      <div id="${containerId}"></div>
+    </div>
+  `;
+
+  // place le wrapper où tu veux (ex: à la place de l’ancien grand “Cancel”)
+  const confirmBtn = document.getElementById('confirm');
+  (confirmBtn?.parentNode || document.body).insertBefore(wrap, confirmBtn?.nextSibling || null);
+
+  // cancel compact
+  const cancelBtn = wrap.querySelector('#pp-cancel-btn');
+  cancelBtn?.addEventListener('click', () => {
+    try { onCancel?.(); } catch(_) {}
+    // si tu dois aussi fermer un modal: closeModal?.();
+  });
+}
+
+// puis render des boutons PayPal dans #paypal-button-container (déjà créé ci-dessus)
+
+      //new style paypal
       // Rendu des boutons
       w.paypal.Buttons({
         style: { layout: 'vertical' },
