@@ -314,9 +314,14 @@
           return;
         }
         const ok = haveMyValidLocksLocal(blocks);
-        msg.textContent = ok
-          ? '💳 Choose your payment method'
-          : 'Reservation expired — reselect';
+
+        //new style paypal
+        // — texte + classes d’état —
+      msg.textContent = ok
+      ? '💳 Choose your payment method'
+      : '⏰ Reservation expired — reselect';
+      msg.classList.toggle('expired', !ok);   // <-- classe d’état
+        //new style paypal
 
         const box = document.getElementById('paypal-button-container');
         if (box) {
@@ -358,7 +363,7 @@
               return l && l.uid === me && l.until > t;
             });
             if (!stillOk) {
-              msg.textContent = 'Reservation expired — reselect';
+              msg.textContent = '⏰ Reservation expired — reselect';
               try { await unlockSelection(); } catch {}
               btnBusy(false);
               return;
