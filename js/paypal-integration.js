@@ -9,7 +9,6 @@
     if (!sdkPromise) {
       sdkPromise = new Promise((resolve, reject) => {
         const s = document.createElement('script');
-        // Pas de query volumineuse ici non plus
         s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=${encodeURIComponent(currency)}&intent=capture`;
         s.onload = () => resolve();
         s.onerror = () => reject(new Error('PAYPAL_SDK_LOAD_FAILED'));
@@ -28,11 +27,28 @@
     } catch (_) { return ''; }
   }
 
-  // Petit util pour convertir une éventuelle réponse HTML (ex: 414) en erreur lisible
+  // Convertit une éventuelle réponse HTML (ex: 414) en JSON lisible
   async function readJsonSafe(resp) {
     const text = await resp.text();
     try { return JSON.parse(text); }
     catch { return { ok: false, error: 'SERVER_HTML_ERROR', message: text.slice(0, 4000) }; }
+  }
+
+  // --- injecte une micro feuille de style (une seule fois) ---
+  function ensureStyles() {
+    if (document.getElementById('pp-inline-style')) return;
+    const css = `
+      .pp-wrap{border:1px solid #e9ecef;border-radius:12px;padding:12px 14px;background:#fafafa}
+      .pp-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+      .pp-title{font-weight:600;font-size:14px}
+      .pp-cancel{all:unset;cursor:pointer;padding:6px 10px;border:1px solid #d0d7de;border-radius:8px;font-size:12px;line-height:1;background:#fff}
+      .pp-cancel:hover{background:#f6f8fa}
+      #paypal-button-container{max-width:360px}
+    `;
+    const style = document.createElement('style');
+    style.id = 'pp-inline-style';
+    style.appendChild(document.createTextNode(css));
+    document.head.appendChild(style);
   }
 
   async function initAndRender({ orderId, currency = 'USD', onApproved, onCancel, onError } = {}) {
@@ -42,7 +58,9 @@
       if (!orderId) throw new Error('MISSING_ORDER_ID');
 
       await loadPayPalSdk(clientId, currency);
+      ensureStyles();
 
+      // === Container PayPal (réutilisé) ===
       const containerId = 'paypal-button-container';
       let container = document.getElementById(containerId);
       if (!container) {
@@ -50,37 +68,56 @@
         container.id = containerId;
         const confirmBtn = document.getElementById('confirm');
         confirmBtn?.insertAdjacentElement('afterend', container);
-      } else {
-        // évite les double-renders si on relance initAndRender
-        container.innerHTML = '';
       }
+
+      // === Wrapper « joli » avec titre + petit Cancel ===
+      const wrapId = 'paypal-wrap';
+      let wrap = document.getElementById(wrapId);
+      if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.id = wrapId;
+        wrap.className = 'pp-wrap';
+        wrap.innerHTML = `
+          <div class="pp-header">
+            <div class="pp-title">Choose your payment method</div>
+            <button type="button" class="pp-cancel" id="pp-cancel-btn">Cancel</button>
+          </div>
+          <div class="pp-body"></div>
+        `;
+        // insérer le wrapper juste avant le container actuel puis y déplacer le container
+        container.parentNode.insertBefore(wrap, container);
+        wrap.querySelector('.pp-body').appendChild(container);
+
+        // petit bouton Cancel
+        wrap.querySelector('#pp-cancel-btn')?.addEventListener('click', () => {
+          try { onCancel?.(); } catch (_) {}
+        });
+      } else {
+        // si le wrapper existe déjà, s'assurer que le container est bien dedans
+        const body = wrap.querySelector('.pp-body');
+        if (body && container.parentElement !== body) {
+          body.appendChild(container);
+        }
+      }
+
+      // éviter un double-render PayPal
+      container.innerHTML = '';
 
       // --- Création d’ordre côté serveur (montant calculé serveur) ---
       const createOrder = async () => {
-        // On n’envoie QUE { orderId, currency } dans le body → anti-414
         const body = JSON.stringify({ orderId, currency });
-
         try {
-          // 1) Si ton wrapper existe, on l’utilise (et on STRINGIFIE le body)
           if (w.CoreManager?.apiCall) {
             const res = await w.CoreManager.apiCall('/paypal-create-order', {
               method: 'POST',
               body
             });
-
-            // Certains wrappers renvoient un Response, on gère les deux cas :
             const data = (res && typeof res.json === 'function') ? await res.json() : res;
-
-            // Accepte { id } ou { ok:true, id }
             const paypalId = data?.id || data?.paypalOrderId;
-            if (!paypalId) {
-              const errCode = data?.error || 'PAYPAL_CREATE_FAILED';
-              throw new Error(errCode);
-            }
+            if (!paypalId) throw new Error(data?.error || 'PAYPAL_CREATE_FAILED');
             return paypalId;
           }
 
-          // 2) Fallback: fetch direct Netlify
           const headers = { 'Content-Type': 'application/json' };
           const token = getAuthToken();
           if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -89,24 +126,18 @@
             method: 'POST',
             headers,
             body,
-            // pas de cache, pas de querystring
             credentials: 'same-origin'
           });
 
           const j = await readJsonSafe(resp);
-
-          // Si Cloudflare renvoie une page HTML 414, on remonte une erreur claire
           if (j?.message && typeof j.message === 'string' && j.message.includes('414')) {
             const e = new Error('REQUEST_URI_TOO_LARGE');
-            e.code = '414';
-            e.details = j.message;
+            e.code = '414'; e.details = j.message;
             throw e;
           }
-
           if (!resp.ok) {
             const e = new Error(j?.error || j?.message || 'PAYPAL_CREATE_FAILED');
-            e.details = j;
-            throw e;
+            e.details = j; throw e;
           }
 
           const paypalId = j?.id || j?.paypalOrderId;
@@ -116,7 +147,6 @@
         } catch (e) {
           console.error('[PayPalIntegration] createOrder failed:', e);
           onError?.(e);
-          // Rejeter pour que le SDK arrête le flow proprement
           throw e;
         }
       };
@@ -125,10 +155,8 @@
       const onApprove = async (data, actions) => {
         try {
           if (typeof onApproved === 'function') {
-            // On te refile le data PayPal complet (tu lis data.orderID)
             await onApproved(data, actions);
           } else {
-            // Fallback : finaliser côté serveur si aucun callback fourni
             const headers = { 'Content-Type': 'application/json' };
             const token = getAuthToken();
             if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -142,8 +170,7 @@
             const j = await readJsonSafe(resp);
             if (!resp.ok || !j?.ok) {
               const e = new Error(j?.error || j?.message || 'FINALIZE_FAILED');
-              e.details = j;
-              throw e;
+              e.details = j; throw e;
             }
           }
         } catch (e) {
@@ -155,8 +182,8 @@
 
       const onCancelCb = () => onCancel?.();
       const onErrorCb  = (err) => onError?.(err);
-      
-      // Rendu des boutons
+
+      // --- Rendu des boutons PayPal dans le MÊME container (maintenant dans le wrapper) ---
       w.paypal.Buttons({
         style: { layout: 'vertical' },
         createOrder,

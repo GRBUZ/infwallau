@@ -102,19 +102,16 @@
     const l = locks[idx];
 
     //new style glow leger
-    const isSelected = selected.has(idx);
-  
-  // Si plus de 100 pixels sélectionnés, pas d'animations
+   /* const isSelected = selected.has(idx);
   const heavySelection = selected.size > 30000;
   
   d.classList.toggle('sel', isSelected);
   
-  // Désactiver les animations coûteuses sur grandes sélections
   if (heavySelection) {
     d.style.animation = 'none';
   } else {
     d.style.animation = '';
-  }
+  }*/
     //new style glow leger
     const reserved = l && l.until > Date.now() && !s;
     const reservedByOther = reserved && l.uid !== uid;
@@ -175,6 +172,12 @@ function updateSelectionInfo() {
       buyBtn.disabled = false;
     } else { buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = true; }
 
+    // Gérer les animations selon la taille de sélection
+  if (selected.size > 1000) {
+    document.body.classList.add('heavy-selection');
+  } else {
+    document.body.classList.remove('heavy-selection');
+  }
     //new modern style
     updateSelectionInfo();
     //new modern style
