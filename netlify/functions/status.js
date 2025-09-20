@@ -158,7 +158,7 @@ for (const r of (regionRows || [])) {
   };
 }
     //new archi rpc
-return ok({ sold, locks, regions: regionsMap });
+return ok({ sold, locks, regionsMap });
     //return ok({ sold, locks, regions });
 
   } catch (e) {
