@@ -45,8 +45,8 @@ exports.handler = async (event) => {
       while (true) {
         const { data, error } = await supabase
           .from('cells')
-          //.select('idx, region_id, sold_at, regions!inner ( id, name, link_url )')
-          .select('idx, region_id, sold_at')
+          .select('idx, region_id, sold_at, regions!inner ( id, name, link_url )')
+          //.select('idx, region_id, sold_at')
           .not('sold_at', 'is', null)
           .order('idx', { ascending: true })
           .range(from, from + pageSize - 1);
