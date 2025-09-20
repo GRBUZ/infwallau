@@ -75,10 +75,22 @@
           <small style="color: #6b7280; font-size: 12px;">Max ~1.5 MB. JPG, PNG, GIF accepted.</small>
         </label>
 
+       
         <div class="footer">
-          <button type="button" class="btn" data-close>Cancel</button>
-          <button type="submit" id="confirm" class="btn primary">✨ Confirm Purchase</button>
-        </div>
+  <!-- Bouton Cancel petit à gauche -->
+  <button type="button" class="btn" data-close>Cancel</button>
+  
+  <!-- Zone PayPal à droite -->
+  <div class="paypal-zone">
+    <!-- Header message -->
+    <div class="paypal-header">
+      <h3>Choose your payment method</h3>
+    </div>
+    
+    <!-- Container PayPal (sera rempli par JS) -->
+    <div id="paypal-button-container"></div>
+  </div>
+</div>
       </form>
     </div>
   </div>
