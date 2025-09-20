@@ -584,18 +584,6 @@ body:not(.heavy-selection) .cell.sel::before {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12) !important;
 }
 
-/* Masquer complètement "Optimisé par PayPal" */
-#paypal-button-container .paypal-logo,
-#paypal-button-container [class*="paypal-logo"],
-#paypal-button-container [class*="powered"],
-#paypal-button-container [class*="optimized"],
-*[class*="paypal-mark"],
-iframe[title*="PayPal"] {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  height: 0 !important;
-}
 
 /* Réduire le bouton Cancel */
 .modal .footer {
