@@ -602,18 +602,6 @@ button[id="confirm"]:has(+ form input[data-required="true"]:not([data-has-image=
   animation: slideInUp 0.4s ease !important;
 }
 
-/* Titre stylé */
-#paypal-button-container::before {
-  content: '💳 Choose your payment method';
-  display: block !important;
-  font-family: "Inter", sans-serif !important;
-  font-size: 16px !important;
-  font-weight: 700 !important;
-  color: #1f2937 !important;
-  margin-bottom: 16px !important;
-  text-align: center !important;
-  letter-spacing: -0.1px !important;
-}
 
 /* Reset complet des styles PayPal */
 #paypal-button-container * {
