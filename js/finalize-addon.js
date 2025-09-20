@@ -283,7 +283,7 @@
 
   function showPaypalButton(orderId, currency){
     const msg = ensureMsgEl();
-    msg.textContent = 'Veuillez confirmer le paiement PayPal pour finaliser.';
+    //msg.textContent = 'Veuillez confirmer le paiement PayPal pour finaliser.';
     if (confirmBtn) confirmBtn.style.display = 'none';
     removePaypalContainer();
 
@@ -315,7 +315,7 @@
         }
         const ok = haveMyValidLocksLocal(blocks);
         msg.textContent = ok
-          ? 'Veuillez confirmer le paiement PayPal pour finaliser.'
+          ? '💳 Choose your payment method'
           : 'Reservation expired — reselect';
 
         const box = document.getElementById('paypal-button-container');
