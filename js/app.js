@@ -100,19 +100,6 @@
     const d = grid.children[idx];
     const s = sold[idx];
     const l = locks[idx];
-
-    //new style glow leger
-   /* const isSelected = selected.has(idx);
-  const heavySelection = selected.size > 30000;
-  
-  d.classList.toggle('sel', isSelected);
-  
-  if (heavySelection) {
-    d.style.animation = 'none';
-  } else {
-    d.style.animation = '';
-  }*/
-    //new style glow leger
     const reserved = l && l.until > Date.now() && !s;
     const reservedByOther = reserved && l.uid !== uid;
 

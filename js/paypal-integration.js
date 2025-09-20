@@ -9,6 +9,7 @@
     if (!sdkPromise) {
       sdkPromise = new Promise((resolve, reject) => {
         const s = document.createElement('script');
+        // Pas de query volumineuse ici non plus
         s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=${encodeURIComponent(currency)}&intent=capture`;
         s.onload = () => resolve();
         s.onerror = () => reject(new Error('PAYPAL_SDK_LOAD_FAILED'));
@@ -18,6 +19,7 @@
     return sdkPromise;
   }
 
+  // Récupère un éventuel JWT pour le fallback fetch
   function getAuthToken() {
     try {
       if (typeof w.CoreManager?.getToken === 'function') return w.CoreManager.getToken() || '';
@@ -26,25 +28,11 @@
     } catch (_) { return ''; }
   }
 
+  // Petit util pour convertir une éventuelle réponse HTML (ex: 414) en erreur lisible
   async function readJsonSafe(resp) {
     const text = await resp.text();
     try { return JSON.parse(text); }
     catch { return { ok: false, error: 'SERVER_HTML_ERROR', message: text.slice(0, 4000) }; }
-  }
-
-  function ensureStyles() {
-    if (document.getElementById('pp-inline-style')) return;
-    const style = document.createElement('style');
-    style.id = 'pp-inline-style';
-    style.textContent = `
-      .pp-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 10px}
-      .pp-title{font-weight:600;font-size:14px}
-      .pp-cancel{all:unset;cursor:pointer;padding:6px 10px;border:1px solid #d0d7de;border-radius:8px;font-size:12px;background:#fff}
-      .pp-cancel:hover{background:#f6f8fa}
-      #paypal-button-container{display:block;max-width:360px}
-      #paypal-buttons-host{display:block;min-width:250px}
-    `;
-    document.head.appendChild(style);
   }
 
   async function initAndRender({ orderId, currency = 'USD', onApproved, onCancel, onError } = {}) {
@@ -54,7 +42,6 @@
       if (!orderId) throw new Error('MISSING_ORDER_ID');
 
       await loadPayPalSdk(clientId, currency);
-      ensureStyles();
 
       const containerId = 'paypal-button-container';
       let container = document.getElementById(containerId);
@@ -63,64 +50,89 @@
         container.id = containerId;
         const confirmBtn = document.getElementById('confirm');
         confirmBtn?.insertAdjacentElement('afterend', container);
-      }
-
-      // Header au-dessus (sans reparent du container)
-      const parent = container.parentElement || document.body;
-      let header = parent.querySelector('#pp-header-inline');
-      if (!header) {
-        header = document.createElement('div');
-        header.id = 'pp-header-inline';
-        header.className = 'pp-header';
-        header.innerHTML = `
-          <div class="pp-title">Choose your payment method</div>
-          <button type="button" class="pp-cancel" id="pp-cancel-btn-inline">Cancel</button>
-        `;
-        parent.insertBefore(header, container);
-        header.querySelector('#pp-cancel-btn-inline')?.addEventListener('click', () => { try { onCancel?.(); } catch {} });
-      }
-
-      // Host dédié pour le SDK (évite les soucis de clear/reflow)
-      let host = container.querySelector('#paypal-buttons-host');
-      if (!host) {
-        container.innerHTML = '<div id="paypal-buttons-host"></div>';
-        host = container.firstElementChild;
       } else {
-        host.innerHTML = '';
+        // évite les double-renders si on relance initAndRender
+        container.innerHTML = '';
       }
 
+      // --- Création d’ordre côté serveur (montant calculé serveur) ---
       const createOrder = async () => {
+        // On n’envoie QUE { orderId, currency } dans le body → anti-414
         const body = JSON.stringify({ orderId, currency });
+
         try {
+          // 1) Si ton wrapper existe, on l’utilise (et on STRINGIFIE le body)
           if (w.CoreManager?.apiCall) {
-            const res = await w.CoreManager.apiCall('/paypal-create-order', { method: 'POST', body });
+            const res = await w.CoreManager.apiCall('/paypal-create-order', {
+              method: 'POST',
+              body
+            });
+
+            // Certains wrappers renvoient un Response, on gère les deux cas :
             const data = (res && typeof res.json === 'function') ? await res.json() : res;
+
+            // Accepte { id } ou { ok:true, id }
             const paypalId = data?.id || data?.paypalOrderId;
-            if (!paypalId) throw new Error(data?.error || 'PAYPAL_CREATE_FAILED');
+            if (!paypalId) {
+              const errCode = data?.error || 'PAYPAL_CREATE_FAILED';
+              throw new Error(errCode);
+            }
             return paypalId;
           }
+
+          // 2) Fallback: fetch direct Netlify
           const headers = { 'Content-Type': 'application/json' };
           const token = getAuthToken();
           if (token) headers['Authorization'] = `Bearer ${token}`;
+
           const resp = await fetch('/.netlify/functions/paypal-create-order', {
-            method: 'POST', headers, body, credentials: 'same-origin'
+            method: 'POST',
+            headers,
+            body,
+            // pas de cache, pas de querystring
+            credentials: 'same-origin'
           });
+
           const j = await readJsonSafe(resp);
-          if (!resp.ok) { const e = new Error(j?.error || j?.message || 'PAYPAL_CREATE_FAILED'); e.details = j; throw e; }
+
+          // Si Cloudflare renvoie une page HTML 414, on remonte une erreur claire
+          if (j?.message && typeof j.message === 'string' && j.message.includes('414')) {
+            const e = new Error('REQUEST_URI_TOO_LARGE');
+            e.code = '414';
+            e.details = j.message;
+            throw e;
+          }
+
+          if (!resp.ok) {
+            const e = new Error(j?.error || j?.message || 'PAYPAL_CREATE_FAILED');
+            e.details = j;
+            throw e;
+          }
+
           const paypalId = j?.id || j?.paypalOrderId;
           if (!paypalId) throw new Error('PAYPAL_CREATE_FAILED');
           return paypalId;
-        } catch (e) { console.error('[PayPalIntegration] createOrder failed:', e); onError?.(e); throw e; }
+
+        } catch (e) {
+          console.error('[PayPalIntegration] createOrder failed:', e);
+          onError?.(e);
+          // Rejeter pour que le SDK arrête le flow proprement
+          throw e;
+        }
       };
 
+      // --- Ne PAS capturer côté client : capture + finalisation côté serveur ---
       const onApprove = async (data, actions) => {
         try {
           if (typeof onApproved === 'function') {
+            // On te refile le data PayPal complet (tu lis data.orderID)
             await onApproved(data, actions);
           } else {
+            // Fallback : finaliser côté serveur si aucun callback fourni
             const headers = { 'Content-Type': 'application/json' };
             const token = getAuthToken();
             if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const resp = await fetch('/.netlify/functions/paypal-capture-finalize', {
               method: 'POST',
               headers,
@@ -128,22 +140,30 @@
               credentials: 'same-origin'
             });
             const j = await readJsonSafe(resp);
-            if (!resp.ok || !j?.ok) { const e = new Error(j?.error || j?.message || 'FINALIZE_FAILED'); e.details = j; throw e; }
+            if (!resp.ok || !j?.ok) {
+              const e = new Error(j?.error || j?.message || 'FINALIZE_FAILED');
+              e.details = j;
+              throw e;
+            }
           }
-        } catch (e) { console.error('[PayPalIntegration] onApprove failed:', e); onError?.(e); throw e; }
+        } catch (e) {
+          console.error('[PayPalIntegration] onApprove failed:', e);
+          onError?.(e);
+          throw e;
+        }
       };
 
       const onCancelCb = () => onCancel?.();
       const onErrorCb  = (err) => onError?.(err);
 
-      // Render sur le host dédié
+      // Rendu des boutons
       w.paypal.Buttons({
         style: { layout: 'vertical' },
         createOrder,
         onApprove,
         onCancel: onCancelCb,
         onError: onErrorCb
-      }).render('#paypal-buttons-host');
+      }).render('#' + containerId);
 
     } catch (err) {
       onError?.(err);
