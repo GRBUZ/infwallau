@@ -876,3 +876,57 @@ body:not(.heavy-selection) .cell.sel::before {
 }
 
 /* alignement paypal modal */
+
+/*patch paypal modal*/
+/* --- PayPal modal fix: un seul titre + align Cancel --- */
+
+/* 1) Un seul titre : on garde le ::before et on masque tout header existant */
+.paypal-header { display: none !important; }
+.modal .footer .paypal-zone > :not(#paypal-button-container) { display: none !important; }
+
+/* 2) Footer aligné au milieu verticalement */
+.modal .footer {
+  align-items: center !important;     /* centre verticalement Cancel vs. la colonne PayPal */
+  gap: 24px;
+}
+
+/* 3) Cancel compact et légèrement plus bas/centré */
+.modal .footer .btn:not(.primary) {
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  height: 36px;
+  align-self: center !important;      /* au milieu de la ligne */
+  margin-top: 6px;                    /* “descend un peu” */
+}
+
+/* 4) Colonne PayPal propre avec un seul titre au-dessus */
+#paypal-button-container {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  row-gap: 10px !important;
+  width: 340px;
+  max-width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: none !important;
+  border: 0 !important;
+}
+#paypal-button-container::before {
+  content: "💳 Choose your payment method";
+  display: block;
+  font: 700 15px/1.2 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #111827;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+/* 5) Responsive : pile en colonne, Cancel au-dessus */
+@media (max-width: 768px) {
+  .modal .footer { flex-direction: column; align-items: stretch !important; }
+  .modal .footer .btn:not(.primary) { align-self: flex-start !important; margin-top: 0; }
+  #paypal-button-container { width: 100%; }
+}
+
+/*patch paypal modal*/

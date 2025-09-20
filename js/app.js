@@ -298,7 +298,7 @@ function resetModalAppState() {
 
   // État optimiste immédiat pour éviter le flash "expired"
   confirmBtn.disabled = false;
-  confirmBtn.textContent = '✅ Confirm';
+  confirmBtn.textContent = 'Confirm';
   setPayPalEnabled(true);
 
   const tick = () => {
@@ -309,7 +309,7 @@ function resetModalAppState() {
     const ok = haveMyValidLocks(blocks, 5000); // grâce 5s
 
     confirmBtn.disabled = !ok;
-    confirmBtn.textContent = ok ? '✅ Confirm' : '⏰ Reservation expired — reselect';
+    confirmBtn.textContent = ok ? 'Confirm' : '⏰ Reservation expired — reselect';
     setPayPalEnabled(ok);
 
     // si on n'a plus de blocks (ex: UI vient d’être vidée), ne coupe pas le heartbeat ici
@@ -376,7 +376,7 @@ function resetModalAppState() {
     stopModalMonitor();
     // reset bouton si besoin
     confirmBtn.disabled = false;
-    confirmBtn.textContent = '✅ Confirm';
+    confirmBtn.textContent = 'Confirm';
   }
 
   // Modal close buttons
@@ -498,7 +498,7 @@ function resetModalAppState() {
           const blocks = currentLock.length ? currentLock : Array.from(selected);
           const ok = haveMyValidLocks(blocks, 5000); // Grâce de 5 secondes
           confirmBtn.disabled = !ok;
-          confirmBtn.textContent = ok ? '✅ Confirm' : '⏰ Reservation expired — reselect';
+          confirmBtn.textContent = ok ? 'Confirm' : '⏰ Reservation expired — reselect';
           setPayPalEnabled(ok);
 
           // Si expiré, on coupe le "keepalive" pour éviter tout relock
