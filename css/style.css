@@ -812,3 +812,67 @@ body:not(.heavy-selection) .cell.sel::before {
 .pp-body #paypal-button-container { margin: 0; } /* ou margin: 0 auto; pour centrer */
 
 /*paypal style gpt */
+
+/* alignement paypal modal */
+/* ===== PayPal modal — alignement propre, header au-dessus ===== */
+
+/* Ligne de footer: cancel à gauche, zone PayPal à droite alignée en haut */
+.modal .footer {
+  display: flex;
+  align-items: flex-start;       /* haut aligné */
+  justify-content: flex-start;
+  gap: 24px;
+}
+
+/* Bouton Cancel compact et aligné */
+.modal .footer .btn:not(.primary) {
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  height: 36px;                  /* taille visuelle propre */
+}
+
+/* Conteneur PayPal en colonne, largeur fixe et propre */
+#paypal-button-container {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  row-gap: 10px !important;
+  width: 340px;                  /* ajuste 320–360 selon goût */
+  max-width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: none !important;
+  border: 0 !important;
+}
+
+/* Titre au-dessus (sans toucher au HTML) */
+#paypal-button-container::before {
+  content: "💳 Choose your payment method";
+  display: block;
+  font: 700 15px/1.2 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  color: #111827;
+  margin-bottom: 6px;
+  text-align: center;              /* ou center si tu préfères */
+}
+
+/* Harmonise visuellement chaque bouton PayPal (cadre/ombre soft) */
+#paypal-button-container > div[data-funding-source] {
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,.08) !important;
+  transition: transform .15s ease, box-shadow .15s ease !important;
+}
+#paypal-button-container > div[data-funding-source]:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 8px 20px rgba(0,0,0,.12) !important;
+}
+
+/* Responsive: passe en colonne avec largeur fluide */
+@media (max-width: 768px) {
+  .modal .footer { flex-direction: column; align-items: stretch; }
+  #paypal-button-container { width: 100%; }
+  .modal .footer .btn:not(.primary) { align-self: flex-start; } /* cancel au-dessus */
+}
+
+/* alignement paypal modal */
