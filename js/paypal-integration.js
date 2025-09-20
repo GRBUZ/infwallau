@@ -18,7 +18,6 @@
     return sdkPromise;
   }
 
-  // JWT éventuel
   function getAuthToken() {
     try {
       if (typeof w.CoreManager?.getToken === 'function') return w.CoreManager.getToken() || '';
@@ -27,26 +26,24 @@
     } catch (_) { return ''; }
   }
 
-  // JSON safe (gère HTML 414)
   async function readJsonSafe(resp) {
     const text = await resp.text();
     try { return JSON.parse(text); }
     catch { return { ok: false, error: 'SERVER_HTML_ERROR', message: text.slice(0, 4000) }; }
   }
 
-  // Petite feuille de style injectée une fois
   function ensureStyles() {
     if (document.getElementById('pp-inline-style')) return;
-    const css = `
+    const style = document.createElement('style');
+    style.id = 'pp-inline-style';
+    style.textContent = `
       .pp-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0 10px}
       .pp-title{font-weight:600;font-size:14px}
       .pp-cancel{all:unset;cursor:pointer;padding:6px 10px;border:1px solid #d0d7de;border-radius:8px;font-size:12px;background:#fff}
       .pp-cancel:hover{background:#f6f8fa}
-      #paypal-button-container{max-width:360px}
+      #paypal-button-container{display:block;max-width:360px}
+      #paypal-buttons-host{display:block;min-width:250px}
     `;
-    const style = document.createElement('style');
-    style.id = 'pp-inline-style';
-    style.appendChild(document.createTextNode(css));
     document.head.appendChild(style);
   }
 
@@ -66,11 +63,9 @@
         container.id = containerId;
         const confirmBtn = document.getElementById('confirm');
         confirmBtn?.insertAdjacentElement('afterend', container);
-      } else {
-        container.innerHTML = ''; // évite double-render
       }
 
-      // === Ajout léger : header au-dessus du container, sans déplacer le container ===
+      // Header au-dessus (sans reparent du container)
       const parent = container.parentElement || document.body;
       let header = parent.querySelector('#pp-header-inline');
       if (!header) {
@@ -81,13 +76,19 @@
           <div class="pp-title">Choose your payment method</div>
           <button type="button" class="pp-cancel" id="pp-cancel-btn-inline">Cancel</button>
         `;
-        parent.insertBefore(header, container); // juste AU-DESSUS du container
-        header.querySelector('#pp-cancel-btn-inline')?.addEventListener('click', () => {
-          try { onCancel?.(); } catch (_) {}
-        });
+        parent.insertBefore(header, container);
+        header.querySelector('#pp-cancel-btn-inline')?.addEventListener('click', () => { try { onCancel?.(); } catch {} });
       }
 
-      // --- Création d’ordre côté serveur ---
+      // Host dédié pour le SDK (évite les soucis de clear/reflow)
+      let host = container.querySelector('#paypal-buttons-host');
+      if (!host) {
+        container.innerHTML = '<div id="paypal-buttons-host"></div>';
+        host = container.firstElementChild;
+      } else {
+        host.innerHTML = '';
+      }
+
       const createOrder = async () => {
         const body = JSON.stringify({ orderId, currency });
         try {
@@ -98,33 +99,20 @@
             if (!paypalId) throw new Error(data?.error || 'PAYPAL_CREATE_FAILED');
             return paypalId;
           }
-
           const headers = { 'Content-Type': 'application/json' };
           const token = getAuthToken();
           if (token) headers['Authorization'] = `Bearer ${token}`;
-
           const resp = await fetch('/.netlify/functions/paypal-create-order', {
             method: 'POST', headers, body, credentials: 'same-origin'
           });
-
           const j = await readJsonSafe(resp);
-          if (j?.message && j.message.includes('414')) {
-            const e = new Error('REQUEST_URI_TOO_LARGE'); e.code = '414'; e.details = j.message; throw e;
-          }
           if (!resp.ok) { const e = new Error(j?.error || j?.message || 'PAYPAL_CREATE_FAILED'); e.details = j; throw e; }
-
           const paypalId = j?.id || j?.paypalOrderId;
           if (!paypalId) throw new Error('PAYPAL_CREATE_FAILED');
           return paypalId;
-
-        } catch (e) {
-          console.error('[PayPalIntegration] createOrder failed:', e);
-          onError?.(e);
-          throw e;
-        }
+        } catch (e) { console.error('[PayPalIntegration] createOrder failed:', e); onError?.(e); throw e; }
       };
 
-      // --- Approve → finalize serveur ---
       const onApprove = async (data, actions) => {
         try {
           if (typeof onApproved === 'function') {
@@ -140,28 +128,22 @@
               credentials: 'same-origin'
             });
             const j = await readJsonSafe(resp);
-            if (!resp.ok || !j?.ok) {
-              const e = new Error(j?.error || j?.message || 'FINALIZE_FAILED'); e.details = j; throw e;
-            }
+            if (!resp.ok || !j?.ok) { const e = new Error(j?.error || j?.message || 'FINALIZE_FAILED'); e.details = j; throw e; }
           }
-        } catch (e) {
-          console.error('[PayPalIntegration] onApprove failed:', e);
-          onError?.(e);
-          throw e;
-        }
+        } catch (e) { console.error('[PayPalIntegration] onApprove failed:', e); onError?.(e); throw e; }
       };
 
       const onCancelCb = () => onCancel?.();
       const onErrorCb  = (err) => onError?.(err);
 
-      // === Rendu PayPal dans le MÊME container ===
+      // Render sur le host dédié
       w.paypal.Buttons({
         style: { layout: 'vertical' },
         createOrder,
         onApprove,
         onCancel: onCancelCb,
         onError: onErrorCb
-      }).render('#' + containerId);
+      }).render('#paypal-buttons-host');
 
     } catch (err) {
       onError?.(err);

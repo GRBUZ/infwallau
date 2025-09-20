@@ -173,7 +173,7 @@ function updateSelectionInfo() {
     } else { buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = true; }
 
     // Gérer les animations selon la taille de sélection
-  if (selected.size > 200) {
+  if (selected.size > 150) {
     document.body.classList.add('heavy-selection');
   } else {
     document.body.classList.remove('heavy-selection');
