@@ -819,9 +819,9 @@ body:not(.heavy-selection) .cell.sel::before {
 /* Ligne de footer: cancel à gauche, zone PayPal à droite alignée en haut */
 .modal .footer {
   display: flex;
-  align-items: flex-start;       /* haut aligné */
-  justify-content: flex-start;
-  gap: 24px;
+  align-items: center;       /* haut aligné */
+  justify-content: space-between;
+  gap: 20px;
 }
 
 /* Bouton Cancel compact et aligné */
@@ -939,3 +939,30 @@ body:not(.heavy-selection) .cell.sel::before {
 }
 
 /*patch paypal modal*/
+
+/* Libellé PayPal à droite : style "bouton Cancel" */
+.paypal-aside{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  padding:10px 20px;                /* même cadence que .btn */
+  border:2px solid #e5e7eb;
+  border-radius:12px;
+  background:#ffffff;
+  font: 600 14px "Inter",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  color:#111827;
+  line-height:1;
+  white-space:nowrap;
+  align-self:center;                /* au cas où le parent reste en flex */
+}
+
+/* petite icône comme repère visuel */
+.paypal-aside::before{ content:"💳"; }
+
+/* état quand la résa a expiré */
+.paypal-aside.expired{
+  border-color:#fecaca;
+  background:#fff1f2;
+  color:#b91c1c;
+}
