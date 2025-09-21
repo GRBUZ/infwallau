@@ -883,29 +883,52 @@ body:not(.heavy-selection) .cell.sel::before {
 
 /*patch paypal modal*/
 
-/* Libellé PayPal à droite : style "bouton Cancel" */
-.paypal-aside{
+/* Center the 3 items (Cancel | PayPal | right label) */
+.modal .footer{
+  display:flex;
+  justify-content: space-between;
+  align-items:center;                 /* vertical center */
+}
+
+/* In case one child overrides align-self */
+.modal .footer > *{ align-self:center; }
+
+/* PayPal container sometimes adds a top margin */
+#paypal-button-container{ margin:0 !important; }
+
+/* Style the right-side message like the Cancel button.
+   Works for several possible selectors (.paypal-aside, .paypal-expiry-msg, #paypal-expiry-msg). */
+.modal .footer :is(.paypal-aside, .paypal-expiry-msg, #paypal-expiry-msg){
   display:inline-flex;
   align-items:center;
   justify-content:center;
   gap:8px;
-  padding:10px 20px;                /* même cadence que .btn */
+  padding:10px 20px;
   border:2px solid #e5e7eb;
   border-radius:12px;
-  background:#ffffff;
-  font: 600 14px "Inter",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  background:#fff;
+  font:600 14px "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   color:#111827;
   line-height:1;
   white-space:nowrap;
-  align-self:center;                /* au cas où le parent reste en flex */
+  margin-left:12px;                    /* space from PayPal buttons */
 }
 
-/* petite icône comme repère visuel */
-.paypal-aside::before{ content:"💳"; }
+/* Small icon to match the design */
+.modal .footer :is(.paypal-aside, .paypal-expiry-msg, #paypal-expiry-msg)::before{
+  content:"💳";
+}
 
-/* état quand la résa a expiré */
-.paypal-aside.expired{
+/* Expired look (if your JS toggles .expired) */
+.modal .footer :is(.paypal-aside, .paypal-expiry-msg, #paypal-expiry-msg).expired{
   border-color:#fecaca;
   background:#fff1f2;
   color:#b91c1c;
+}
+
+/* Make the Cancel button small & aligned */
+.modal .footer .btn:not(.primary){
+  padding:8px 16px !important;
+  font-size:13px !important;
+  min-width:auto !important;
 }
