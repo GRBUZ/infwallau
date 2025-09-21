@@ -154,12 +154,13 @@ function updateSelectionInfo() {
 
     const selectedPixels = selected.size * 100;
     
-    if (selectedPixels > 0) {
-      //const total = selectedPixels * currentPrice;
-      //buyBtn.textContent = `💎 Claim your spot — ${formatInt(selectedPixels)} px (${formatMoney(total)})`;
-      buyBtn.textContent = `💎 Claim your spot`;
+    /*if (selectedPixels > 0) {
+      const total = selectedPixels * currentPrice;
+      buyBtn.textContent = `💎 Claim your spot — ${formatInt(selectedPixels)} px (${formatMoney(total)})`;
       buyBtn.disabled = false;
-    } else { buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = true; }
+    } else { buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = true; }*/
+
+    buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = false;
 
     // Gérer les animations selon la taille de sélection
   if (selected.size > 150) {
