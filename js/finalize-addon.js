@@ -248,7 +248,7 @@
   if (!statusEl) {
     statusEl = document.createElement('div');
     statusEl.id = 'payment-status';
-    statusEl.className = 'payment-status-message';
+    statusEl.textContent = 'Choose your payment method';
     
     // Insérer dans le footer du modal, à droite
     const footer = modal?.querySelector('.footer');

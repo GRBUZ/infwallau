@@ -530,58 +530,58 @@ body:not(.heavy-selection) .cell.sel::before {
 /* ====== RÉORGANISATION COMPLÈTE DE L'INTERFACE PAYPAL ====== */
 /* paypal claude new */
 /* ====== CLEAN PAYPAL MODAL LAYOUT ====== */
+/* ====== PAYPAL MODAL - VERSION SIMPLE ET ÉLÉGANTE ====== */
 
-/* Modal footer: clean 3-column layout */
+/* Footer modal : layout flexbox simple */
 .modal .footer {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 20px;
+  gap: 24px;
   padding: 20px;
   border-top: 1px solid #f1f5f9;
   background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
 }
 
-/* Cancel button - compact and clean */
+/* Cancel button - style existant maintenu */
 .modal .footer .btn:not(.primary) {
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 600;
+  padding: 10px 20px;
   border: 2px solid #e5e7eb;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #ffffff;
   color: #374151;
+  font-weight: 600;
+  font-size: 14px;
+  font-family: "Inter", sans-serif;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: "Inter", sans-serif;
-  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .modal .footer .btn:not(.primary):hover {
   background: #f9fafb;
   border-color: #d1d5db;
-  transform: translateY(-1px);
 }
 
-/* PayPal container - centered column */
+/* Container PayPal - centré et propre */
 #paypal-button-container {
+  flex: 1;
   display: flex !important;
   flex-direction: column !important;
   gap: 8px !important;
-  width: 280px;
-  max-width: 100%;
-  margin: 0 !important;
+  max-width: 320px;
+  margin: 0 auto !important;
   padding: 0 !important;
   background: none !important;
   border: none !important;
 }
 
-/* PayPal buttons styling */
+/* Boutons PayPal individuels */
 #paypal-button-container > div[data-funding-source] {
   border-radius: 8px !important;
   overflow: hidden !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-  transition: all 0.2s ease !important;
+  transition: transform 0.2s ease !important;
   height: 44px !important;
 }
 
@@ -590,68 +590,69 @@ body:not(.heavy-selection) .cell.sel::before {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
 }
 
-/* Status message - styled like Cancel button */
-.payment-status-message {
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  border: 2px solid #e5e7eb;
-  border-radius: 10px;
-  background: #ffffff;
-  color: #374151;
+/* Message de statut - style discret mais visible */
+#payment-status {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
   font-family: "Inter", sans-serif;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s ease;
+  text-align: center;
+  min-width: 120px;
+  flex-shrink: 0;
 }
 
-/* Active state */
-.payment-status-message.active {
-  border-color: #8b5cf6;
-  background: #f5f3ff;
-  color: #7c3aed;
+/* États du message */
+#payment-status.active {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
 }
 
-/* Expired state */
-.payment-status-message.expired {
-  border-color: #ef4444;
+#payment-status.expired {
   background: #fef2f2;
+  border-color: #fecaca;
   color: #dc2626;
 }
 
-/* Icons for different states */
-.payment-status-message.active::before {
-  content: "💳";
-}
-
-.payment-status-message.expired::before {
-  content: "⏰";
-}
-
-/* Responsive: stack vertically on mobile */
+/* Version mobile : empilage vertical */
 @media (max-width: 768px) {
   .modal .footer {
-    grid-template-columns: 1fr;
+    flex-direction: column;
     gap: 16px;
-    text-align: center;
-  }
-  
-  #paypal-button-container {
-    width: 100%;
-    order: 1;
+    align-items: stretch;
   }
   
   .modal .footer .btn:not(.primary) {
-    order: 2;
-    justify-self: center;
+    order: 3;
+    align-self: center;
+    margin-top: 8px;
   }
   
-  .payment-status-message {
-    order: 3;
-    justify-self: center;
+  #paypal-button-container {
+    order: 1;
+    max-width: none;
   }
+  
+  #payment-status {
+    order: 2;
+    align-self: center;
+    margin-bottom: 8px;
+  }
+}
+
+/* Nettoyage des styles conflictuels */
+.paypal-aside,
+.paypal-expiry-msg,
+.pp-wrap,
+.pp-header,
+.pp-title,
+.pp-cancel,
+.pp-body {
+  display: none !important;
 }
 /* paypal claude new */
 
