@@ -238,11 +238,37 @@
       const after = confirmBtn || form || modal;
       (after ? after : document.body).insertAdjacentElement('afterend', msg);
     }
-    // prêt à être ré-affiché
+    
     msg.style.display = '';
     return msg;
   }
+  //new paypal modal style
+  function ensurePaymentStatusEl() {
+  let statusEl = document.getElementById('payment-status');
+  if (!statusEl) {
+    statusEl = document.createElement('div');
+    statusEl.id = 'payment-status';
+    statusEl.className = 'payment-status-message';
+    
+    // Insérer dans le footer du modal, à droite
+    const footer = modal?.querySelector('.footer');
+    if (footer) {
+      footer.appendChild(statusEl);
+    }
+  }
+  return statusEl;
+}
+  //new paypal modal style
 
+  //new function paypal style
+  // Ajoutez cette fonction pour nettoyer le statut lors de la fermeture :
+function resetPaymentStatus() {
+  const statusEl = document.getElementById('payment-status');
+  if (statusEl && statusEl.parentNode) {
+    statusEl.parentNode.removeChild(statusEl);
+  }
+}
+  //new function paypal style
   function resetFinalizeState(){
     // 1) timers/watchers
     if (__watch) { try { clearInterval(__watch); } catch {} __watch = null; }
@@ -275,6 +301,9 @@
     // 5) dataset.regionId (ne touche pas au file.value ici — app.js le reset déjà)
     const fi = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
     if (fi && fi.dataset.regionId) delete fi.dataset.regionId;
+    //new paypal style
+    resetPaymentStatus();
+    //new paypal style
   }
 
   // Ces events sont émis par app.js dans openModal()/closeModal()
@@ -282,7 +311,7 @@
   document.addEventListener('modal:closing', resetFinalizeState);
 
   function showPaypalButton(orderId, currency){
-    const msg = ensureMsgEl();
+    /*const msg = ensureMsgEl();
     //msg.textContent = 'Veuillez confirmer le paiement PayPal pour finaliser.';
     if (confirmBtn) confirmBtn.style.display = 'none';
     removePaypalContainer();
@@ -336,7 +365,69 @@
       }
       __watch = setInterval(tick, 10000);
       tick();
+    }*/
+
+      //new paypal style
+      const statusEl = ensurePaymentStatusEl();
+  
+  if (confirmBtn) confirmBtn.style.display = 'none';
+  removePaypalContainer();
+
+  if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
+    uiWarn('Paiement: configuration PayPal manquante (PAYPAL_CLIENT_ID / PayPalIntegration).');
+    return;
+  }
+
+  function haveMyValidLocksLocal(indices, graceMs = 5000) {
+    if (!window.LockManager) return true;
+    const locks = window.LockManager.getLocalLocks?.() || {};
+    const t = Date.now() + graceMs;
+    for (const i of indices || []) {
+      const l = locks[String(i)];
+      if (!l || l.uid !== uid || !(l.until > t)) return false;
     }
+    return true;
+  }
+
+  function setupPayPalExpiryBanner() {
+    const blocks = getSelectedIndices();
+    if (__watch) { try { clearInterval(__watch); } catch {} __watch = null; }
+    
+    function tick() {
+      if (modal && modal.classList.contains('hidden')) {
+        if (__watch) { clearInterval(__watch); __watch = null; }
+        return;
+      }
+      
+      const ok = haveMyValidLocksLocal(blocks);
+      
+      // Mettre à jour le message de statut
+      statusEl.textContent = ok 
+        ? 'Choose your payment method'
+        : 'Reservation expired — reselect';
+      
+      statusEl.className = ok 
+        ? 'payment-status-message active'
+        : 'payment-status-message expired';
+
+      const box = document.getElementById('paypal-button-container');
+      if (box) {
+        box.style.pointerEvents = ok ? 'auto' : 'none';
+        box.style.opacity = ok ? '' : '0.5';
+      }
+
+      if (!ok && __watch) {
+        clearInterval(__watch);
+        __watch = null;
+      }
+    }
+    
+    __watch = setInterval(tick, 10000);
+    tick();
+  }
+      //new paypal style
+
+
     setupPayPalExpiryBanner();
 
     window.PayPalIntegration.initAndRender({

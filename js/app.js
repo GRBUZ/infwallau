@@ -427,10 +427,10 @@ function resetModalAppState() {
       warningMessage.classList.add('show');
       warningMessage.classList.add('shake');
       
-      // Masquer après 3 secondes
+      // Masquer après 2 secondes
       setTimeout(() => {
         warningMessage.classList.remove('show');
-      }, 3000);
+      }, 2000);
       
       // Retirer l'animation shake
       setTimeout(() => {
