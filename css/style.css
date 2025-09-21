@@ -623,6 +623,16 @@ body:not(.heavy-selection) .cell.sel::before {
   color: #dc2626;
 }
 
+/* Icons for different states */
+#payment-status.active::before {
+  content: "💳 ";
+  margin-right: 2px;
+}
+
+#payment-status.expired::before {
+  content: "⏰ ";
+  margin-right: 2px;
+}
 /* Version mobile : empilage vertical */
 @media (max-width: 768px) {
   .modal .footer {
