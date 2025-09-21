@@ -626,85 +626,6 @@ body:not(.heavy-selection) .cell.sel::before {
     font-size: 15px;
   }
 }
-/* ====== RESPONSIVE MOBILE - ZOOM OUT EFFECT ====== */
-/*mobile responsive*/
-@media (max-width: 768px) {
-  /* Header complètement repensé pour mobile */
-  body {
-    padding-top: 0 !important; /* On supprime le padding-top */
-  }
-  
-  .masthead {
-    position: relative !important; /* Plus de fixed */
-  }
-  
-  .masthead-title {
-    font-size: 20px;
-    padding: 12px 0 8px;
-  }
-  
-  .masthead-inner {
-    padding: 12px 16px 60px; /* Plus d'espace en bas pour les boutons */
-    grid-template-columns: 1fr;
-    text-align: center;
-    gap: 16px;
-  }
-  
-  .masthead-meta {
-    text-align: center;
-    order: -1; /* Stats en premier */
-  }
-  
-  .masthead-tagline {
-    font-size: 13px;
-    line-height: 1.4;
-  }
-  
-  .masthead-meta .pixels-left,
-  .masthead-meta .price-line {
-    font-size: 12px;
-  }
-  
-  .masthead-meta .note {
-    font-size: 10px;
-  }
-  
-  /* Boutons repositionnés DANS la bande, pas en chevauchement */
-  .masthead-actions {
-    position: absolute;
-    bottom: 12px; /* Dans la bande, pas en chevauchement */
-    left: 50%;
-    transform: translateX(-50%);
-    gap: 12px;
-  }
-  
-  .pill {
-    padding: 8px 16px !important;
-    font-size: 12px !important;
-    min-width: 80px;
-  }
-  
-  /* Main sans padding-top puisque header n'est plus fixed */
-  main {
-    padding: 20px 10px;
-  }
-  
-  /* Grille adaptée */
-  .grid {
-    width: calc(100vw - 20px);
-    height: calc(100vw - 20px);
-    max-width: 370px;
-    max-height: 370px;
-  }
-  
-  /* Images et éléments repositionnés */
-  .profile-zone,
-  .region-overlay {
-    /* Force la position relative aux cellules */
-    transform: none !important;
-  }
-}
-/*mobile responsive */
 
 /* paypal style gpt */
 /* wrapper Paypal compact */
@@ -932,3 +853,51 @@ body:not(.heavy-selection) .cell.sel::before {
   font-size:13px !important;
   min-width:auto !important;
 }
+
+/*warning message*/
+/* ====== MESSAGE D'AVERTISSEMENT SÉLECTION ====== */
+.warning-message {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 14px;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) translateY(20px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.4);
+  font-family: "Inter", sans-serif;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.warning-message.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.warning-message::before {
+  content: '⚠️';
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+/* Animation de shake */
+.warning-message.shake {
+  animation: warningShake 0.5s ease-in-out;
+}
+
+@keyframes warningShake {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  25% { transform: translateX(-52%) translateY(0); }
+  75% { transform: translateX(-48%) translateY(0); }
+}
+/*warning message*/

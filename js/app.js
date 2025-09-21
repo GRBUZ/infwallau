@@ -153,11 +153,14 @@ function updateSelectionInfo() {
     pixelsLeftEl.textContent = `${TOTAL_PIXELS.toLocaleString('en-US')} pixels`;
 
     const selectedPixels = selected.size * 100;
-    if (selectedPixels > 0) {
+    
+    /*if (selectedPixels > 0) {
       const total = selectedPixels * currentPrice;
       buyBtn.textContent = `💎 Claim your spot — ${formatInt(selectedPixels)} px (${formatMoney(total)})`;
       buyBtn.disabled = false;
-    } else { buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = true; }
+    } else { buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = true; }*/
+
+    buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = true;
 
     // Gérer les animations selon la taille de sélection
   if (selected.size > 150) {
@@ -413,7 +416,31 @@ function resetModalAppState() {
 
   // Buy flow
   buyBtn.addEventListener('click', async ()=>{
-    if(!selected.size) return;
+    //if(!selected.size) return;
+
+    //warning
+    // Vérifier s'il y a une sélection
+  if(!selected.size) {
+    // Afficher le message d'avertissement
+    const warningMessage = document.getElementById('warningMessage');
+    if (warningMessage) {
+      warningMessage.classList.add('show');
+      warningMessage.classList.add('shake');
+      
+      // Masquer après 3 secondes
+      setTimeout(() => {
+        warningMessage.classList.remove('show');
+      }, 3000);
+      
+      // Retirer l'animation shake
+      setTimeout(() => {
+        warningMessage.classList.remove('shake');
+      }, 500);
+    }
+    return;
+  }
+    //warning
+    
     const want = Array.from(selected);
     try{
       // Réservation initiale avec 3 minutes pleines
