@@ -242,23 +242,6 @@
     msg.style.display = '';
     return msg;
   }
-  //new paypal modal style
-  function ensurePaymentStatusEl() {
-  let statusEl = document.getElementById('payment-status');
-  if (!statusEl) {
-    statusEl = document.createElement('div');
-    statusEl.id = 'payment-status';
-    statusEl.textContent = 'Choose your payment method';
-    
-    // Insérer dans le footer du modal, à droite
-    const footer = modal?.querySelector('.footer');
-    if (footer) {
-      footer.appendChild(statusEl);
-    }
-  }
-  return statusEl;
-}
-  //new paypal modal style
 
   //new function paypal style
   // Ajoutez cette fonction pour nettoyer le statut lors de la fermeture :
@@ -368,8 +351,6 @@ function resetPaymentStatus() {
     }*/
 
       //new paypal style
-      const statusEl = ensurePaymentStatusEl();
-  
   if (confirmBtn) confirmBtn.style.display = 'none';
   removePaypalContainer();
 
@@ -389,42 +370,35 @@ function resetPaymentStatus() {
     return true;
   }
 
-  function setupPayPalExpiryBanner() {
-    const blocks = getSelectedIndices();
-    if (__watch) { try { clearInterval(__watch); } catch {} __watch = null; }
-    
-    function tick() {
-      if (modal && modal.classList.contains('hidden')) {
-        if (__watch) { clearInterval(__watch); __watch = null; }
-        return;
-      }
-      
-      const ok = haveMyValidLocksLocal(blocks);
-      
-      // Mettre à jour le message de statut
-      statusEl.textContent = ok 
-        ? 'Choose your payment method'
-        : 'Reservation expired — reselect';
-      
-      statusEl.className = ok 
-        ? 'payment-status-message active'
-        : 'payment-status-message expired';
-
-      const box = document.getElementById('paypal-button-container');
-      if (box) {
-        box.style.pointerEvents = ok ? 'auto' : 'none';
-        box.style.opacity = ok ? '' : '0.5';
-      }
-
-      if (!ok && __watch) {
-        clearInterval(__watch);
-        __watch = null;
-      }
+function setupPayPalExpiryBanner() {
+  const blocks = getSelectedIndices();
+  if (__watch) { try { clearInterval(__watch); } catch {} __watch = null; }
+  
+  function tick() {
+    if (modal && modal.classList.contains('hidden')) {
+      if (__watch) { clearInterval(__watch); __watch = null; }
+      return;
     }
     
-    __watch = setInterval(tick, 10000);
-    tick();
+    const ok = haveMyValidLocksLocal(blocks);
+    const container = document.getElementById('paypal-button-container');
+    
+    if (container) {
+      // Changer la classe du container au lieu d'un élément séparé
+      container.className = ok ? 'active' : 'expired';
+      container.style.pointerEvents = ok ? 'auto' : 'none';
+      container.style.opacity = ok ? '' : '0.6';
+    }
+
+    if (!ok && __watch) {
+      clearInterval(__watch);
+      __watch = null;
+    }
   }
+  
+  __watch = setInterval(tick, 10000);
+  tick();
+}
       //new paypal style
 
 
