@@ -201,10 +201,18 @@ if (locked.length) {
     return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: myErr.message });
   }
 
-  for (const r of (myLockRows || [])) {
-    const t = r.until ? new Date(r.until).getTime() : 0;
-    if (t > until) until = t;
-  }
+  //for (const r of (myLockRows || [])) {
+    //const t = r.until ? new Date(r.until).getTime() : 0;
+    //if (t > until) until = t;
+  //}
+  let until = 0;
+let unitPrice = null;
+
+for (const r of (myLockRows || [])) {
+  const t = r.until ? new Date(r.until).getTime() : 0;
+  if (t > until) until = t;
+  if (r.unit_price != null) unitPrice = r.unit_price; // récupère ton prix
+}
 }
 
 const regionId = genRegionId(uid, locked);
@@ -215,7 +223,8 @@ const result = {
   locks,
   ttlSeconds: ttlSec,
   regionId,
-  until
+  until,
+  unitPrice
 };
 
     //console.log(`[reserve] Success: locked=${locked.length}, conflicts=${conflicts.length}, until=${until ? new Date(until).toISOString() : '0'}`);

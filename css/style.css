@@ -779,3 +779,47 @@ body:not(.heavy-selection) .cell.sel::before {
   opacity: 0.6;
   filter: grayscale(0.1);
 }
+
+/* instruction selection */
+/* ====== INSTRUCTION SÉLECTION ====== */
+.selection-guide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(139, 92, 246, 0.95);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.3);
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+.selection-guide.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.guide-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guide-icon {
+  font-size: 18px;
+}
+
+@media (max-width: 768px) {
+  .selection-guide {
+    padding: 12px 20px;
+    font-size: 13px;
+  }
+}
+/* instruction selection */
