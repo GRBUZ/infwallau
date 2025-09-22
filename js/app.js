@@ -31,6 +31,7 @@
   const emailInput = document.getElementById('email');
   const confirmBtn = document.getElementById('confirm');
   const modalStats = document.getElementById('modalStats');
+  const selectionGuide = document.getElementById('selectionGuide');
 
   // State
   let sold = {};
@@ -44,6 +45,8 @@
   // PATCH: deux sources de prix
   let globalPrice = 1;      // vient de /price.js (toolbar, sélection)
   let reservedPrice = null; // vient de reserve.js (modal)
+
+  
 
   // Expose la sélection au besoin (pour d'autres modules)
   window.getSelectedIndices = () => Array.from(selected);
@@ -257,10 +260,16 @@ function updateSelectionInfo() {
   }
 
   grid.addEventListener('mousedown',(e)=>{
-    const idx=idxFromClientXY(e.clientX,e.clientY); if(idx<0) return;
-    isDragging=true; dragStartIdx=idx; lastDragIdx=idx; movedDuringDrag=false; suppressNextClick=false;
-    selectRect(idx, idx); e.preventDefault();
+  // Masquer le guide au premier clic
+  if (selectionGuide) {
+    selectionGuide.classList.add('hidden');
+  }
+  
+  const idx=idxFromClientXY(e.clientX,e.clientY); if(idx<0) return;
+  isDragging=true; dragStartIdx=idx; lastDragIdx=idx; movedDuringDrag=false; suppressNextClick=false;
+  selectRect(idx, idx); e.preventDefault();
   });
+ 
   window.addEventListener('mousemove',(e)=>{
     if(!isDragging) return;
     const idx=idxFromClientXY(e.clientX,e.clientY); if(idx<0) return;

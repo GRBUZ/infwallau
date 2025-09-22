@@ -798,12 +798,15 @@ body:not(.heavy-selection) .cell.sel::before {
   backdrop-filter: blur(8px);
   box-shadow: 0 8px 32px rgba(139, 92, 246, 0.3);
   pointer-events: none;
+  opacity: 1;
+  visibility: visible;
   transition: all 0.3s ease;
 }
 
 .selection-guide.hidden {
   opacity: 0;
   visibility: hidden;
+  transform: translate(-50%, -50%) scale(0.95);
 }
 
 .guide-content {
