@@ -34,6 +34,10 @@
   function formatInt(n){ return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
   function formatMoney(n){ const [i,d]=Number(n).toFixed(2).split('.'); return '$'+i.replace(/\B(?=(\d{3})+(?!\d))/g,' ') + '.' + d; }
 
+  function paintAll(){
+    for(let i=0;i<N*N;i++) paintCell(i);
+    refreshTopbar();
+  }
   // ====== MISE À JOUR INFO SÉLECTION ======
   function updateSelectionInfo() {
     const selectionInfo = document.getElementById('selectionInfo');
