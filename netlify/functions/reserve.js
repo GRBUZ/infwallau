@@ -189,9 +189,14 @@ const locked = reserved.filter(i => !soldSet.has(i));
       until
     };*/
 
-    // 5) regionId + until (max des until pour les blocs lockés par ce user)
+   // 5) regionId + until (max des until pour les blocs lockés par ce user)
+//    + unitPrice (prix garanti renvoyé par locks_by_uid_in)
 //    → passer par RPC pour éviter un .in(...) en querystring (414)
+
+// FIX: déclarer dans la portée *externe* (visible pour result)
 let until = 0;
+let unitPrice = null;
+
 if (locked.length) {
   const { data: myLockRows, error: myErr } = await supabase
     .rpc('locks_by_uid_in', { _uid: uid, _blocks: locked });
@@ -201,18 +206,17 @@ if (locked.length) {
     return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: myErr.message });
   }
 
-  //for (const r of (myLockRows || [])) {
-    //const t = r.until ? new Date(r.until).getTime() : 0;
-    //if (t > until) until = t;
-  //}
-  let until = 0;
-let unitPrice = null;
+  // FIX: ne *pas* redéclarer `let until` ici
+  for (const r of (myLockRows || [])) {
+    const t = r.until ? new Date(r.until).getTime() : 0;
+    if (t > until) until = t;
 
-for (const r of (myLockRows || [])) {
-  const t = r.until ? new Date(r.until).getTime() : 0;
-  if (t > until) until = t;
-  if (r.unit_price != null) unitPrice = r.unit_price; // récupère ton prix
-}
+    // FIX: accepter snake_case ou camelCase et caster en nombre
+    const p = r.unit_price ?? r.unitPrice;
+    if (p != null && !Number.isNaN(Number(p))) {
+      unitPrice = Number(p);
+    }
+  }
 }
 
 const regionId = genRegionId(uid, locked);
@@ -224,7 +228,7 @@ const result = {
   ttlSeconds: ttlSec,
   regionId,
   until,
-  unitPrice
+  unitPrice // OK: existe toujours (null si pas de locks)
 };
 
     //console.log(`[reserve] Success: locked=${locked.length}, conflicts=${conflicts.length}, until=${until ? new Date(until).toISOString() : '0'}`);
