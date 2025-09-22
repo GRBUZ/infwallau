@@ -453,18 +453,18 @@ main{
 }
 /* ====== GLOW EFFECTS SUR SÉLECTION ====== */
 /* ====== GLOW EFFECTS CONDITIONNELS ====== */
-.cell.sel{
+/*.cell.sel{
   background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
   border: 2px solid #6d28d9 !important;
   position: relative;
   z-index: 2;
-}
+}*/
 
 /* Glow seulement si moins de 200 pixels sélectionnés */
 body:not(.heavy-selection) .cell.sel {
   animation: selectedGlow 1.5s infinite;
 }
-
+/*
 body:not(.heavy-selection) .cell.sel::before {
   content: '';
   position: absolute;
@@ -482,7 +482,7 @@ body:not(.heavy-selection) .cell.sel::before {
   50% {
     box-shadow: 0 0 12px rgba(139, 92, 246, 0.8), 0 0 24px rgba(139, 92, 246, 0.6);
   }
-}
+}*/
 
 @keyframes shine {
   0% { transform: translateX(-100%) rotate(45deg); }
@@ -581,6 +581,7 @@ body:not(.heavy-selection) .cell.sel::before {
 
 /* Header au-dessus des boutons PayPal */
 #paypal-button-container::before {
+  content: "💳 Choose your payment method";
   content: attr(data-status);
   display: block;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
@@ -657,7 +658,7 @@ body:not(.heavy-selection) .cell.sel::before {
 }
 
 /* ====== ALTERNATIVE: DESIGN AVEC BADGE FLOTTANT ====== */
-/*
+
 .paypal-status-badge {
   position: absolute;
   top: -8px;
@@ -684,7 +685,7 @@ body:not(.heavy-selection) .cell.sel::before {
   border-color: #fecaca;
   color: #dc2626;
 }
-*/
+
 /* paypal claude new */
 
 
