@@ -60,124 +60,6 @@
     fileInput.setAttribute('accept', 'image/*');
   }
 
-  // =========================
-  //  WebWorker base64 (off-thread) + downscale optionnel
-  // =========================
-  let __imgWorkerUrl = null;
-  function ensureImgWorkerUrl(){
-    if (__imgWorkerUrl) return __imgWorkerUrl;
-    const workerSrc = `
-      self.onmessage = async (e) => {
-        try {
-          const { file, maxEdge, quality } = e.data;
-          // Try downscale with OffscreenCanvas + createImageBitmap
-          let outBlob = file;
-          try {
-            if (typeof OffscreenCanvas !== 'undefined' && typeof createImageBitmap === 'function') {
-              const bmp = await createImageBitmap(file);
-              const w = bmp.width, h = bmp.height;
-              const ratio = Math.min(1, (maxEdge / Math.max(w, h)));
-              const nw = Math.max(1, Math.round(w * ratio));
-              const nh = Math.max(1, Math.round(h * ratio));
-              const canvas = new OffscreenCanvas(nw, nh);
-              const ctx = canvas.getContext('2d', {alpha:false, desynchronized:true});
-              ctx.drawImage(bmp, 0, 0, nw, nh);
-              // jpeg if possible, else keep original type
-              const type = file.type && file.type.includes('png') ? 'image/png' : 'image/jpeg';
-              outBlob = await canvas.convertToBlob({ type, quality });
-            }
-          } catch (_) { /* fallback: keep original blob */ }
-
-          // base64 encode in worker
-          const buf = await outBlob.arrayBuffer();
-          // chunked conversion to binary string to avoid stack/memory spikes
-          const CHUNK = 0x8000;
-          let binary = '';
-          const bytes = new Uint8Array(buf);
-          for (let i=0; i<bytes.length; i+=CHUNK) {
-            binary += String.fromCharCode.apply(null, bytes.subarray(i, i+CHUNK));
-          }
-          const b64 = btoa(binary);
-
-          // Use data URL convention like UploadManager.toBase64 likely returns
-          const contentType = outBlob.type || file.type || 'application/octet-stream';
-          const base64Data = 'data:' + contentType + ';base64,' + b64;
-
-          self.postMessage({ ok:true, contentType, base64Data, filename: file.name });
-        } catch (err) {
-          self.postMessage({ ok:false, error: String(err && err.message || err) });
-        }
-      };
-    `;
-    const blob = new Blob([workerSrc], { type: 'text/javascript' });
-    __imgWorkerUrl = URL.createObjectURL(blob);
-    return __imgWorkerUrl;
-  }
-
-  function toBase64OffThread(file, { maxEdge = 1600, quality = 0.82 } = {}){
-    return new Promise((resolve, reject) => {
-      try {
-        const url = ensureImgWorkerUrl();
-        const w = new Worker(url);
-        w.onmessage = (e) => {
-          const d = e.data || {};
-          if (d.ok) resolve(d);
-          else reject(new Error(d.error || 'WORKER_FAILED'));
-          try { w.terminate(); } catch {}
-        };
-        w.onerror = (err) => { try { w.terminate(); } catch {}; reject(err); };
-        w.postMessage({ file, maxEdge, quality });
-      } catch (e) {
-        reject(e);
-      }
-    });
-  }
-
-  // --- Préparation image en amont (cache)
-  let __imgPrep = { promise: null, contentType: null, base64Data: null, filename: null };
-  function resetImgPrep(){ __imgPrep = { promise: null, contentType: null, base64Data: null, filename: null }; }
-
-  function prepImageEarly(file) {
-    if (!file) { resetImgPrep(); return null; }
-    if (__imgPrep.promise) return __imgPrep.promise; // déjà en cours/prêt
-    __imgPrep.filename = file.name;
-
-    __imgPrep.promise = (async () => {
-      // Validation via UploadManager (léger)
-      const ct = await window.UploadManager.validateFile(file);
-      // Encodage base64 off-thread (downscale 1600px max, qualité 0.82)
-      let contentType, base64Data, filename;
-      try {
-        const r = await toBase64OffThread(file, { maxEdge: 1600, quality: 0.82 });
-        contentType = r.contentType || ct;
-        base64Data  = r.base64Data;
-        filename    = r.filename || file.name;
-      } catch (e) {
-        // Fallback: si worker pas supporté, on retombe sur l’implémentation existante
-        const r2 = await window.UploadManager.toBase64(file);
-        contentType = ct;
-        base64Data  = r2.base64Data;
-        filename    = file.name;
-      }
-      __imgPrep.contentType = contentType;
-      __imgPrep.base64Data  = base64Data;
-      __imgPrep.filename    = filename;
-      return true;
-    })().catch(err => { resetImgPrep(); throw err; });
-
-    return __imgPrep.promise;
-  }
-
-  // Démarrer la préparation dès la sélection de fichier
-  if (fileInput) {
-    fileInput.addEventListener('change', () => {
-      try {
-        const f = fileInput.files && fileInput.files[0];
-        prepImageEarly(f); // fire & forget
-      } catch {}
-    }, { passive: true });
-  }
-
   // --- pause/reprise du heartbeat pour éviter /reserve pendant le processing
   let __processing = false;
   function pauseHB(){
@@ -361,13 +243,15 @@
     return msg;
   }
 
+  //new function paypal style
   // Ajoutez cette fonction pour nettoyer le statut lors de la fermeture :
-  function resetPaymentStatus() {
-    const statusEl = document.getElementById('payment-status');
-    if (statusEl && statusEl.parentNode) {
-      statusEl.parentNode.removeChild(statusEl);
-    }
+function resetPaymentStatus() {
+  const statusEl = document.getElementById('payment-status');
+  if (statusEl && statusEl.parentNode) {
+    statusEl.parentNode.removeChild(statusEl);
   }
+}
+  //new function paypal style
   function resetFinalizeState(){
     // 1) timers/watchers
     if (__watch) { try { clearInterval(__watch); } catch {} __watch = null; }
@@ -400,11 +284,9 @@
     // 5) dataset.regionId (ne touche pas au file.value ici — app.js le reset déjà)
     const fi = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
     if (fi && fi.dataset.regionId) delete fi.dataset.regionId;
-
-    // reset cache image
-    resetImgPrep();
-
+    //new paypal style
     resetPaymentStatus();
+    //new paypal style
   }
 
   // Ces events sont émis par app.js dans openModal()/closeModal()
@@ -412,6 +294,8 @@
   document.addEventListener('modal:closing', resetFinalizeState);
 
   function showPaypalButton(orderId, currency){
+    /*const msg = ensureMsgEl();
+    //msg.textContent = 'Veuillez confirmer le paiement PayPal pour finaliser.';
     if (confirmBtn) confirmBtn.style.display = 'none';
     removePaypalContainer();
 
@@ -420,7 +304,8 @@
       return;
     }
 
-    function haveMyValidLocksLocal(indices, graceMs = 5000) {
+    // Mini watcher pour l'expiration pendant PayPal
+    function haveMyValidLocksLocal(indices, graceMs = 5000){
       if (!window.LockManager) return true;
       const locks = window.LockManager.getLocalLocks?.() || {};
       const t = Date.now() + graceMs;
@@ -431,24 +316,29 @@
       return true;
     }
 
-    function setupPayPalExpiryBanner() {
+    function setupPayPalExpiryBanner(){
       const blocks = getSelectedIndices();
+      // clear précédent
       if (__watch) { try { clearInterval(__watch); } catch {} __watch = null; }
-      
-      function tick() {
+      function tick(){
         if (modal && modal.classList.contains('hidden')) {
-          if (__watch) { try { clearInterval(__watch); } catch {} }
-          __watch = null;
+          if (__watch) { clearInterval(__watch); __watch = null; }
           return;
         }
-        
         const ok = haveMyValidLocksLocal(blocks);
-        const container = document.getElementById('paypal-button-container');
-        
-        if (container) {
-          container.className = ok ? 'active' : 'expired';
-          container.style.pointerEvents = ok ? 'auto' : 'none';
-          container.style.opacity = ok ? '' : '0.6';
+
+        //new style paypal
+        // — texte + classes d’état —
+      msg.textContent = ok
+      ? '💳 Choose your payment method'
+      : '⏰ Reservation expired — reselect';
+      msg.classList.toggle('expired', !ok);   // <-- classe d’état
+        //new style paypal
+
+        const box = document.getElementById('paypal-button-container');
+        if (box) {
+          box.style.pointerEvents = ok ? 'auto' : 'none';
+          box.style.opacity = ok ? '' : '0.45';
         }
 
         if (!ok && __watch) {
@@ -456,10 +346,61 @@
           __watch = null;
         }
       }
-      
       __watch = setInterval(tick, 10000);
       tick();
+    }*/
+
+      //new paypal style
+  if (confirmBtn) confirmBtn.style.display = 'none';
+  removePaypalContainer();
+
+  if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
+    uiWarn('Paiement: configuration PayPal manquante (PAYPAL_CLIENT_ID / PayPalIntegration).');
+    return;
+  }
+
+  function haveMyValidLocksLocal(indices, graceMs = 5000) {
+    if (!window.LockManager) return true;
+    const locks = window.LockManager.getLocalLocks?.() || {};
+    const t = Date.now() + graceMs;
+    for (const i of indices || []) {
+      const l = locks[String(i)];
+      if (!l || l.uid !== uid || !(l.until > t)) return false;
     }
+    return true;
+  }
+
+function setupPayPalExpiryBanner() {
+  const blocks = getSelectedIndices();
+  if (__watch) { try { clearInterval(__watch); } catch {} __watch = null; }
+  
+  function tick() {
+    if (modal && modal.classList.contains('hidden')) {
+      if (__watch) { clearInterval(__watch); __watch = null; }
+      return;
+    }
+    
+    const ok = haveMyValidLocksLocal(blocks);
+    const container = document.getElementById('paypal-button-container');
+    
+    if (container) {
+      // Changer la classe du container au lieu d'un élément séparé
+      container.className = ok ? 'active' : 'expired';
+      container.style.pointerEvents = ok ? 'auto' : 'none';
+      container.style.opacity = ok ? '' : '0.6';
+    }
+
+    if (!ok && __watch) {
+      clearInterval(__watch);
+      __watch = null;
+    }
+  }
+  
+  __watch = setInterval(tick, 10000);
+  tick();
+}
+      //new paypal style
+
 
     setupPayPalExpiryBanner();
 
@@ -468,8 +409,8 @@
       currency: currency || 'USD',
 
       onApproved: async (data, actions) => {
-        try { if (__watch) { clearInterval(__watch); } } catch {}
-        __watch = null;
+        // NE PAS arrêter le heartbeat ici - on en a besoin pour valider les locks
+        try { if (__watch) { clearInterval(__watch); __watch = null; } } catch {}
 
         try {
           btnBusy(true);
@@ -517,11 +458,13 @@
                 return; // ne pas poursuivre
               }
 
+              // Fallback minimal si jamais actions.restart n’est pas dispo
               btnBusy(false);
               uiWarn('Impossible de relancer automatiquement le paiement. Merci de recliquer sur le bouton PayPal.');
               return;
             }
 
+            // Autres erreurs → flux normal d’erreur
             throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
           }
 
@@ -529,6 +472,7 @@
           const ok = await waitForCompleted(orderId, 60);
           if (!ok) {
             msg.textContent = 'Paiement enregistré, finalisation en attente… Vous pourrez vérifier plus tard.';
+            // Garder le heartbeat actif
             btnBusy(false);
             return;
           }
@@ -544,13 +488,13 @@
           uiError(e, 'PayPal');
           const msg = ensureMsgEl();
           msg.textContent = 'Erreur pendant la finalisation.';
+          // En cas d'erreur, libérer les locks
           try { window.LockManager?.heartbeat?.stop?.(); } catch {}
           try { await unlockSelection(); } catch {}
         } finally {
           btnBusy(false);
         }
       },
-
       onCancel: async () => {
         try { if (__watch) { clearInterval(__watch); } } catch {}
         __watch = null;
@@ -567,7 +511,9 @@
         //new paypal style
         await unlockSelection();
         btnBusy(false);
-        resumeHB();
+        //new paypal style
+        //resumeHB();
+        //new paypal style
       },
 
       onError: async (err) => {
@@ -585,8 +531,11 @@
         try { window.LockManager?.heartbeat?.stop?.(); } catch {}
         await unlockSelection();
         btnBusy(false);
-        resumeHB();
+        //new paypal style
+        //resumeHB();
+        //new paypal style
       }
+ 
     });
   }
 
@@ -599,11 +548,15 @@
     if (!blocks.length){ uiWarn('Please select at least one block.'); return; }
     if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
 
-    // ✅ Pré-validation + préparation (cache off-thread si possible)
-    const file = fileInput && fileInput.files && fileInput.files[0];
-    if (!file) { uiWarn("Veuillez sélectionner une image (PNG, JPG, GIF, WebP)."); return; }
+    // ✅ Pré-validation du fichier sélectionné AVANT toute finalisation
     try {
-      await prepImageEarly(file); // si déjà lancé, attend; sinon lance maintenant
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      if (file) {
+        await window.UploadManager.validateFile(file);
+      } else {
+        uiWarn("Veuillez sélectionner une image (PNG, JPG, GIF, WebP).");
+        return;
+      }
     } catch (preErr) {
       uiError(preErr, 'Upload');
       uiWarn('Veuillez sélectionner une image valide (PNG, JPG, GIF, WebP).');
@@ -635,19 +588,20 @@
     // === START-ORDER: le serveur prépare la commande et uploade l'image ===
     let start = null;
     try {
-      const contentType = __imgPrep.contentType;
-      const base64Data  = __imgPrep.base64Data;
+      const file = fileInput.files[0];
+      const contentType = await window.UploadManager.validateFile(file);
+      const { base64Data } = await window.UploadManager.toBase64(file);
 
-      start = await apiCall('/start-order', {
+     start = await apiCall('/start-order', {
         method: 'POST',
         body: JSON.stringify({
           name, linkUrl, blocks,
-          filename: __imgPrep.filename || (file && file.name) || 'image',
+          filename: file.name,
           contentType,
           contentBase64: base64Data
         })
       });
-    } catch (e) {
+    /*} catch (e) {
       uiError(e, 'Start order');
       btnBusy(false);
       resumeHB();
@@ -659,29 +613,49 @@
       btnBusy(false);
       resumeHB();
       return;
-    }
+    }*/
 
+      //new paypal style
+      // 1) Échec réseau/exception pendant l’appel
+} catch (e) {
+  uiError(e, 'Start order');
+  btnBusy(false);
+  try { await unlockKeepalive(); } catch {}
+  try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+  return;
+}
+
+// 2) Réponse reçue mais pas ok
+if (!start || !start.ok) {
+  const message = (start && (start.error || start.message)) || 'Start order failed';
+  uiError(
+    window.Errors ? window.Errors.create('START_ORDER_FAILED', message, { details: start }) : new Error(message),
+    'Start order'
+  );
+  btnBusy(false);
+  try { await unlockKeepalive(); } catch {}
+  try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+  return;
+}
+
+      //new paypal style
     // On a un orderId + regionId
     const { orderId, regionId, currency } = start;
     if (fileInput && regionId) fileInput.dataset.regionId = regionId;
 
     uiInfo('Commande créée. Veuillez finaliser le paiement…');
 
-    // ⚡ Afficher PayPal immédiatement, puis prolonger les locks après peinture
+    // BUMP +3min AVANT PayPal (recommandation)
+    if (window.LockManager) {
+      try {
+        await window.LockManager.lock(blocks, 180000, { optimistic: false });
+        console.log('[Finalize] Extended locks before PayPal phase');
+      } catch (e) {
+        console.warn('[Finalize] Lock extension before PayPal failed:', e);
+      }
+    }
+    // → Afficher le bouton PayPal (qui gère son propre renouvellement)
     showPaypalButton(orderId, currency);
-
-    Promise.resolve()
-      .then(() => new Promise(requestAnimationFrame)) // laisse le navigateur peindre PayPal
-      .then(async () => {
-        if (window.LockManager) {
-          try {
-            await window.LockManager.lock(blocks, 180000, { optimistic: false });
-            console.log('[Finalize] Extended locks after PayPal render');
-          } catch (e) {
-            console.warn('[Finalize] Lock extension after PayPal failed:', e);
-          }
-        }
-      });
 
     // on laisse le bouton gérer la suite (onApproved / onCancel / onError)
   }

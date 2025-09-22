@@ -464,7 +464,7 @@ main{
 body:not(.heavy-selection) .cell.sel {
   animation: selectedGlow 1.5s infinite;
 }
-/*
+
 body:not(.heavy-selection) .cell.sel::before {
   content: '';
   position: absolute;
@@ -474,7 +474,7 @@ body:not(.heavy-selection) .cell.sel::before {
   z-index: 1;
   pointer-events: none;
 }
-
+/*
 @keyframes selectedGlow {
   0%, 100% {
     box-shadow: 0 0 8px rgba(139, 92, 246, 0.6), 0 0 16px rgba(139, 92, 246, 0.4);
