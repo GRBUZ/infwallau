@@ -1,15 +1,15 @@
-// finalize-addon.js — Finalize flow patched to use CoreManager + UploadManager (+ LockManager) with robust error handling
+// finalize-addon.js — Finalize flow using CoreManager + UploadManager (+ LockManager) with robust error handling
 // Responsibilities:
-// - Call /start-order (serveur = vérité: validations + upload image + order JSON + prix serveur)
-// - Render PayPal button; onApprove => webhook -> finalize via RPC; front poll /order-status jusqu'à completed
+// - Call /start-order (server = source of truth: validations + image upload + order JSON + server price)
+// - Render PayPal button; onApprove => webhook -> finalize via RPC; front polls /order-status until completed
 // - Keep UI state in sync (sold/locks/regions), unlock on escape/cancel/error
-// - Renouvellement des locks aux étapes clés (Confirm + PayPal)
+// - Renew locks at key steps (Confirm + PayPal)
 
 (function(){
   'use strict';
 
-  // --- État interne (simple)
-  let __watch = null; // watcher PayPal (banner expirations)
+  // --- Internal state
+  let __watch = null; // PayPal expiration watcher (for header state)
 
   // Hard deps
   if (!window.CoreManager) {
@@ -34,10 +34,9 @@
     if (!Array.isArray(blocks) || !blocks.length) return false;
     const now = Date.now() + Math.max(0, graceMs|0);
     const myUid = uid;
-    // source de vérité côté front
+    // front-side source of truth
     let map = {};
     try {
-      // idéal: LockManager garde un cache local
       map = window.LockManager?.getLocalLocks?.() || window.locks || {};
     } catch (_) {
       map = window.locks || {};
@@ -49,7 +48,7 @@
     return true;
   }
 
-  // DOM handles (we tolerate multiple possible IDs to be resilient)
+  // DOM handles (be resilient to multiple possible IDs)
   const modal        = document.getElementById('modal');
   const confirmBtn   = document.getElementById('confirm') || document.querySelector('[data-confirm]');
   const form         = document.getElementById('form') || document.querySelector('form[data-finalize]');
@@ -60,7 +59,7 @@
     fileInput.setAttribute('accept', 'image/*');
   }
 
-  // --- pause/reprise du heartbeat pour éviter /reserve pendant le processing
+  // Heartbeat pause/resume to avoid /reserve while processing
   let __processing = false;
   function pauseHB(){
     if (__processing) return;
@@ -73,7 +72,7 @@
     __processing = false;
     try {
       const sel = (typeof getSelectedIndices === 'function') ? getSelectedIndices() : [];
-      // on NE relance pas si mes locks ne sont pas encore valides
+      // do NOT restart if my locks are not valid yet
       if (modal && !modal.classList.contains('hidden') && sel && sel.length && haveMyValidLocks(sel, 0)) {
         window.LockManager?.heartbeat?.start?.(sel, 30000, 180000, {
           maxMs: 180000,        // 3 minutes
@@ -88,19 +87,12 @@
     }
   }
 
-  // UI helpers
+  // UI helpers (only for pre-PayPal validation / developer feedback)
   function uiWarn(msg){
     if (window.Errors && window.Errors.showToast) {
       window.Errors.showToast(msg, window.Errors.LEVEL?.warn || 'warn', 4000);
     } else {
       alert(msg);
-    }
-  }
-  function uiInfo(msg){
-    if (window.Errors && window.Errors.showToast) {
-      window.Errors.showToast(msg, window.Errors.LEVEL?.info || 'info', 2500);
-    } else {
-      console.log('[Info]', msg);
     }
   }
   function uiError(err, ctx){
@@ -128,7 +120,7 @@
     } catch {}
   }
 
-  // Local helpers
+  // small helpers
   function normalizeUrl(u){
     u = String(u || '').trim();
     if (!u) return '';
@@ -143,15 +135,12 @@
   }
 
   function getSelectedIndices(){
-    // 1) If app.js exposed a helper
     if (typeof window.getSelectedIndices === 'function') {
       try { const arr = window.getSelectedIndices(); if (Array.isArray(arr)) return arr; } catch {}
     }
-    // 2) If a global Set "selected" exists
     if (window.selected && window.selected instanceof Set) {
       return Array.from(window.selected);
     }
-    // 3) Infer from DOM
     const out = [];
     document.querySelectorAll('.cell.sel').forEach(el=>{
       const idx = parseInt(el.dataset.idx, 10);
@@ -224,54 +213,33 @@
     return false;
   }
 
-  // --- reset / cleanup FINALIZE (évite la rétention d’état entre achats)
+  // --- PayPal container helpers (single header system)
   function removePaypalContainer(){
     const c = document.getElementById('paypal-button-container');
     if (c && c.parentNode) c.parentNode.removeChild(c);
   }
-
-  function ensureMsgEl(){
-    let msg = document.getElementById('payment-msg');
-    if (!msg) {
-      msg = document.createElement('div');
-      msg.id = 'payment-msg';
-      const after = confirmBtn || form || modal;
-      (after ? after : document.body).insertAdjacentElement('afterend', msg);
-    }
-    
-    msg.style.display = '';
-    return msg;
+  function setPayPalHeaderState(state){
+    const el = document.getElementById('paypal-button-container');
+    if (!el) return;
+    // states we use in CSS: 'active' | 'expired' | 'processing' | 'cancelled' | 'error' | 'completed' | 'pending'
+    el.className = String(state || '').trim();
   }
 
-  //new function paypal style
-  // Ajoutez cette fonction pour nettoyer le statut lors de la fermeture :
-function resetPaymentStatus() {
-  const statusEl = document.getElementById('payment-status');
-  if (statusEl && statusEl.parentNode) {
-    statusEl.parentNode.removeChild(statusEl);
-  }
-}
-  //new function paypal style
+  // --- Reset / cleanup FINALIZE
   function resetFinalizeState(){
     // 1) timers/watchers
     if (__watch) { try { clearInterval(__watch); } catch {} __watch = null; }
 
-    // 2) PayPal container + badges/styles
+    // 2) PayPal container + header classes
     const container = document.getElementById('paypal-button-container');
     if (container) {
-      const badge = container.querySelector('.pp-disabled-badge');
-      if (badge) badge.remove();
       container.style.pointerEvents = '';
       container.style.opacity = '';
       container.setAttribute('aria-disabled', 'false');
       if (container.parentNode) container.parentNode.removeChild(container);
     }
 
-    // 3) messages
-    const msg = document.getElementById('payment-msg');
-    if (msg) { msg.textContent = ''; msg.style.display = ''; }
-
-    // 4) bouton confirm
+    // 3) confirm button
     if (confirmBtn) {
       if (confirmBtn.dataset._origText) {
         confirmBtn.textContent = confirmBtn.dataset._origText;
@@ -281,31 +249,26 @@ function resetPaymentStatus() {
       confirmBtn.disabled = false;
     }
 
-    // 5) dataset.regionId (ne touche pas au file.value ici — app.js le reset déjà)
+    // 4) dataset.regionId (do not touch file.value here — app.js resets it already)
     const fi = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
     if (fi && fi.dataset.regionId) delete fi.dataset.regionId;
-    //new paypal style
-    resetPaymentStatus();
-    //new paypal style
   }
 
-  // Ces events sont émis par app.js dans openModal()/closeModal()
+  // Events emitted by app.js in openModal()/closeModal()
   document.addEventListener('modal:opening', resetFinalizeState);
   document.addEventListener('modal:closing', resetFinalizeState);
 
   function showPaypalButton(orderId, currency){
-    /*const msg = ensureMsgEl();
-    //msg.textContent = 'Veuillez confirmer le paiement PayPal pour finaliser.';
+    // hide confirm and mount PayPal container
     if (confirmBtn) confirmBtn.style.display = 'none';
     removePaypalContainer();
 
     if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
-      uiWarn('Paiement: configuration PayPal manquante (PAYPAL_CLIENT_ID / PayPalIntegration).');
+      uiWarn('Payment: missing PayPal configuration (PAYPAL_CLIENT_ID / PayPalIntegration).');
       return;
     }
 
-    // Mini watcher pour l'expiration pendant PayPal
-    function haveMyValidLocksLocal(indices, graceMs = 5000){
+    function haveMyValidLocksLocal(indices, graceMs = 5000) {
       if (!window.LockManager) return true;
       const locks = window.LockManager.getLocalLocks?.() || {};
       const t = Date.now() + graceMs;
@@ -316,29 +279,23 @@ function resetPaymentStatus() {
       return true;
     }
 
-    function setupPayPalExpiryBanner(){
+    function setupPayPalExpiryHeader() {
       const blocks = getSelectedIndices();
-      // clear précédent
       if (__watch) { try { clearInterval(__watch); } catch {} __watch = null; }
-      function tick(){
+      
+      function tick() {
         if (modal && modal.classList.contains('hidden')) {
-          if (__watch) { clearInterval(__watch); __watch = null; }
+          if (__watch) { try { clearInterval(__watch); } catch {} }
+          __watch = null;
           return;
         }
+        
         const ok = haveMyValidLocksLocal(blocks);
-
-        //new style paypal
-        // — texte + classes d’état —
-      msg.textContent = ok
-      ? '💳 Choose your payment method'
-      : '⏰ Reservation expired — reselect';
-      msg.classList.toggle('expired', !ok);   // <-- classe d’état
-        //new style paypal
-
-        const box = document.getElementById('paypal-button-container');
-        if (box) {
-          box.style.pointerEvents = ok ? 'auto' : 'none';
-          box.style.opacity = ok ? '' : '0.45';
+        const container = document.getElementById('paypal-button-container');
+        if (container) {
+          container.style.pointerEvents = ok ? 'auto' : 'none';
+          container.style.opacity = ok ? '' : '0.6';
+          setPayPalHeaderState(ok ? 'active' : 'expired');
         }
 
         if (!ok && __watch) {
@@ -346,78 +303,27 @@ function resetPaymentStatus() {
           __watch = null;
         }
       }
+      
       __watch = setInterval(tick, 10000);
       tick();
-    }*/
-
-      //new paypal style
-  if (confirmBtn) confirmBtn.style.display = 'none';
-  removePaypalContainer();
-
-  if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
-    uiWarn('Paiement: configuration PayPal manquante (PAYPAL_CLIENT_ID / PayPalIntegration).');
-    return;
-  }
-
-  function haveMyValidLocksLocal(indices, graceMs = 5000) {
-    if (!window.LockManager) return true;
-    const locks = window.LockManager.getLocalLocks?.() || {};
-    const t = Date.now() + graceMs;
-    for (const i of indices || []) {
-      const l = locks[String(i)];
-      if (!l || l.uid !== uid || !(l.until > t)) return false;
-    }
-    return true;
-  }
-
-function setupPayPalExpiryBanner() {
-  const blocks = getSelectedIndices();
-  if (__watch) { try { clearInterval(__watch); } catch {} __watch = null; }
-  
-  function tick() {
-    if (modal && modal.classList.contains('hidden')) {
-      if (__watch) { clearInterval(__watch); __watch = null; }
-      return;
-    }
-    
-    const ok = haveMyValidLocksLocal(blocks);
-    const container = document.getElementById('paypal-button-container');
-    
-    if (container) {
-      // Changer la classe du container au lieu d'un élément séparé
-      container.className = ok ? 'active' : 'expired';
-      container.style.pointerEvents = ok ? 'auto' : 'none';
-      container.style.opacity = ok ? '' : '0.6';
     }
 
-    if (!ok && __watch) {
-      clearInterval(__watch);
-      __watch = null;
-    }
-  }
-  
-  __watch = setInterval(tick, 10000);
-  tick();
-}
-      //new paypal style
-
-
-    setupPayPalExpiryBanner();
+    setupPayPalExpiryHeader();
 
     window.PayPalIntegration.initAndRender({
       orderId,
       currency: currency || 'USD',
 
       onApproved: async (data, actions) => {
-        // NE PAS arrêter le heartbeat ici - on en a besoin pour valider les locks
-        try { if (__watch) { clearInterval(__watch); __watch = null; } } catch {}
+        // do NOT stop heartbeat here — needed to validate locks
+        try { if (__watch) { clearInterval(__watch); } } catch {}
+        __watch = null;
 
         try {
           btnBusy(true);
-          const msg = ensureMsgEl();
-          msg.textContent = 'Paiement confirmé. Finalisation en cours…';
+          setPayPalHeaderState('processing');
 
-          // Garde-fou final : vérifier les locks AVANT d'arrêter le heartbeat
+          // Final guard: verify locks BEFORE stopping heartbeat
           if (window.LockManager) {
             const me = window.CoreManager?.uid;
             const t = Date.now() + 1000;
@@ -428,20 +334,20 @@ function setupPayPalExpiryBanner() {
               return l && l.uid === me && l.until > t;
             });
             if (!stillOk) {
-              msg.textContent = '⏰ Reservation expired — reselect';
+              setPayPalHeaderState('expired');
               try { await unlockSelection(); } catch {}
               btnBusy(false);
               return;
             }
           }
 
-          // 1) capture côté serveur
+          // 1) capture on server
           const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
             method: 'POST',
             body: JSON.stringify({ orderId, paypalOrderId: data.orderID })
           });
 
-          // 🔁 Cas PayPal "INSTRUMENT_DECLINED" → redémarrer le flux PayPal sans casser les locks
+          // PayPal "INSTRUMENT_DECLINED" → restart flow without breaking locks
           if (!res?.ok) {
             const name   = res?.details?.name || '';
             const issues = Array.isArray(res?.details?.details) ? res.details.details.map(d => d.issue) : [];
@@ -449,36 +355,30 @@ function setupPayPalExpiryBanner() {
                                  || (name === 'UNPROCESSABLE_ENTITY' && issues.includes('INSTRUMENT_DECLINED'));
 
             if (isInstrDeclined) {
-              const msgEl = ensureMsgEl();
-              msgEl.textContent = 'Paiement refusé par la banque. Veuillez réessayer dans PayPal…';
-
+              setPayPalHeaderState('error'); // bank declined
               if (actions && typeof actions.restart === 'function') {
                 btnBusy(false);
                 await actions.restart();
-                return; // ne pas poursuivre
+                return;
               }
-
-              // Fallback minimal si jamais actions.restart n’est pas dispo
               btnBusy(false);
-              uiWarn('Impossible de relancer automatiquement le paiement. Merci de recliquer sur le bouton PayPal.');
+              uiWarn('Payment was declined. Please try again.');
               return;
             }
 
-            // Autres erreurs → flux normal d’erreur
             throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
           }
 
-          // 2) attendre la finalisation par le webhook
+          // 2) wait for webhook finalize
           const ok = await waitForCompleted(orderId, 60);
           if (!ok) {
-            msg.textContent = 'Paiement enregistré, finalisation en attente… Vous pourrez vérifier plus tard.';
-            // Garder le heartbeat actif
+            setPayPalHeaderState('pending'); // recorded but waiting for finalize
             btnBusy(false);
             return;
           }
 
-          // 3) succès - MAINTENANT on peut arrêter le heartbeat
-          msg.textContent = 'Commande finalisée ✅';
+          // 3) success — NOW we can stop heartbeat and unlock
+          setPayPalHeaderState('completed');
           try { window.LockManager?.heartbeat?.stop?.(); } catch {}
           try { await unlockSelection(); } catch {}
           await refreshStatus();
@@ -486,56 +386,38 @@ function setupPayPalExpiryBanner() {
 
         } catch (e) {
           uiError(e, 'PayPal');
-          const msg = ensureMsgEl();
-          msg.textContent = 'Erreur pendant la finalisation.';
-          // En cas d'erreur, libérer les locks
+          setPayPalHeaderState('error');
           try { window.LockManager?.heartbeat?.stop?.(); } catch {}
           try { await unlockSelection(); } catch {}
         } finally {
           btnBusy(false);
         }
       },
+
       onCancel: async () => {
         try { if (__watch) { clearInterval(__watch); } } catch {}
         __watch = null;
         try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-        //const msg = ensureMsgEl();
-        //msg.textContent = 'Paiement annulé.';
 
-        //new paypal style
-        // PAR : utiliser le header PayPal intégré
-        const container = document.getElementById('paypal-button-container');
-        if (container) {
-        container.className = 'cancelled'; // Nouvel état
-        }
-        //new paypal style
-        await unlockSelection();
+        setPayPalHeaderState('cancelled');
+        try { await unlockKeepalive(); } catch {}
+
         btnBusy(false);
-        //new paypal style
-        //resumeHB();
-        //new paypal style
+        // no resumeHB() — we intentionally release and stop HB here
       },
 
       onError: async (err) => {
         try { if (__watch) { clearInterval(__watch); } } catch {}
         __watch = null;
         uiError(err, 'PayPal');
-        //const msg = ensureMsgEl();
-        //msg.textContent = 'Erreur de paiement.';
-        //new paypal style
-        const container = document.getElementById('paypal-button-container');
-        if (container) {
-        container.className = 'error';
-        }
-        //new paypal style 
+
+        setPayPalHeaderState('error');
         try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-        await unlockSelection();
+        try { await unlockKeepalive(); } catch {}
+
         btnBusy(false);
-        //new paypal style
-        //resumeHB();
-        //new paypal style
+        // no resumeHB()
       }
- 
     });
   }
 
@@ -548,25 +430,25 @@ function setupPayPalExpiryBanner() {
     if (!blocks.length){ uiWarn('Please select at least one block.'); return; }
     if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
 
-    // ✅ Pré-validation du fichier sélectionné AVANT toute finalisation
+    // File pre-validation BEFORE finalize
     try {
       const file = fileInput && fileInput.files && fileInput.files[0];
       if (file) {
         await window.UploadManager.validateFile(file);
       } else {
-        uiWarn("Veuillez sélectionner une image (PNG, JPG, GIF, WebP).");
+        uiWarn('Please select an image (PNG, JPG, GIF, WebP).');
         return;
       }
     } catch (preErr) {
       uiError(preErr, 'Upload');
-      uiWarn('Veuillez sélectionner une image valide (PNG, JPG, GIF, WebP).');
+      uiWarn('Please select a valid image (PNG, JPG, GIF, WebP).');
       return;
     }
 
     pauseHB();
     btnBusy(true);
 
-    // ÉTAPE CLÉ 1 : Renouvellement des locks au clic "Confirm" (+3 minutes)
+    // Key step 1: renew locks on Confirm (+3 minutes)
     if (!haveMyValidLocks(blocks, 1000)) {
       await refreshStatus().catch(()=>{});
       uiWarn('Your reservation expired. Please reselect your pixels.');
@@ -575,7 +457,7 @@ function setupPayPalExpiryBanner() {
       return;
     }
 
-    // Renouvellement explicite pour 3 minutes supplémentaires
+    // Explicit renewal for +3 minutes
     try {
       if (window.LockManager) {
         console.log('[Finalize] Renewing locks for confirm step');
@@ -585,14 +467,14 @@ function setupPayPalExpiryBanner() {
       console.warn('[Finalize] Lock renewal failed:', e);
     }
 
-    // === START-ORDER: le serveur prépare la commande et uploade l'image ===
+    // === START-ORDER: server prepares order and uploads the image ===
     let start = null;
     try {
       const file = fileInput.files[0];
       const contentType = await window.UploadManager.validateFile(file);
       const { base64Data } = await window.UploadManager.toBase64(file);
 
-     start = await apiCall('/start-order', {
+      start = await apiCall('/start-order', {
         method: 'POST',
         body: JSON.stringify({
           name, linkUrl, blocks,
@@ -601,51 +483,27 @@ function setupPayPalExpiryBanner() {
           contentBase64: base64Data
         })
       });
-    /*} catch (e) {
+    } catch (e) {
       uiError(e, 'Start order');
       btnBusy(false);
-      resumeHB();
+      try { await unlockKeepalive(); } catch {}
+      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
       return;
     }
     if (!start || !start.ok) {
       const message = (start && (start.error || start.message)) || 'Start order failed';
       uiError(window.Errors ? window.Errors.create('START_ORDER_FAILED', message, { details: start }) : new Error(message), 'Start order');
       btnBusy(false);
-      resumeHB();
+      try { await unlockKeepalive(); } catch {}
+      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
       return;
-    }*/
+    }
 
-      //new paypal style
-      // 1) Échec réseau/exception pendant l’appel
-} catch (e) {
-  uiError(e, 'Start order');
-  btnBusy(false);
-  try { await unlockKeepalive(); } catch {}
-  try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-  return;
-}
-
-// 2) Réponse reçue mais pas ok
-if (!start || !start.ok) {
-  const message = (start && (start.error || start.message)) || 'Start order failed';
-  uiError(
-    window.Errors ? window.Errors.create('START_ORDER_FAILED', message, { details: start }) : new Error(message),
-    'Start order'
-  );
-  btnBusy(false);
-  try { await unlockKeepalive(); } catch {}
-  try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-  return;
-}
-
-      //new paypal style
-    // On a un orderId + regionId
+    // orderId + regionId
     const { orderId, regionId, currency } = start;
     if (fileInput && regionId) fileInput.dataset.regionId = regionId;
 
-    uiInfo('Commande créée. Veuillez finaliser le paiement…');
-
-    // BUMP +3min AVANT PayPal (recommandation)
+    // Extend +3min BEFORE PayPal
     if (window.LockManager) {
       try {
         await window.LockManager.lock(blocks, 180000, { optimistic: false });
@@ -654,20 +512,20 @@ if (!start || !start.ok) {
         console.warn('[Finalize] Lock extension before PayPal failed:', e);
       }
     }
-    // → Afficher le bouton PayPal (qui gère son propre renouvellement)
-    showPaypalButton(orderId, currency);
 
-    // on laisse le bouton gérer la suite (onApproved / onCancel / onError)
+    // Render PayPal (header-only messaging via classes)
+    showPaypalButton(orderId, currency);
+    // PayPal handlers will take over (onApproved / onCancel / onError)
   }
 
-  // Finalize déclenché UNIQUEMENT par app.js (après re-lock)
+  // Triggered ONLY by app.js (after re-lock)
   document.addEventListener('finalize:submit', (e) => {
     try { e.preventDefault && e.preventDefault(); } catch {}
     doConfirm();
   });
 
-  // Expose ces deux helpers si tu veux y accéder depuis l’extérieur
-  window.__finalizeHelpers = { resetFinalizeState, ensureMsgEl, showPaypalButton };
-  // Expose for debugging if needed
+  // Expose helpers if needed
+  window.__finalizeHelpers = { resetFinalizeState, showPaypalButton };
+  // Debug exports
   window.__iwPatch = { doConfirm, refreshStatus, unlockSelection, uid };
 })();
