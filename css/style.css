@@ -582,7 +582,6 @@ body:not(.heavy-selection) .cell.sel::before {
 /* Header au-dessus des boutons PayPal */
 #paypal-button-container::before {
   content: "💳 Choose your payment method";
-  content: attr(data-status);
   display: block;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   border: 1px solid #e2e8f0;
@@ -736,3 +735,16 @@ body:not(.heavy-selection) .cell.sel::before {
   75% { transform: translateX(-48%) translateY(0); }
 }
 /*warning message*/
+
+#paypal-button-container.cancelled::before {
+  content: "❌ Payment cancelled";
+  background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
+  border-color: #fecaca;
+  color: #dc2626;
+}
+#paypal-button-container.error::before {
+  content: "⚠️ Payment error";
+  background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
+  border-color: #fecaca;
+  color: #dc2626;
+}
