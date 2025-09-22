@@ -50,6 +50,12 @@
   function idxToRowCol(idx){ return [Math.floor(idx/N), idx%N]; }
   function rowColToIdx(r,c){ return r*N + c; }
 
+  function setPayPalHeaderState(state){
+  const el = document.getElementById('paypal-button-container');
+  if (el) el.className = String(state || '').trim(); // 'active' | 'expired' | ...
+  }
+
+
   // Build grid
   (function build(){
     const frag = document.createDocumentFragment();
@@ -260,7 +266,7 @@ function resetModalAppState() {
   }
 }
  
-  function setPayPalEnabled(enabled){
+  /*function setPayPalEnabled(enabled){
     const c = document.getElementById('paypal-button-container');
     if (!c) return;
     c.style.pointerEvents = enabled ? '' : 'none';
@@ -283,7 +289,17 @@ function resetModalAppState() {
     } else if (badge) {
       badge.remove();
     }
-  }
+  }*/
+ function setPayPalEnabled(enabled){
+  const c = document.getElementById('paypal-button-container');
+  if (!c) return;
+  c.style.pointerEvents = enabled ? '' : 'none';
+  c.style.opacity = enabled ? '' : '0.45';
+  c.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  // ⬇️ aligne le header PayPal (un seul système de message)
+  setPayPalHeaderState(enabled ? 'active' : 'expired');
+}
+
 
   // === Garde-fous d'expiration côté client (simplifié) ===
   function haveMyValidLocks(arr, graceMs = 2000){
@@ -304,6 +320,9 @@ function resetModalAppState() {
   confirmBtn.textContent = 'Confirm';
   setPayPalEnabled(true);
 
+  //new refonte messages
+  setPayPalHeaderState('active'); // évite un flash "expired"
+  //new refonte messages
   const tick = () => {
     // ne rien faire pendant le processing
     if (confirmBtn.textContent === 'Processing…') return;
@@ -311,9 +330,14 @@ function resetModalAppState() {
     const blocks = currentLock.length ? currentLock : Array.from(selected);
     const ok = haveMyValidLocks(blocks, 5000); // grâce 5s
 
+    //confirmBtn.disabled = !ok;
+    //confirmBtn.textContent = ok ? 'Confirm' : '⏰ Reservation expired — reselect';
+    //setPayPalEnabled(ok);
     confirmBtn.disabled = !ok;
-    confirmBtn.textContent = ok ? 'Confirm' : '⏰ Reservation expired — reselect';
-    setPayPalEnabled(ok);
+    // Un seul système de message: le header PayPal
+    confirmBtn.textContent = 'Confirm';
+    setPayPalEnabled(ok); // met 'active' / 'expired' sur le container
+
 
     // si on n'a plus de blocks (ex: UI vient d’être vidée), ne coupe pas le heartbeat ici
     if (!ok && blocks && blocks.length) {
@@ -477,7 +501,7 @@ function resetModalAppState() {
       closeModal();
       clearSelection();
       paintAll();
-      alert('Your reservation expired. Please reselect your pixels.');
+      //alert('Your reservation expired. Please reselect your pixels.');
       return;
     }
 
@@ -523,9 +547,12 @@ function resetModalAppState() {
         if (confirmBtn.textContent !== 'Processing…') {
           const blocks = currentLock.length ? currentLock : Array.from(selected);
           const ok = haveMyValidLocks(blocks, 5000); // Grâce de 5 secondes
+          //confirmBtn.disabled = !ok;
+          //confirmBtn.textContent = ok ? 'Confirm' : '⏰ Reservation expired — reselect';
+          //setPayPalEnabled(ok);
           confirmBtn.disabled = !ok;
-          confirmBtn.textContent = ok ? 'Confirm' : '⏰ Reservation expired — reselect';
-          setPayPalEnabled(ok);
+          confirmBtn.textContent = 'Confirm';
+          setPayPalEnabled(ok); // gère 'active' / 'expired'
 
           // Si expiré, on coupe le "keepalive" pour éviter tout relock
           if (!ok) {
