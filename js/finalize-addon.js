@@ -461,16 +461,7 @@
     try {
       if (window.LockManager) {
         console.log('[Finalize] Renewing locks for confirm step');
-        //await window.LockManager.lock(blocks, 180000, { optimistic: false });
-        //new
-        const r1 = await window.LockManager.lock(blocks, 180000, { optimistic: false });
-        if (!r1 || !r1.ok || !haveMyValidLocks(blocks, 1000)) {
-          uiWarn('Reservation expired — reselect');
-          btnBusy(false);
-          try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-          return;
-        }
-        //new
+        await window.LockManager.lock(blocks, 180000, { optimistic: false });
       }
     } catch (e) {
       console.warn('[Finalize] Lock renewal failed:', e);
@@ -518,28 +509,10 @@
     // Extend +3min BEFORE PayPal
     if (window.LockManager) {
       try {
-        //await window.LockManager.lock(blocks, 180000, { optimistic: false });
-        //console.log('[Finalize] Extended locks before PayPal phase');
-        //new
-        const r2 = await window.LockManager.lock(blocks, 180000, { optimistic: false });
-        if (!r2 || !r2.ok || !haveMyValidLocks(blocks, 1000)) {
-          uiWarn('Reservation expired — reselect');
-          btnBusy(false);
-          // on ne lance PAS PayPal si l’extension a échoué
-          try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-          return;
-        } else {
-          console.log('[Finalize] Extended locks before PayPal phase');
-        }
-        //new
+        await window.LockManager.lock(blocks, 180000, { optimistic: false });
+        console.log('[Finalize] Extended locks before PayPal phase');
       } catch (e) {
         console.warn('[Finalize] Lock extension before PayPal failed:', e);
-        //new
-                uiWarn('Reservation expired — reselect');
-        btnBusy(false);
-        try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-        return;
-        //new
       }
     }
 

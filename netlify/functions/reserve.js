@@ -196,6 +196,7 @@ const locked = reserved.filter(i => !soldSet.has(i));
 // FIX: déclarer dans la portée *externe* (visible pour result)
 let until = 0;
 let unitPrice = null;
+let totalAmount = 0;
 
 if (locked.length) {
   const { data: myLockRows, error: myErr } = await supabase
@@ -214,7 +215,10 @@ if (locked.length) {
     // FIX: accepter snake_case ou camelCase et caster en nombre
     const p = r.unit_price ?? r.unitPrice;
     if (p != null && !Number.isNaN(Number(p))) {
-      unitPrice = Number(p);
+      //unitPrice = Number(p);
+      //new claude
+      totalAmount += Number(p); // ✅ Additionner
+      //new claude
     }
   }
 }
@@ -228,7 +232,8 @@ const result = {
   ttlSeconds: ttlSec,
   regionId,
   until,
-  unitPrice // OK: existe toujours (null si pas de locks)
+  totalAmount
+  //unitPrice // OK: existe toujours (null si pas de locks)
 };
 
     //console.log(`[reserve] Success: locked=${locked.length}, conflicts=${conflicts.length}, until=${until ? new Date(until).toISOString() : '0'}`);
