@@ -217,7 +217,7 @@ if (locked.length) {
     if (p != null && !Number.isNaN(Number(p))) {
       //unitPrice = Number(p);
       //new claude
-      totalAmount += Number(p); // ✅ Additionner
+      totalAmount += Number(p) * 100; // ✅ Additionner
       //new claude
     }
   }

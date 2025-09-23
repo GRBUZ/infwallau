@@ -46,7 +46,9 @@
   let globalPrice = 1;      // vient de /price.js (toolbar, sélection)
   let reservedPrice = null; // vient de reserve.js (modal)
 
-  
+  //new
+let reservedTotalAmount = null; // Montant total calculé par le backend
+  //new
 
   // Expose la sélection au besoin (pour d'autres modules)
   window.getSelectedIndices = () => Array.from(selected);
@@ -158,7 +160,7 @@
   }
 }*/
 
-function updateSelectionInfo() {
+/*function updateSelectionInfo() {
     const selectionInfo = document.getElementById('selectionInfo');
     if (!selectionInfo) return;
 
@@ -173,7 +175,26 @@ function updateSelectionInfo() {
     } else {
       selectionInfo.classList.remove('show');
     }
-  }
+  }*/
+ //new
+ function updateSelectionInfo() {
+    const selectionInfo = document.getElementById('selectionInfo');
+    if (!selectionInfo) return;
+
+    const selectedPixels = selected.size * 100;
+    
+    if (selectedPixels > 0) {
+      // Calcul approximatif pour l'affichage (le vrai calcul se fait côté backend)
+      const currentPrice = Number.isFinite(globalPrice) ? globalPrice : 1;
+      const approximateTotal = (selectedPixels * currentPrice).toFixed(2);
+      
+      selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels sélectionnés • ~$${approximateTotal}`;
+      selectionInfo.classList.add('show');
+    } else {
+      selectionInfo.classList.remove('show');
+    }
+}
+ //new
   //new modern style
 
   /*function refreshTopbar(){
@@ -510,7 +531,21 @@ function resetModalAppState() {
       : (Number.isFinite(globalPrice) ? globalPrice : 1);                // PATCH
 
     const selectedPixels = selected.size * 100;
-    const total = selectedPixels * unit;                                 // PATCH
+    //const total = selectedPixels * unit;                                 // PATCH
+
+    //new
+    let total;
+    // CORRECTION : utiliser le montant total calculé par le backend si disponible
+    if (reservedTotalAmount != null && Number.isFinite(reservedTotalAmount)) {
+      total = reservedTotalAmount;
+    } else {
+      // Fallback sur le calcul simple avec prix global
+      const unit = (reservedPrice != null && Number.isFinite(reservedPrice))
+        ? reservedPrice
+        : (Number.isFinite(globalPrice) ? globalPrice : 1);
+      total = selectedPixels * unit;
+    }
+    //new
     modalStats.textContent = `${formatInt(selectedPixels)} px — ${formatMoney(total)}`;
 
     if (currentLock.length) {
@@ -534,6 +569,9 @@ function resetModalAppState() {
     confirmBtn.disabled = false;
     confirmBtn.textContent = 'Confirm';
     reservedPrice = null; // PATCH: on libère le prix garanti à la fermeture du modal
+    //new
+    reservedTotalAmount = null; 
+    //new
   }
 
 
@@ -610,8 +648,13 @@ function resetModalAppState() {
 
       currentLock = (lr.locked || []).slice();
 	  
-	  // PATCH: si la RPC reserve.js renvoie unitPrice, on le stocke
+      //new
+      // CORRECTION : stocker le montant total calculé par le backend
+      if (lr.totalAmount != null) reservedTotalAmount = lr.totalAmount;
       if (lr.unitPrice != null) reservedPrice = lr.unitPrice;
+      //new
+	  // PATCH: si la RPC reserve.js renvoie unitPrice, on le stocke
+      //if (lr.unitPrice != null) reservedPrice = lr.unitPrice;
 	  
       clearSelection();
       for(const i of currentLock){ selected.add(i); grid.children[i].classList.add('sel'); }
