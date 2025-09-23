@@ -537,8 +537,15 @@ function resetModalAppState() {
      total = selectedPixels * reservedPrice;          // fallback "unitaire garanti"
    }
     //new
-    modalStats.textContent = `${formatInt(selectedPixels)} px — ${formatMoney(total)}`;
+    //modalStats.textContent = `${formatInt(selectedPixels)} px — ${formatMoney(total)}`;
 
+    if (Number.isFinite(total)) {
+     modalStats.textContent = `${formatInt(selectedPixels)} px — ${formatMoney(total)}`;
+     confirmBtn.disabled = false;
+   } else {
+     modalStats.textContent = `${formatInt(selectedPixels)} px — price pending…`;
+     confirmBtn.disabled = true; // pas de validation sans prix garanti
+   }
     if (currentLock.length) {
       window.LockManager.heartbeat.start(currentLock, 30000, 180000, {
         maxMs: 180000,
