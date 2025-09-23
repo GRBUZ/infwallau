@@ -217,7 +217,11 @@ if (locked.length) {
     if (p != null && !Number.isNaN(Number(p))) {
       //unitPrice = Number(p);
       //new claude
-      totalAmount += Number(p) * 100; // ✅ Additionner
+      const unitPrice = r.unit_price ?? r.unitPrice;
+    if (unitPrice != null && !Number.isNaN(Number(unitPrice))) {
+      totalAmount += Number(unitPrice) * 100; // ✅ Chaque bloc = 100 pixels
+    }
+      //totalAmount += Number(p) * 100; // ✅ Additionner
       //new claude
     }
   }
