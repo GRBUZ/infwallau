@@ -527,19 +527,15 @@ function resetModalAppState() {
     modal.classList.remove('hidden');
 
     //new
-    const selectedPixels = selected.size * 100;
+       const selectedPixels = selected.size * 100;
 
-// ✅ priorité au total garanti renvoyé par la DB (exact même en multi-paliers)
-const total = (reservedTotal != null && Number.isFinite(reservedTotal))
-  ? reservedTotal
-  : (() => {
-      // fallback: prix homogène si jamais l’API ne renvoie pas reservedTotal
-      const unit = (reservedPrice != null && Number.isFinite(reservedPrice))
-        ? reservedPrice
-        : (Number.isFinite(globalPrice) ? globalPrice : 1);
-      return selectedPixels * unit;
-    })();
-
+   // ✅ Utilise UNIQUEMENT le total garanti de l’API ; sinon, à défaut, reservedPrice
+   let total = null;
+   if (Number.isFinite(reservedTotal)) {
+     total = reservedTotal;                           // total exact multi-paliers
+   } else if (Number.isFinite(reservedPrice)) {
+     total = selectedPixels * reservedPrice;          // fallback "unitaire garanti"
+   }
     //new
     modalStats.textContent = `${formatInt(selectedPixels)} px — ${formatMoney(total)}`;
 
