@@ -43,7 +43,7 @@
   let modalLockTimer = null;
   
   // PATCH: deux sources de prix
-  let globalPrice = 1;      // vient de /price.js (toolbar, sélection)
+  let globalPrice = null;      // vient de /price.js (toolbar, sélection)
   let reservedPrice = null; // vient de reserve.js (modal)
   let reservedTotal = null; // ✅ nouveau
 

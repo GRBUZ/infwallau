@@ -157,7 +157,8 @@ exports.handler = async (event) => {
         const pRaw = r.unit_price ?? r.unitPrice;
         const p = Number(pRaw);
         if (Number.isFinite(p)) {
-          totalAmount += p * 100; // ✅ chaque bloc = 100 pixels
+          //totalAmount += p * 100; // ✅ chaque bloc = 100 pixels
+          totalAmount += Number(p) * 100; 
         }
       }
     }
