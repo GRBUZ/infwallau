@@ -223,7 +223,7 @@ function updateSelectionInfo() {
   let isDragging=false, dragStartIdx=-1, movedDuringDrag=false, lastDragIdx=-1, suppressNextClick=false;
   let blockedDuringDrag = false;
 
-  function selectRect(aIdx,bIdx){
+  /*function selectRect(aIdx,bIdx){
     const [ar,ac]=idxToRowCol(aIdx), [br,bc]=idxToRowCol(bIdx);
     const r0=Math.min(ar,br), r1=Math.max(ar,br), c0=Math.min(ac,bc), c1=Math.max(ac,bc);
     blockedDuringDrag = false;
@@ -243,10 +243,45 @@ function updateSelectionInfo() {
   if (selected.size > 0 && selectionGuide) {
     selectionGuide.classList.add('hidden');
   }
+  }*/
+ function selectRect(aIdx,bIdx){
+  const [ar,ac]=idxToRowCol(aIdx), [br,bc]=idxToRowCol(bIdx);
+  const r0=Math.min(ar,br), r1=Math.max(ar,br), c0=Math.min(ac,bc), c1=Math.max(ac,bc);
+  blockedDuringDrag = false;
+  for(let r=r0;r<=r1;r++){
+    for(let c=c0;c<=c1;c++){
+      const idx=rowColToIdx(r,c);
+      if (isBlockedCell(idx)) { blockedDuringDrag = true; break; }
+    }
+    if (blockedDuringDrag) break;
   }
+  if (blockedDuringDrag){ 
+    clearSelection(); 
+    showInvalidRect(r0,c0,r1,c1,900); 
+    return; 
+  }
+  hideInvalidRect(); 
+  clearSelection();
+  for(let r=r0;r<=r1;r++) for(let c=c0;c<=c1;c++){ 
+    const idx=rowColToIdx(r,c); 
+    selected.add(idx); 
+  }
+  for(const i of selected) grid.children[i].classList.add('sel');
+  
+  // Gérer l'affichage du guide
+  if (selectionGuide) {
+    if (selected.size === 0) {
+      selectionGuide.classList.remove('hidden');
+    } else {
+      selectionGuide.classList.add('hidden');
+    }
+  }
+  
+  refreshTopbar();
+}
 
   // Optimisé: ne repeint que la cellule cliquée (plus topbar), pas tout le grid
-  function toggleCell(idx){
+  /*function toggleCell(idx){
     if (isBlockedCell(idx)) return;
     if (selected.has(idx)) { selected.delete(idx); }
     else { selected.add(idx); }
@@ -256,7 +291,28 @@ function updateSelectionInfo() {
     } else {
       refreshTopbar();
     }
+  }*/
+ function toggleCell(idx){
+  if (isBlockedCell(idx)) return;
+  if (selected.has(idx)) { selected.delete(idx); }
+  else { selected.add(idx); }
+  paintCell(idx);
+  
+  // Gérer l'affichage du guide selon l'état de sélection
+  if (selectionGuide) {
+    if (selected.size === 0) {
+      selectionGuide.classList.remove('hidden');
+    } else {
+      selectionGuide.classList.add('hidden');
+    }
   }
+  
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(refreshTopbar);
+  } else {
+    refreshTopbar();
+  }
+}
 
   function idxFromClientXY(x,y){
     const rect=grid.getBoundingClientRect();

@@ -340,7 +340,7 @@
               return;
             }
           }
-
+          console.log('UID before capture', window.CoreManager.uid);
           // 1) capture on server
           const res = await window.CoreManager.apiCall('/paypal-capture-finalize', {
             method: 'POST',
@@ -474,6 +474,7 @@
       const contentType = await window.UploadManager.validateFile(file);
       const { base64Data } = await window.UploadManager.toBase64(file);
 
+      console.log('UID before start-order', window.CoreManager.uid);
       start = await apiCall('/start-order', {
         method: 'POST',
         body: JSON.stringify({
