@@ -486,18 +486,18 @@
     } catch (e) {
       uiError(e, 'Start order');
       btnBusy(false);
-      resumeHB();
       try { await unlockKeepalive(); } catch {}
       try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+      resumeHB();
       return;
     }
     if (!start || !start.ok) {
       const message = (start && (start.error || start.message)) || 'Start order failed';
       uiError(window.Errors ? window.Errors.create('START_ORDER_FAILED', message, { details: start }) : new Error(message), 'Start order');
       btnBusy(false);
-      resumeHB();
       try { await unlockKeepalive(); } catch {}
       try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+      resumeHB();
       return;
     }
 
