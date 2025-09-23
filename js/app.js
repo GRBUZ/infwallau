@@ -642,8 +642,8 @@ function resetModalAppState() {
 	  
       //new
       // si l’API renvoie un total exact, on le prend
-if (typeof lr.totalAmount === 'number' && isFinite(lr.totalAmount)) {
-  reservedTotal = lr.totalAmount;
+  if (typeof lr.totalAmount === 'number' && isFinite(lr.totalAmount)) {
+  reservedTotal = lr.totalAmount; 
 }
 
 // (tu peux garder le fallback unitPrice si un jour tu le renvoies à nouveau)

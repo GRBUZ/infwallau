@@ -154,11 +154,10 @@ exports.handler = async (event) => {
         if (t > until) until = t;
 
         // tolère snake_case / camelCase
-        const pRaw = r.unit_price ?? r.unitPrice;
-        const p = Number(pRaw);
+        const p = Number(r.unit_price ?? r.unitPrice);
+        //const p = Number(pRaw);
         if (Number.isFinite(p)) {
-          //totalAmount += p * 100; // ✅ chaque bloc = 100 pixels
-          totalAmount += Number(p) * 100; 
+          totalAmount += p * 100; 
         }
       }
     }
