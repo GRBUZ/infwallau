@@ -45,6 +45,7 @@
   // PATCH: deux sources de prix
   let globalPrice = 1;      // vient de /price.js (toolbar, sélection)
   let reservedPrice = null; // vient de reserve.js (modal)
+  let reservedTotal = null; // ✅ nouveau
 
   //new
 let reservedTotalAmount = null; // Montant total calculé par le backend
@@ -525,26 +526,20 @@ function resetModalAppState() {
     document.dispatchEvent(new CustomEvent('modal:opening'));
     modal.classList.remove('hidden');
 
-    // PATCH: prix du modal = prix garanti de la résa si présent, sinon prix global
-    const unit = (reservedPrice != null && Number.isFinite(reservedPrice))
-      ? reservedPrice
-      : (Number.isFinite(globalPrice) ? globalPrice : 1);                // PATCH
-
-    const selectedPixels = selected.size * 100;
-    //const total = selectedPixels * unit;                                 // PATCH
-
     //new
-    let total;
-    // CORRECTION : utiliser le montant total calculé par le backend si disponible
-    if (reservedTotalAmount != null && Number.isFinite(reservedTotalAmount)) {
-      total = reservedTotalAmount;
-    } else {
-      // Fallback sur le calcul simple avec prix global
+    const selectedPixels = selected.size * 100;
+
+// ✅ priorité au total garanti renvoyé par la DB (exact même en multi-paliers)
+const total = (reservedTotal != null && Number.isFinite(reservedTotal))
+  ? reservedTotal
+  : (() => {
+      // fallback: prix homogène si jamais l’API ne renvoie pas reservedTotal
       const unit = (reservedPrice != null && Number.isFinite(reservedPrice))
         ? reservedPrice
         : (Number.isFinite(globalPrice) ? globalPrice : 1);
-      total = selectedPixels * unit;
-    }
+      return selectedPixels * unit;
+    })();
+
     //new
     modalStats.textContent = `${formatInt(selectedPixels)} px — ${formatMoney(total)}`;
 
@@ -571,6 +566,7 @@ function resetModalAppState() {
     reservedPrice = null; // PATCH: on libère le prix garanti à la fermeture du modal
     //new
     reservedTotalAmount = null; 
+    reservedTotal = null; // ✅
     //new
   }
 
@@ -649,9 +645,16 @@ function resetModalAppState() {
       currentLock = (lr.locked || []).slice();
 	  
       //new
-      // CORRECTION : stocker le montant total calculé par le backend
-      if (lr.totalAmount != null) reservedTotalAmount = lr.totalAmount;
-      if (lr.unitPrice != null) reservedPrice = lr.unitPrice;
+      // si l’API renvoie un total exact, on le prend
+if (typeof lr.totalAmount === 'number' && isFinite(lr.totalAmount)) {
+  reservedTotal = lr.totalAmount;
+}
+
+// (tu peux garder le fallback unitPrice si un jour tu le renvoies à nouveau)
+if (lr.unitPrice != null && isFinite(lr.unitPrice)) {
+  reservedPrice = lr.unitPrice;
+}
+
       //new
 	  // PATCH: si la RPC reserve.js renvoie unitPrice, on le stocke
       //if (lr.unitPrice != null) reservedPrice = lr.unitPrice;

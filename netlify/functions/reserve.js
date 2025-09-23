@@ -83,12 +83,10 @@ exports.handler = async (event) => {
     // TTL front était en ms ; la RPC prend des secondes
     let ttlMs  = Math.max(1000, parseInt(body.ttl || 180000, 10));
     let ttlSec = Math.max(1, Math.round(ttlMs / 1000));
-    
-    // Logique métier : 3 minutes maximum, mais on accepte les renouvellements
-    // Garde une borne 30s..300s pour éviter les TTL délirants (5 minutes max pour PayPal)
-    ttlSec = Math.max(30, Math.min(300, ttlSec));
 
-    //console.log(`[reserve] uid=${uid}, blocks=${blocks.length}, ttlSec=${ttlSec}`);
+    // Logique métier : 3 minutes maximum, mais on accepte les renouvellements
+    // Borne 30s..300s (5 min max pour PayPal)
+    ttlSec = Math.max(30, Math.min(300, ttlSec));
 
     // ESM import (compat require/exports.handler)
     const { createClient } = await import('@supabase/supabase-js');
@@ -102,38 +100,18 @@ exports.handler = async (event) => {
       console.error('[reserve] RPC failed:', rpcErr);
       return bad(500, 'RPC_RESERVE_FAILED', { message: rpcErr.message });
     }
-
     const reserved = Array.isArray(reservedArr) ? reservedArr.map(Number) : [];
-    //console.log(`[reserve] Reserved ${reserved.length}/${blocks.length} blocks`);
 
-    // 2) Filtrer les blocs déjà vendus (au cas où)
-    /*const { data: soldRows, error: soldErr } = await supabase
-      .from('cells')
-      .select('idx')
-      .in('idx', blocks)
-      .not('sold_at', 'is', null);
+    // 2) Filtrer les blocs déjà vendus (via RPC pour éviter 414)
+    const { data: soldIdxRows, error: soldErr } = await supabase
+      .rpc('sold_in_blocks', { _blocks: blocks });
 
     if (soldErr) {
-      console.error('[reserve] Sold check failed:', soldErr);
+      console.error('[reserve] Sold check failed (RPC):', soldErr);
       return bad(500, 'CELLS_QUERY_FAILED', { message: soldErr.message });
     }
-
-    const soldSet = new Set((soldRows||[]).map(r=>Number(r.idx)));
-    const locked = reserved.filter(i => !soldSet.has(i));*/
-    // 2) Filtrer les blocs déjà vendus (via RPC pour éviter 414)
-const { data: soldIdxRows, error: soldErr } = await supabase
-  .rpc('sold_in_blocks', { _blocks: blocks });
-
-if (soldErr) {
-  console.error('[reserve] Sold check failed (RPC):', soldErr);
-  return bad(500, 'CELLS_QUERY_FAILED', { message: soldErr.message });
-}
-
-const soldSet = new Set((soldIdxRows || []).map(r => Number(r.idx)));
-const locked = reserved.filter(i => !soldSet.has(i));
-
-
-    //console.log(`[reserve] Final locked: ${locked.length} (${soldSet.size} already sold)`);
+    const soldSet = new Set((soldIdxRows || []).map(r => Number(r.idx)));
+    const locked = reserved.filter(i => !soldSet.has(i));
 
     // 3) Construire conflicts = demandés – locked
     const reqSet = new Set(blocks);
@@ -158,26 +136,32 @@ const locked = reserved.filter(i => !soldSet.has(i));
       locks[k] = { uid: r.uid, until: untilMs };
     }
 
-    // 5) regionId + until (max des until pour les blocs lockés par ce user) — paginé
-    /*let until = 0;
+    // 5) regionId + until (max des until) + totalAmount exact (= somme des unit_price * 100 px)
+    let until = 0;
+    let totalAmount = 0; // en dollars pour l'ensemble de la résa
+
     if (locked.length) {
-      let myLockRows = [];
-      try {
-        myLockRows = await selectAllMyLocksFor(supabase, {
-          uid,
-          idxs: locked,
-          thresholdIso
-        });
-      } catch (myErr) {
-        console.error('[reserve] Self locks query (paged) failed:', myErr);
+      const { data: myLockRows, error: myErr } = await supabase
+        .rpc('locks_by_uid_in', { _uid: uid, _blocks: locked });
+
+      if (myErr) {
+        console.error('[reserve] Self locks RPC failed:', myErr);
         return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: myErr.message });
       }
-      
-      for (const r of (myLockRows||[])) {
+
+      for (const r of (myLockRows || [])) {
         const t = r.until ? new Date(r.until).getTime() : 0;
         if (t > until) until = t;
+
+        // tolère snake_case / camelCase
+        const pRaw = r.unit_price ?? r.unitPrice;
+        const p = Number(pRaw);
+        if (Number.isFinite(p)) {
+          totalAmount += p * 100; // ✅ chaque bloc = 100 pixels
+        }
       }
     }
+
     const regionId = genRegionId(uid, locked);
 
     const result = {
@@ -186,61 +170,9 @@ const locked = reserved.filter(i => !soldSet.has(i));
       locks,
       ttlSeconds: ttlSec,
       regionId,
-      until
-    };*/
-
-   // 5) regionId + until (max des until pour les blocs lockés par ce user)
-//    + unitPrice (prix garanti renvoyé par locks_by_uid_in)
-//    → passer par RPC pour éviter un .in(...) en querystring (414)
-
-// FIX: déclarer dans la portée *externe* (visible pour result)
-let until = 0;
-let unitPrice = null;
-let totalAmount = 0;
-
-if (locked.length) {
-  const { data: myLockRows, error: myErr } = await supabase
-    .rpc('locks_by_uid_in', { _uid: uid, _blocks: locked });
-
-  if (myErr) {
-    console.error('[reserve] Self locks RPC failed:', myErr);
-    return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: myErr.message });
-  }
-
-  // FIX: ne *pas* redéclarer `let until` ici
-  for (const r of (myLockRows || [])) {
-    const t = r.until ? new Date(r.until).getTime() : 0;
-    if (t > until) until = t;
-
-    // FIX: accepter snake_case ou camelCase et caster en nombre
-    const p = r.unit_price ?? r.unitPrice;
-    if (p != null && !Number.isNaN(Number(p))) {
-      //unitPrice = Number(p);
-      //new claude
-      const unitPrice = r.unit_price ?? r.unitPrice;
-    if (unitPrice != null && !Number.isNaN(Number(unitPrice))) {
-      totalAmount += Number(unitPrice) * 100; // ✅ Chaque bloc = 100 pixels
-    }
-      //totalAmount += Number(p) * 100; // ✅ Additionner
-      //new claude
-    }
-  }
-}
-
-const regionId = genRegionId(uid, locked);
-
-const result = {
-  locked,
-  conflicts,
-  locks,
-  ttlSeconds: ttlSec,
-  regionId,
-  until,
-  totalAmount
-  //unitPrice // OK: existe toujours (null si pas de locks)
-};
-
-    //console.log(`[reserve] Success: locked=${locked.length}, conflicts=${conflicts.length}, until=${until ? new Date(until).toISOString() : '0'}`);
+      until,
+      totalAmount
+    };
 
     return ok(result);
 
