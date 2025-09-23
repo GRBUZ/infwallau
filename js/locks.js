@@ -118,17 +118,13 @@
     // Optimisme local seulement si demandé
     if (optimistic) setLocalLocks(indices, ttlMs);
 
-    // Appel serveur
-    //const res = await apiCall('/reserve', {
-      //method: 'POST',
-      //body: JSON.stringify({ blocks: indices, ttl: ttlMs })
-    //});
-
-    const res = await window.CoreManager.apiCall('/reserve', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ blocks, ttl: ttlMs })
-});
+      // ⚠️ on envoie la liste normalisée (indices), pas la valeur brute "blocks"
+  const res = await window.CoreManager.apiCall('/reserve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ blocks: indices, ttl: ttlMs })
+  });
+    
 
 
     if (!res || !res.ok) {
@@ -138,7 +134,23 @@
 
     // Ajuster localLocks avec la vérité renvoyée par le serveur
     localLocks = merge(res.locks || {});
-    return { ok:true, locked: res.locked || [], conflicts: res.conflicts || [], locks: localLocks, ttlSeconds: res.ttlSeconds };
+    //return { ok:true, locked: res.locked || [], conflicts: res.conflicts || [], locks: localLocks, ttlSeconds: res.ttlSeconds };
+      // ✅ PROPAGE TOUT ce dont le front a besoin (cast en Number pour tolérer les strings)
+  const until       = Number(res.until) || 0;
+  const totalAmount = (res.totalAmount != null && isFinite(Number(res.totalAmount))) ? Number(res.totalAmount) : undefined;
+  const unitPrice   = (res.unitPrice   != null && isFinite(Number(res.unitPrice)))   ? Number(res.unitPrice)   : undefined;
+
+  return {
+    ok: true,
+    locked: res.locked || [],
+    conflicts: res.conflicts || [],
+    locks: localLocks,
+    ttlSeconds: res.ttlSeconds,
+    regionId: res.regionId,
+    until,
+    totalAmount,   // ✅ indispensable pour le modal
+    unitPrice      // (optionnel, si tu le réutilises)
+  };
   }
 
   async function unlock(blocks){
