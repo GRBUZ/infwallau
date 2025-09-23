@@ -214,6 +214,9 @@ function updateSelectionInfo() {
   function clearSelection(){
     for(const i of selected) grid.children[i].classList.remove('sel');
     selected.clear();
+    if (selectionGuide) {
+    selectionGuide.classList.remove('hidden');
+    }
     refreshTopbar();
   }
 
@@ -236,6 +239,10 @@ function updateSelectionInfo() {
     for(let r=r0;r<=r1;r++) for(let c=c0;c<=c1;c++){ const idx=rowColToIdx(r,c); selected.add(idx); }
     for(const i of selected) grid.children[i].classList.add('sel');
     refreshTopbar();
+    // Masquer le guide dès qu'il y a une sélection
+  if (selected.size > 0 && selectionGuide) {
+    selectionGuide.classList.add('hidden');
+  }
   }
 
   // Optimisé: ne repeint que la cellule cliquée (plus topbar), pas tout le grid
@@ -261,9 +268,9 @@ function updateSelectionInfo() {
 
   grid.addEventListener('mousedown',(e)=>{
   // Masquer le guide au premier clic
-  if (selectionGuide) {
-    selectionGuide.classList.add('hidden');
-  }
+  //if (selectionGuide) {
+    //selectionGuide.classList.add('hidden');
+  //}
   
   const idx=idxFromClientXY(e.clientX,e.clientY); if(idx<0) return;
   isDragging=true; dragStartIdx=idx; lastDragIdx=idx; movedDuringDrag=false; suppressNextClick=false;
