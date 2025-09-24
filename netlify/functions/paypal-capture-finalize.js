@@ -139,10 +139,10 @@ exports.handler = async (event) => {
     }
 
     // 2) Prix serveur
-    /*const blocks = Array.isArray(order.blocks) ? order.blocks.map(n=>parseInt(n,10)).filter(Number.isFinite) : [];
+    const blocks = Array.isArray(order.blocks) ? order.blocks.map(n=>parseInt(n,10)).filter(Number.isFinite) : [];
     if (!blocks.length) return bad(400, 'NO_BLOCKS');
-    const currency = String(order.currency || 'USD').toUpperCase();
-
+    //const currency = String(order.currency || 'USD').toUpperCase();
+/*
     const { count, error: countErr } = await supabase
       .from('cells').select('idx', { count:'exact', head:true })
       .not('sold_at', 'is', null);
