@@ -139,7 +139,7 @@ exports.handler = async (event) => {
     }
 
     // 2) Prix serveur
-    const blocks = Array.isArray(order.blocks) ? order.blocks.map(n=>parseInt(n,10)).filter(Number.isFinite) : [];
+    /*const blocks = Array.isArray(order.blocks) ? order.blocks.map(n=>parseInt(n,10)).filter(Number.isFinite) : [];
     if (!blocks.length) return bad(400, 'NO_BLOCKS');
     const currency = String(order.currency || 'USD').toUpperCase();
 
@@ -162,7 +162,11 @@ exports.handler = async (event) => {
         fail_reason: 'PRICE_CHANGED'
       }).eq('order_id', orderId);
       return bad(409, 'PRICE_CHANGED', { serverUnitPrice: unitPrice, serverTotal, currency });
-    }
+    }*/
+   const serverTotal = Number(order.total);
+const currency    = String(order.currency || 'USD').toUpperCase();
+if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
+
 
     // 3) CAPTURE PayPal
     const accessToken = await getPayPalAccessToken();

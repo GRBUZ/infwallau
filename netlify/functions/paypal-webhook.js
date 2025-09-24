@@ -384,7 +384,7 @@ exports.handler = async (event) => {
     }
 
     // --- 5) Prix serveur
-    const { count, error: countErr } = await supabase
+    /*const { count, error: countErr } = await supabase
       .from('cells')
       .select('idx', { count:'exact', head:true })
       .not('sold_at', 'is', null);
@@ -395,7 +395,11 @@ exports.handler = async (event) => {
     const unitPrice   = Math.round((1 + tier * 0.01) * 100) / 100;
     const totalPixels = blocks.length * 100;
     const total       = Math.round(unitPrice * totalPixels * 100) / 100;
-    const usedCurrency= (order.currency || paidCurr || 'USD').toUpperCase();
+    const usedCurrency= (order.currency || paidCurr || 'USD').toUpperCase();*/
+    const total = Number(order.total);
+const usedCurrency = (order.currency || paidCurr || 'USD').toUpperCase();
+if (!Number.isFinite(total)) return bad(409, 'ORDER_PRICE_MISSING');
+
 
     // (nouveau) devise incohérente → refund
     if (paidCurr && usedCurrency && paidCurr !== usedCurrency) {

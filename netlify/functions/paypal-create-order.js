@@ -164,7 +164,7 @@ exports.handler = async (event) => {
     if (lockRows?.length) return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
 
     // 3) Prix serveur
-    const { count, error: countErr } = await supabase
+    /*const { count, error: countErr } = await supabase
       .from('cells')
       .select('idx', { count: 'exact', head: true })
       .not('sold_at', 'is', null);
@@ -187,18 +187,26 @@ exports.handler = async (event) => {
         }).eq('order_id', orderId);
       } catch(_) {}
       return bad(409, 'PRICE_CHANGED', { serverUnitPrice: unitPrice, serverTotal: total, currency });
-    }
+    }*/
+   //new
+   // 3) Montant = total figé dans l'order (déjà calculé depuis les locks)
+const total = Number(order.total);
+if (!Number.isFinite(total)) return bad(409, 'ORDER_PRICE_MISSING');
+const totalPixels = (Array.isArray(order.blocks) ? order.blocks.length : 0) * 100;
+const currency = String(order.currency || 'USD').toUpperCase();
+
+   //new
 
     // 4) Créer l’ordre PayPal
     const accessToken = await getPayPalAccessToken();
     const ppOrderData = {
       intent: 'CAPTURE',
       purchase_units: [{
-        amount: { currency_code: currency, value: total.toFixed(2) },
-        description: `${blocks.length} blocks (${totalPixels} px)`,
-        custom_id: orderId,
-        invoice_id: orderId
-      }],
+  amount: { currency_code: currency, value: total.toFixed(2) },
+  description: `${(order.blocks||[]).length} blocks (${totalPixels} px)`,
+  custom_id: orderId,
+  invoice_id: orderId
+}],
       application_context: {
         brand_name: 'Million Pixels',
         landing_page: 'BILLING',

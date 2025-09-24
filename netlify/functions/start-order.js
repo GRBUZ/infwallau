@@ -155,7 +155,7 @@ exports.handler = async (event) => {
     if (lockedByOther.length) return bad(409, 'LOCKED_BY_OTHER', { idx: lockedByOther[0] });
 
     // 3) Prix côté serveur
-    const { count, error: countErr } = await supabase
+    /*const { count, error: countErr } = await supabase
       .from('cells')
       .select('idx', { count: 'exact', head: true })
       .not('sold_at', 'is', null);
@@ -166,7 +166,21 @@ exports.handler = async (event) => {
     const unitPrice   = Math.round((1 + tier * 0.01) * 100) / 100;     // 2 décimales
     const totalPixels = blocks.length * 100;
     const total       = Math.round((unitPrice * totalPixels) * 100) / 100;
-    const currency    = 'USD';
+    const currency    = 'USD';*/
+    //new
+    // 3) Prix côté serveur — à partir des locks (prix garantis par bloc)
+const { data: myLocks, error: myErr } = await supabase
+  .rpc('locks_by_uid_in', { _uid: uid, _blocks: blocks });
+if (myErr) return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: myErr.message });
+
+const total = (Array.isArray(myLocks) ? myLocks : [])
+  .reduce((acc, r) => acc + Number(r.unit_price || r.unitPrice || 0) * 100, 0);
+const currency = 'USD';
+// (facultatif, pour lisibilité) moyenne unitaire = total / pixels
+const totalPixels = blocks.length * 100;
+const unitPriceAvg = totalPixels ? Math.round((total/totalPixels) * 100) / 100 : null;
+
+    //new
 
     // 4) Upload image
     const buffer = Buffer.from(b64, "base64");
@@ -198,7 +212,7 @@ exports.handler = async (event) => {
         blocks,
         region_id:  regionUuid,
         image_url:  imageUrl,
-        unit_price: unitPrice,
+        unit_price: unitPriceAvg,
         total,
         currency,
         provider:   'paypal',
@@ -208,11 +222,11 @@ exports.handler = async (event) => {
     if (insErr) return bad(500, "DB_INSERT_FAILED", { message: insErr.message });
 
     // 6) Locks 2 minutes pour l’UID (best-effort)
-    const until = new Date(Date.now() + 2*60*1000).toISOString();
-    const lockRowsNew = blocks.map(idx => ({ idx, uid, until }));
-    await supabase.from('locks').upsert(lockRowsNew, { onConflict: 'idx' });
+    //const until = new Date(Date.now() + 2*60*1000).toISOString();
+    //const lockRowsNew = blocks.map(idx => ({ idx, uid, until }));
+    //await supabase.from('locks').upsert(lockRowsNew, { onConflict: 'idx' });
 
-    return ok({ orderId, regionId: regionUuid, imageUrl, unitPrice, total, currency });
+    return ok({ orderId, regionId: regionUuid, imageUrl, unitPriceAvg, total, currency });
 
   } catch (e) {
     // Log côté fonction et renvoyer un message clair
