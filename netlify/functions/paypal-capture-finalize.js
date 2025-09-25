@@ -408,11 +408,6 @@ exports.handler = async (event) => {
     //const amountStr = Number.isFinite(amountNum) ? amountNum.toFixed(2) : String(capValue);
     const orderUuid = (await import('node:crypto')).randomUUID();
 
-    //debug
-    console.warn('[capture-finalize] RPC finalize_paid_order call', {
-  orderId, paypalOrderId, amountSent: amountStr, typeofAmount: typeof amountStr
-});
-    //debug
     const { error: rpcErr } = await supabase.rpc('finalize_paid_order', {
       _order_id:  orderUuid,
       _uid:       uid,
