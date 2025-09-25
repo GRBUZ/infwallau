@@ -142,27 +142,7 @@ exports.handler = async (event) => {
     const blocks = Array.isArray(order.blocks) ? order.blocks.map(n=>parseInt(n,10)).filter(Number.isFinite) : [];
     if (!blocks.length) return bad(400, 'NO_BLOCKS');
     //const currency = String(order.currency || 'USD').toUpperCase();
-/*
-    const { count, error: countErr } = await supabase
-      .from('cells').select('idx', { count:'exact', head:true })
-      .not('sold_at', 'is', null);
-    if (countErr) return bad(500, 'PRICE_QUERY_FAILED', { message: countErr.message });
 
-    const blocksSold  = count || 0;
-    const tier        = Math.floor(blocksSold / 10);
-    const unitPrice   = Math.round((1 + tier * 0.01) * 100) / 100;
-    const totalPixels = blocks.length * 100;
-    const serverTotal = Math.round(unitPrice * totalPixels * 100) / 100;
-
-    if (order.total != null && Number(order.total) !== Number(serverTotal)) {
-      await supabase.from('orders').update({
-        server_unit_price: unitPrice,
-        server_total: serverTotal,
-        updated_at: new Date().toISOString(),
-        fail_reason: 'PRICE_CHANGED'
-      }).eq('order_id', orderId);
-      return bad(409, 'PRICE_CHANGED', { serverUnitPrice: unitPrice, serverTotal, currency });
-    }*/
    const serverTotal = Number(order.total);
 const currency    = String(order.currency || 'USD').toUpperCase();
 if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
@@ -369,18 +349,8 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
       const viaRpc = await tryRpc(supabase, 'locks_conflicts_in', { p_blocks: blocksOk, p_uid: uid, p_now: nowIso });
       if (!viaRpc.error && Array.isArray(viaRpc.data) && viaRpc.data.length > 0) {
         // quelqu’un d’autre détient un lock en cours → on traite comme lock invalide
-        //const r = await doRefundFor('LOCKS_INVALID');
-        //return r;
-        //debug
-        return bad(409, 'LOCK_MISSING_OR_EXPIRED', {
-      details: {
-        from: '3.5.a',
-        expected: blocksOk.length,
-        valid: null,
-        conflictsSample: viaRpc.data.slice(0, 50) // <- indices + uids retournés par la RPC
-      }
-    });
-        //debug
+        const r = await doRefundFor('LOCKS_INVALID');
+        return r;
       }
     }
 
@@ -403,58 +373,7 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
         if (e) return bad(500, 'LOCKS_QUERY_FAILED', { message: e.message });
         myValid += (c || 0);
       }
-      //debug
-      // ===== DEBUG: extraire les idx réellement vus valides par la DB =====
-const validSet = new Set();
-const foreign = [];   // { idx, uid, until }
-const expired = [];   // { idx, until }
-const missing = [];   // indices de blocksOk sans ligne dans locks
 
-// On récupère toutes les lignes locks pour nos blocks (en chunks)
-const CH = 1000;
-for (let i = 0; i < blocksOk.length; i += CH) {
-  const slice = blocksOk.slice(i, i + CH);
-
-  const { data: rows, error: rowsErr } = await supabase
-    .from('locks')
-    .select('idx, uid, until')
-    .in('idx', slice);
-
-  if (rowsErr) {
-    console.warn('[DBG locks dump] query failed', rowsErr);
-    continue;
-  }
-
-  for (const r of (rows || [])) {
-    const untilMs = r.until ? new Date(r.until).getTime() : 0;
-    const isMine  = r.uid === uid;
-    const isValid = untilMs > Date.now();
-    if (isMine && isValid) validSet.add(Number(r.idx));
-    else if (!isMine && isValid) foreign.push({ idx: Number(r.idx), uid: r.uid, until: r.until });
-    else if (isMine && !isValid) expired.push({ idx: Number(r.idx), until: r.until });
-  }
-}
-
-// Complète la liste "missing" = demandés - (mine valid + mine expired + foreign)
-{
-  const seen = new Set([...validSet, ...expired.map(x=>x.idx), ...foreign.map(x=>x.idx)]);
-  for (const i of blocksOk) if (!seen.has(i)) missing.push(i);
-}
-
-// Si échec: renvoyer une 409 **lisible** au lieu du refund direct
-if (validSet.size !== blocksOk.length) {
-  return bad(409, 'LOCK_MISSING_OR_EXPIRED', {
-    details: {
-      expected: blocksOk.length,
-      valid: validSet.size,
-      sampleMissing: missing.slice(0, 50),
-      expiredSample: expired.slice(0, 20),
-      foreignSample: foreign.slice(0, 20)
-    }
-  });
-}
-
-      //debug
       if (myValid !== blocksOk.length) {
         const r = await doRefundFor('LOCKS_INVALID');
         return r;
