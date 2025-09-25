@@ -137,7 +137,7 @@ exports.handler = async (event) => {
     }
 
     // 5) regionId + until (max des until) + totalAmount exact (= somme des unit_price * 100 px)
-    let until = 0;
+    /*let until = 0;
     let totalAmount = 0; // en dollars pour l'ensemble de la résa
 
     if (locked.length) {
@@ -174,7 +174,52 @@ exports.handler = async (event) => {
       totalAmount
     };
 
-    return ok(result);
+    return ok(result);*/
+    //new new
+    // 5) regionId + until + totalAmount (depuis SQL, sans cap 1000)
+let until = 0;
+let totalAmount = 0; // on continue de renvoyer des DOLLARS (comme avant)
+
+if (locked.length) {
+  const { data: myLockRows, error: myErr } = await supabase
+    .rpc('locks_by_uid_in', { _uid: uid, _blocks: locked });
+
+  if (myErr) {
+    console.error('[reserve] Self locks RPC failed:', myErr);
+    return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: myErr.message });
+  }
+  for (const r of (myLockRows || [])) {
+    const t = r.until ? new Date(r.until).getTime() : 0;
+    if (t > until) until = t;
+  }
+
+  // 👉 somme et moyenne côté SQL (une seule ligne, pas de cap)
+  const { data: sumRow2, error: sumErr2 } = await supabase
+    .rpc('locks_pricing_sum', { _uid: uid, _blocks: locked });
+
+  if (sumErr2) {
+    console.error('[reserve] Pricing sum RPC failed:', sumErr2);
+    return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: sumErr2.message });
+  }
+
+  const totalCents2 = Number(sumRow2?.total_cents || 0);
+  totalAmount = totalCents2 / 100; // dollars pour compat avec le front actuel
+}
+
+const regionId = genRegionId(uid, locked);
+
+const result = {
+  locked,
+  conflicts,
+  locks,
+  ttlSeconds: ttlSec,
+  regionId,
+  until,
+  totalAmount
+};
+return ok(result);
+
+    //new new
 
   }catch(e){
     console.error('[reserve] Server error:', e);
