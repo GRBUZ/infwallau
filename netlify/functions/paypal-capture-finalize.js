@@ -539,7 +539,7 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
       paypal_order_id: paypalOrderId,
       paypal_capture_id: captureId,
       //unit_price: unitPrice,
-      //total: serverTotal,
+      total: serverTotal,
       currency,
       updated_at: new Date().toISOString()
     }).eq('order_id', orderId);
