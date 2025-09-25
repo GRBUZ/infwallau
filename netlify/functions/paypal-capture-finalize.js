@@ -403,8 +403,9 @@ exports.handler = async (event) => {
 
     const imageUrl = order.image_url || null;
     //const amount   = Number(capValue);
-    const amountNum = Number(capValue);
-    const amountStr = Number.isFinite(amountNum) ? amountNum.toFixed(2) : String(capValue);
+    const capCents = Math.round(Number(capAmount.value) * 100);
+    //const amountNum = Number(capValue);
+    //const amountStr = Number.isFinite(amountNum) ? amountNum.toFixed(2) : String(capValue);
     const orderUuid = (await import('node:crypto')).randomUUID();
 
     //debug
@@ -420,8 +421,9 @@ exports.handler = async (event) => {
       _blocks:    blocksOk,
       _region_id: regionId,
       _image_url: imageUrl || null,
-      _amount:    amountStr
+      _amount:    null,
       //_amount:    amount
+      _amount_cents: capCents
     });
 
     if (rpcErr) {
