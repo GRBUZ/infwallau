@@ -381,11 +381,13 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
 
       for (let i = 0; i < blocksOk.length; i += CHUNK) {
         const slice = blocksOk.slice(i, i + CHUNK);
+        const nowMinus5s = new Date(Date.now() - 5000).toISOString();
         const { count: c, error: e } = await supabase
           .from('locks')
           .select('idx', { count: 'exact', head: true })
           .in('idx', slice)
-          .gt('until', nowIso)
+          //.gt('until', nowIso)
+          .gt('until', nowMinus5s)
           .eq('uid', uid);
 
         if (e) return bad(500, 'LOCKS_QUERY_FAILED', { message: e.message });
