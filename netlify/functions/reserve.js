@@ -193,6 +193,10 @@ if (locked.length) {
     if (t > until) until = t;
   }
 
+  //debug
+  console.warn('[reserve self-locks sample]', (myLockRows || []).slice(0,3));
+  //debug
+
   // 👉 somme et moyenne côté SQL (une seule ligne, pas de cap)
   const { data: sumRow2, error: sumErr2 } = await supabase
     .rpc('locks_pricing_sum', { _uid: uid, _blocks: locked });

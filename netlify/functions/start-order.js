@@ -172,6 +172,15 @@ const unitPriceAvg = totalPixels ? Math.round((total/totalPixels) * 100) / 100 :
 const { data: sumRow, error: sumErr } = await supabase
   .rpc('locks_pricing_sum', { _uid: uid, _blocks: blocks });
 
+  //debug
+  console.warn('[pricing_sum]', {
+  blocks: blocks.length,
+  total_cents: sumRow?.total_cents,
+  unit_price_avg: sumRow?.unit_price_avg
+});
+
+  //debug
+
 if (sumErr) return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: sumErr.message });
 
 const totalCents   = Number(sumRow?.total_cents || 0);
