@@ -393,7 +393,58 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
         if (e) return bad(500, 'LOCKS_QUERY_FAILED', { message: e.message });
         myValid += (c || 0);
       }
+      //debug
+      // ===== DEBUG: extraire les idx réellement vus valides par la DB =====
+const validSet = new Set();
+const foreign = [];   // { idx, uid, until }
+const expired = [];   // { idx, until }
+const missing = [];   // indices de blocksOk sans ligne dans locks
 
+// On récupère toutes les lignes locks pour nos blocks (en chunks)
+const CH = 1000;
+for (let i = 0; i < blocksOk.length; i += CH) {
+  const slice = blocksOk.slice(i, i + CH);
+
+  const { data: rows, error: rowsErr } = await supabase
+    .from('locks')
+    .select('idx, uid, until')
+    .in('idx', slice);
+
+  if (rowsErr) {
+    console.warn('[DBG locks dump] query failed', rowsErr);
+    continue;
+  }
+
+  for (const r of (rows || [])) {
+    const untilMs = r.until ? new Date(r.until).getTime() : 0;
+    const isMine  = r.uid === uid;
+    const isValid = untilMs > Date.now();
+    if (isMine && isValid) validSet.add(Number(r.idx));
+    else if (!isMine && isValid) foreign.push({ idx: Number(r.idx), uid: r.uid, until: r.until });
+    else if (isMine && !isValid) expired.push({ idx: Number(r.idx), until: r.until });
+  }
+}
+
+// Complète la liste "missing" = demandés - (mine valid + mine expired + foreign)
+{
+  const seen = new Set([...validSet, ...expired.map(x=>x.idx), ...foreign.map(x=>x.idx)]);
+  for (const i of blocksOk) if (!seen.has(i)) missing.push(i);
+}
+
+// Si échec: renvoyer une 409 **lisible** au lieu du refund direct
+if (validSet.size !== blocksOk.length) {
+  return bad(409, 'LOCK_MISSING_OR_EXPIRED', {
+    details: {
+      expected: blocksOk.length,
+      valid: validSet.size,
+      sampleMissing: missing.slice(0, 50),
+      expiredSample: expired.slice(0, 20),
+      foreignSample: foreign.slice(0, 20)
+    }
+  });
+}
+
+      //debug
       if (myValid !== blocksOk.length) {
         const r = await doRefundFor('LOCKS_INVALID');
         return r;
