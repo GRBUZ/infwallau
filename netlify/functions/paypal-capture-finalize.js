@@ -369,8 +369,18 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
       const viaRpc = await tryRpc(supabase, 'locks_conflicts_in', { p_blocks: blocksOk, p_uid: uid, p_now: nowIso });
       if (!viaRpc.error && Array.isArray(viaRpc.data) && viaRpc.data.length > 0) {
         // quelqu’un d’autre détient un lock en cours → on traite comme lock invalide
-        const r = await doRefundFor('LOCKS_INVALID');
-        return r;
+        //const r = await doRefundFor('LOCKS_INVALID');
+        //return r;
+        //debug
+        return bad(409, 'LOCK_MISSING_OR_EXPIRED', {
+      details: {
+        from: '3.5.a',
+        expected: blocksOk.length,
+        valid: null,
+        conflictsSample: viaRpc.data.slice(0, 50) // <- indices + uids retournés par la RPC
+      }
+    });
+        //debug
       }
     }
 
