@@ -169,16 +169,24 @@ exports.handler = async (event) => {
     const currency    = 'USD';*/
     //new
     // 3) Prix côté serveur — à partir des locks (prix garantis par bloc)
-const { data: myLocks, error: myErr } = await supabase
+
+/*    const { data: myLocks, error: myErr } = await supabase
   .rpc('locks_by_uid_in', { _uid: uid, _blocks: blocks });
 if (myErr) return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: myErr.message });
 
 const total = (Array.isArray(myLocks) ? myLocks : [])
   .reduce((acc, r) => acc + Number(r.unit_price || r.unitPrice || 0) * 100, 0);
 const currency = 'USD';
-// (facultatif, pour lisibilité) moyenne unitaire = total / pixels
-const totalPixels = blocks.length * 100;
-const unitPriceAvg = totalPixels ? Math.round((total/totalPixels) * 100) / 100 : null;
+
+*/
+const { data: sumRow, error: sumErr } = await supabase
+  .rpc('locks_pricing_sum', { _uid: uid, _blocks: blocks });
+if (sumErr) return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: sumErr.message });
+
+const totalCents   = Number(sumRow?.total_cents || 0);
+const total        = totalCents / 100;
+const unitPriceAvg = sumRow?.unit_price_avg ?? null;
+const currency     = 'USD';
 
     //new
 
