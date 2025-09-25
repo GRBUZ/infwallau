@@ -176,6 +176,7 @@ if (sumErr) return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: sumErr.message
 
 const totalCents   = Number(sumRow?.total_cents || 0);
 const total        = totalCents / 100;                 // dollars
+const currency = 'USD';
 const unitPriceAvg = sumRow?.unit_price_avg ?? null;   // $/pixel (peut être null si aucun lock)
 
 // Sécurité: unit_price est NOT NULL → mettre 0 au pire
