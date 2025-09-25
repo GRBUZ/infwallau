@@ -169,36 +169,16 @@ exports.handler = async (event) => {
     const currency    = 'USD';*/
     //new
     // 3) Prix côté serveur — à partir des locks (prix garantis par bloc)
-/*
-   const { data: myLocks, error: myErr } = await supabase
+const { data: myLocks, error: myErr } = await supabase
   .rpc('locks_by_uid_in', { _uid: uid, _blocks: blocks });
 if (myErr) return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: myErr.message });
 
 const total = (Array.isArray(myLocks) ? myLocks : [])
   .reduce((acc, r) => acc + Number(r.unit_price || r.unitPrice || 0) * 100, 0);
-const currency = 'USD';*/
-
-const { data: sumRow, error: sumErr } = await supabase
-  .rpc('locks_pricing_sum', { _uid: uid, _blocks: blocks });
-if (sumErr) return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: sumErr.message });
-
-const totalCents = Number(sumRow?.total_cents ?? 0);
-const total      = totalCents / 100;
-const currency   = 'USD';
-
-// pixels = nb de cases * 100
+const currency = 'USD';
+// (facultatif, pour lisibilité) moyenne unitaire = total / pixels
 const totalPixels = blocks.length * 100;
-
-// unit_price_avg venant de la RPC (en dollars/pixel ?)
-let unitPriceAvg = Number(sumRow?.unit_price_avg);
-
-// fallback si null / NaN / Inf : on le recalcule proprement
-if (!Number.isFinite(unitPriceAvg)) {
-  unitPriceAvg = totalPixels ? Math.round((total / totalPixels) * 100) / 100 : 0;
-}
-
-
-    //new
+const unitPriceAvg = totalPixels ? Math.round((total/totalPixels) * 100) / 100 : null;
 
     // 4) Upload image
     const buffer = Buffer.from(b64, "base64");
