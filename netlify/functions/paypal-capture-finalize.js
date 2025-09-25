@@ -143,10 +143,17 @@ exports.handler = async (event) => {
     if (!blocks.length) return bad(400, 'NO_BLOCKS');
     //const currency = String(order.currency || 'USD').toUpperCase();
 
-   const serverTotal = Number(order.total);
-const currency    = String(order.currency || 'USD').toUpperCase();
-if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
-
+    //new
+    //const serverTotal = Number(order.total);
+    //const currency    = String(order.currency || 'USD').toUpperCase();
+    //if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
+    const currency = String(order.currency || 'USD').toUpperCase();
+    const serverTotal = Math.round(Number(order.total) * 100) / 100;
+    if (!Number.isFinite(serverTotal)) {
+      console.warn('[capture-finalize] ORDER_PRICE_MISSING', { orderId, paypalOrderId, orderTotal: order.total });
+      return bad(409, 'ORDER_PRICE_MISSING');
+    }
+    //new fin
 
     // 3) CAPTURE PayPal
     const accessToken = await getPayPalAccessToken();
@@ -171,14 +178,18 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
     if (ppCurrency !== currency) {
       return bad(409, 'CURRENCY_MISMATCH', { expected: currency, got: ppCurrency });
     }
-    if (Number(ppValue) !== Number(serverTotal)) {
+    const cents = v => Math.round(Number(v) * 100);
+    //if (Number(ppValue) !== Number(serverTotal)) {
+    if (cents(ppValue) !== cents(serverTotal)) {
       await supabase.from('orders').update({
         //server_unit_price: unitPrice,
-        //server_total: serverTotal,
+        server_total: serverTotal,
         updated_at: new Date().toISOString(),
         fail_reason: 'PRICE_CHANGED'
       }).eq('order_id', orderId);
+      console.warn('[capture-finalize] PRICE_CHANGED@getOrder', { orderId, paypalOrderId, ppValue, serverTotal, currency });
       return bad(409, 'PRICE_CHANGED', { serverTotal, currency });
+      //return bad(409, 'PRICE_CHANGED', { serverTotal, currency });
     }
     if (ppOrder.status !== 'COMPLETED' && ppOrder.status !== 'APPROVED') {
       return bad(409, 'ORDER_NOT_APPROVED', { paypalStatus: ppOrder.status });
@@ -234,7 +245,9 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
 
     if (!captureId) return bad(502, 'MISSING_CAPTURE_ID');
     if (capCurrency !== currency) return bad(409, 'CURRENCY_MISMATCH', { expected: currency, got: capCurrency });
-    if (Number(capValue) !== Number(serverTotal)) {
+    //if (Number(capValue) !== Number(serverTotal)) {
+    if (cents(capValue) !== cents(serverTotal)) {
+      console.warn('[capture-finalize] CAPTURE_AMOUNT_MISMATCH', { orderId, paypalOrderId, capValue, serverTotal });
       return bad(409, 'CAPTURE_AMOUNT_MISMATCH', { expected: serverTotal, got: capValue });
     }
 
@@ -254,7 +267,7 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
           paypal_order_id: paypalOrderId,
           paypal_capture_id: captureId,
           //server_unit_price: unitPrice,
-          //server_total: serverTotal,
+          server_total: serverTotal,
           currency,
           updated_at: new Date().toISOString()
         })
@@ -404,6 +417,7 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
     });
 
     if (rpcErr) {
+      console.warn('[capture-finalize] RPC finalize_paid_order failed', { orderId, paypalOrderId, msg: rpcErr.message });
       const msg = (rpcErr.message || '').toUpperCase();
 
       const reason =
@@ -420,7 +434,7 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
           paypal_order_id: paypalOrderId,
           paypal_capture_id: captureId,
           //server_unit_price: unitPrice,
-          //server_total: serverTotal,
+          server_total: serverTotal,
           currency,
           updated_at: new Date().toISOString()
         })
