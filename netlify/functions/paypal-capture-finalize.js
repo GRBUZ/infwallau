@@ -193,12 +193,12 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
     }
     if (Number(ppValue) !== Number(serverTotal)) {
       await supabase.from('orders').update({
-        server_unit_price: unitPrice,
-        server_total: serverTotal,
+        //server_unit_price: unitPrice,
+        //server_total: serverTotal,
         updated_at: new Date().toISOString(),
         fail_reason: 'PRICE_CHANGED'
       }).eq('order_id', orderId);
-      return bad(409, 'PRICE_CHANGED', { serverUnitPrice: unitPrice, serverTotal, currency });
+      return bad(409, 'PRICE_CHANGED', { serverTotal, currency });
     }
     if (ppOrder.status !== 'COMPLETED' && ppOrder.status !== 'APPROVED') {
       return bad(409, 'ORDER_NOT_APPROVED', { paypalStatus: ppOrder.status });
@@ -273,8 +273,8 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
           fail_reason: reason,
           paypal_order_id: paypalOrderId,
           paypal_capture_id: captureId,
-          server_unit_price: unitPrice,
-          server_total: serverTotal,
+          //server_unit_price: unitPrice,
+          //server_total: serverTotal,
           currency,
           updated_at: new Date().toISOString()
         })
@@ -298,7 +298,7 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
             imageUrl: order.image_url || fresh.image_url || null,
             paypalOrderId: fresh.paypal_order_id || paypalOrderId,
             paypalCaptureId: fresh.paypal_capture_id || captureId,
-            unitPrice,
+            //unitPrice,
             total: serverTotal,
             currency
           });
@@ -437,8 +437,8 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
           fail_reason: reason,
           paypal_order_id: paypalOrderId,
           paypal_capture_id: captureId,
-          server_unit_price: unitPrice,
-          server_total: serverTotal,
+          //server_unit_price: unitPrice,
+          //server_total: serverTotal,
           currency,
           updated_at: new Date().toISOString()
         })
@@ -463,7 +463,7 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
             imageUrl: imageUrl || fresh.image_url || null,
             paypalOrderId: fresh.paypal_order_id || paypalOrderId,
             paypalCaptureId: fresh.paypal_capture_id || captureId,
-            unitPrice,
+            //unitPrice,
             total: serverTotal,
             currency
           });
@@ -538,8 +538,8 @@ if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
       status: 'completed',
       paypal_order_id: paypalOrderId,
       paypal_capture_id: captureId,
-      unit_price: unitPrice,
-      total: serverTotal,
+      //unit_price: unitPrice,
+      //total: serverTotal,
       currency,
       updated_at: new Date().toISOString()
     }).eq('order_id', orderId);
