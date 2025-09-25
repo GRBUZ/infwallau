@@ -169,28 +169,36 @@ const unitPriceAvg = totalPixels ? Math.round((total/totalPixels) * 100) / 100 :
 
 //new new
 // 3) Prix côté serveur — somme et moyenne calculées 100% en SQL
-const { data: sumRow, error: sumErr } = await supabase
+const { data: sumRows, error: sumErr } = await supabase
   .rpc('locks_pricing_sum', { _uid: uid, _blocks: blocks });
-
-  //debug
-  console.warn('[pricing_sum]', {
-  blocks: blocks.length,
-  total_cents: sumRow?.total_cents,
-  unit_price_avg: sumRow?.unit_price_avg
-});
-
-  //debug
 
 if (sumErr) return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: sumErr.message });
 
-const totalCents   = Number(sumRow?.total_cents || 0);
-const total        = totalCents / 100;                 // dollars
-const currency = 'USD';
-const unitPriceAvg = sumRow?.unit_price_avg ?? null;   // $/pixel (peut être null si aucun lock)
+// Supabase → array; on prend la première ligne
+const row0 = Array.isArray(sumRows) ? sumRows[0] : null;
 
-// Sécurité: unit_price est NOT NULL → mettre 0 au pire
-const unitPriceToStore = (unitPriceAvg == null ? 0 : Number(unitPriceAvg));
+// champs attendus en snake_case depuis la RPC
+const totalCentsRaw   = row0?.total_cents ?? 0;     // peut arriver comme number ou string
+const unitPriceAvgRaw = row0?.unit_price_avg ?? null;
+
+// conversions sûres
+const totalCents = typeof totalCentsRaw === 'string' ? parseInt(totalCentsRaw, 10) : Number(totalCentsRaw);
+const total      = (Number.isFinite(totalCents) ? totalCents : 0) / 100;
+
+// unit price moyen (en $/px), peut être null si aucun lock
+const unitPriceAvg = (unitPriceAvgRaw == null) ? null : Number(unitPriceAvgRaw);
+
+const currency = 'USD';
+
+console.warn('[pricing_sum]', {
+  blocks: blocks.length,
+  total_cents: totalCents,
+  unit_price_avg: unitPriceAvg
+});
+
 //new new
+
+
     // 4) Upload image
     const buffer = Buffer.from(b64, "base64");
     const { randomUUID } = await import('node:crypto');

@@ -178,37 +178,31 @@ exports.handler = async (event) => {
     //new new
     // 5) regionId + until + totalAmount (depuis SQL, sans cap 1000)
 let until = 0;
-let totalAmount = 0; // on continue de renvoyer des DOLLARS (comme avant)
+let totalAmount = 0; // dollars
 
 if (locked.length) {
+  // Utilise la même RPC de somme au lieu de sommer côté JS
+  const { data: sumRows, error: sumErr } = await supabase
+    .rpc('locks_pricing_sum', { _uid: uid, _blocks: locked });
+  if (sumErr) return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: sumErr.message });
+
+  const row0 = Array.isArray(sumRows) ? sumRows[0] : null;
+  const totalCentsRaw = row0?.total_cents ?? 0;
+  const totalCents = typeof totalCentsRaw === 'string' ? parseInt(totalCentsRaw, 10) : Number(totalCentsRaw);
+
+  totalAmount = (Number.isFinite(totalCents) ? totalCents : 0) / 100;
+
+  // on garde quand même le scan des locks pour 'until'
   const { data: myLockRows, error: myErr } = await supabase
     .rpc('locks_by_uid_in', { _uid: uid, _blocks: locked });
+  if (myErr) return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: myErr.message });
 
-  if (myErr) {
-    console.error('[reserve] Self locks RPC failed:', myErr);
-    return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: myErr.message });
-  }
   for (const r of (myLockRows || [])) {
     const t = r.until ? new Date(r.until).getTime() : 0;
     if (t > until) until = t;
   }
-
-  //debug
-  console.warn('[reserve self-locks sample]', (myLockRows || []).slice(0,3));
-  //debug
-
-  // 👉 somme et moyenne côté SQL (une seule ligne, pas de cap)
-  const { data: sumRow2, error: sumErr2 } = await supabase
-    .rpc('locks_pricing_sum', { _uid: uid, _blocks: locked });
-
-  if (sumErr2) {
-    console.error('[reserve] Pricing sum RPC failed:', sumErr2);
-    return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: sumErr2.message });
-  }
-
-  const totalCents2 = Number(sumRow2?.total_cents || 0);
-  totalAmount = totalCents2 / 100; // dollars pour compat avec le front actuel
 }
+
 
 const regionId = genRegionId(uid, locked);
 
