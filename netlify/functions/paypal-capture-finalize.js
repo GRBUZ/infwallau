@@ -402,9 +402,16 @@ exports.handler = async (event) => {
     if (!isUuid(regionId)) regionId = (await import('node:crypto')).randomUUID();
 
     const imageUrl = order.image_url || null;
-    const amount   = Number(capValue);
+    //const amount   = Number(capValue);
+    const amountNum = Number(capValue);
+    const amountStr = Number.isFinite(amountNum) ? amountNum.toFixed(2) : String(capValue);
     const orderUuid = (await import('node:crypto')).randomUUID();
 
+    //debug
+    console.warn('[capture-finalize] RPC finalize_paid_order call', {
+  orderId, paypalOrderId, amountSent: amountStr, typeofAmount: typeof amountStr
+});
+    //debug
     const { error: rpcErr } = await supabase.rpc('finalize_paid_order', {
       _order_id:  orderUuid,
       _uid:       uid,
@@ -413,7 +420,8 @@ exports.handler = async (event) => {
       _blocks:    blocksOk,
       _region_id: regionId,
       _image_url: imageUrl || null,
-      _amount:    amount
+      _amount:    amountStr
+      //_amount:    amount
     });
 
     if (rpcErr) {
