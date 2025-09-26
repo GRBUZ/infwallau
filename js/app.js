@@ -596,10 +596,6 @@ if (selectionInfo) selectionInfo.classList.remove('show');
   }
 
   function closeModal(){
-    //new hide
-    // selection changed by user -> re-allow the bubble
-    modalOpened = false;
-    //new hide
     document.dispatchEvent(new CustomEvent('modal:closing'));
     modal.classList.add('hidden');
     window.LockManager.heartbeat.stop();
