@@ -143,42 +143,8 @@ let reservedTotalAmount = null; // Montant total calculé par le backend
 
   //new modern style
   // ====== MISE À JOUR INFO SÉLECTION ======
-/*function updateSelectionInfo() {
-  const selectionInfo = document.getElementById('selectionInfo');
-  if (!selectionInfo) return;
-  
-  const blocksSold = Object.keys(sold).length;
-  const pixelsSold = blocksSold * 100;
-  const currentPrice = 1 + Math.floor(pixelsSold / 1000) * 0.01;
-  const selectedPixels = selected.size * 100;
-  const total = (selectedPixels * currentPrice).toFixed(2);
-  
-  if (selectedPixels > 0) {
-    selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels sélectionnés • $${total}`;
-    selectionInfo.classList.add('show');
-  } else {
-    selectionInfo.classList.remove('show');
-  }
-}*/
 
-/*function updateSelectionInfo() {
-    const selectionInfo = document.getElementById('selectionInfo');
-    if (!selectionInfo) return;
-
-    // PATCH: ne plus recalculer depuis sold — utiliser le prix global fourni par le back
-    const currentPrice = Number.isFinite(globalPrice) ? globalPrice : 1; // PATCH
-    const selectedPixels = selected.size * 100;
-    const total = (selectedPixels * currentPrice).toFixed(2);
-
-    if (selectedPixels > 0) {
-      selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels sélectionnés • $${total}`;
-      selectionInfo.classList.add('show');
-    } else {
-      selectionInfo.classList.remove('show');
-    }
-  }*/
- //new
- function updateSelectionInfo() {
+ /*function updateSelectionInfo() {
     const selectionInfo = document.getElementById('selectionInfo');
     if (!selectionInfo) return;
 
@@ -194,28 +160,54 @@ let reservedTotalAmount = null; // Montant total calculé par le backend
     } else {
       selectionInfo.classList.remove('show');
     }
+}*/
+
+//new
+function updateSelectionInfo() {
+  const selectionInfo = document.getElementById('selectionInfo');
+  if (!selectionInfo) return;
+
+  const selectedPixels = selected.size * 100;
+  if (selectedPixels <= 0) {
+    selectionInfo.classList.remove('show');
+    return;
+  }
+
+  // Prix unitaire courant (par pixel) – supposé refléter l'état "maintenant"
+  const currentPrice = Number.isFinite(+globalPrice) ? +globalPrice : 1;
+
+  // Paramètres de la courbe
+  const STEP_PX = 1000;   // palier tous les 1 000 px (10 blocs)
+  const GROWTH  = 0.01;   // +1% par palier
+
+  // Somme par paliers: le k-ième palier coûte currentPrice * (1.01)^k
+  let remaining = selectedPixels;
+  let tierIndex = 0; // 0 pour le palier courant, 1 pour le suivant, etc.
+  let total = 0;
+
+  // Nombre de paliers complets
+  const fullSteps = Math.floor(remaining / STEP_PX);
+  for (let k = 0; k < fullSteps; k++) {
+    const pricePerPixel = currentPrice * Math.pow(1 + GROWTH, tierIndex);
+    total += pricePerPixel * STEP_PX;
+    tierIndex++;
+  }
+
+  // Reste (palier partiel)
+  const rest = remaining % STEP_PX;
+  if (rest > 0) {
+    const pricePerPixel = currentPrice * Math.pow(1 + GROWTH, tierIndex);
+    total += pricePerPixel * rest;
+  }
+
+  const approximateTotal = total.toFixed(2);
+  selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels sélectionnés • ~$${approximateTotal}`;
+  selectionInfo.classList.add('show');
 }
+
  //new
   //new modern style
 
-  /*function refreshTopbar(){
-    const blocksSold=Object.keys(sold).length, pixelsSold=blocksSold*100;
-    const currentPrice = 1 + Math.floor(pixelsSold / 1000) * 0.01;
-    priceLine.textContent = `1 pixel = ${formatMoney(currentPrice)}`;
-    pixelsLeftEl.textContent = `${TOTAL_PIXELS.toLocaleString('en-US')} pixels`;
-
-    buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = false;
-
-    // Gérer les animations selon la taille de sélection
-  if (selected.size > 150) {
-    document.body.classList.add('heavy-selection');
-  } else {
-    document.body.classList.remove('heavy-selection');
-  }
-    //new modern style
-    updateSelectionInfo();
-    //new modern style
-  }*/
 
   function refreshTopbar(){
     // PATCH: prix affiché = currentPrice venant du back (/status)
@@ -245,27 +237,7 @@ let reservedTotalAmount = null; // Montant total calculé par le backend
   let isDragging=false, dragStartIdx=-1, movedDuringDrag=false, lastDragIdx=-1, suppressNextClick=false;
   let blockedDuringDrag = false;
 
-  /*function selectRect(aIdx,bIdx){
-    const [ar,ac]=idxToRowCol(aIdx), [br,bc]=idxToRowCol(bIdx);
-    const r0=Math.min(ar,br), r1=Math.max(ar,br), c0=Math.min(ac,bc), c1=Math.max(ac,bc);
-    blockedDuringDrag = false;
-    for(let r=r0;r<=r1;r++){
-      for(let c=c0;c<=c1;c++){
-        const idx=rowColToIdx(r,c);
-        if (isBlockedCell(idx)) { blockedDuringDrag = true; break; }
-      }
-      if (blockedDuringDrag) break;
-    }
-    if (blockedDuringDrag){ clearSelection(); showInvalidRect(r0,c0,r1,c1,900); return; }
-    hideInvalidRect(); clearSelection();
-    for(let r=r0;r<=r1;r++) for(let c=c0;c<=c1;c++){ const idx=rowColToIdx(r,c); selected.add(idx); }
-    for(const i of selected) grid.children[i].classList.add('sel');
-    refreshTopbar();
-    // Masquer le guide dès qu'il y a une sélection
-  if (selected.size > 0 && selectionGuide) {
-    selectionGuide.classList.add('hidden');
-  }
-  }*/
+  
  function selectRect(aIdx,bIdx){
   const [ar,ac]=idxToRowCol(aIdx), [br,bc]=idxToRowCol(bIdx);
   const r0=Math.min(ar,br), r1=Math.max(ar,br), c0=Math.min(ac,bc), c1=Math.max(ac,bc);
@@ -303,17 +275,7 @@ let reservedTotalAmount = null; // Montant total calculé par le backend
 }
 
   // Optimisé: ne repeint que la cellule cliquée (plus topbar), pas tout le grid
-  /*function toggleCell(idx){
-    if (isBlockedCell(idx)) return;
-    if (selected.has(idx)) { selected.delete(idx); }
-    else { selected.add(idx); }
-    paintCell(idx);
-    if (typeof requestAnimationFrame === 'function') {
-      requestAnimationFrame(refreshTopbar);
-    } else {
-      refreshTopbar();
-    }
-  }*/
+  
  function toggleCell(idx){
   if (isBlockedCell(idx)) return;
   if (selected.has(idx)) { selected.delete(idx); }
@@ -389,30 +351,6 @@ function resetModalAppState() {
   }
 }
  
-  /*function setPayPalEnabled(enabled){
-    const c = document.getElementById('paypal-button-container');
-    if (!c) return;
-    c.style.pointerEvents = enabled ? '' : 'none';
-    c.style.opacity = enabled ? '' : '0.45';
-    c.setAttribute('aria-disabled', enabled ? 'false' : 'true');
-    // (Optionnel) message visuel
-    let badge = c.querySelector('.pp-disabled-badge');
-    if (!enabled) {
-      if (!badge) {
-        badge = document.createElement('div');
-        badge.className = 'pp-disabled-badge';
-        badge.textContent = '⏰ Reservation expired — reselect';
-        Object.assign(badge.style, {
-          position: 'absolute', inset: '0', display:'grid', placeItems:'center',
-          fontSize:'14px', fontWeight:'600', color:'#b91c1c', background:'rgba(255,255,255,0.6)'
-        });
-        c.style.position = 'relative';
-        c.appendChild(badge);
-      }
-    } else if (badge) {
-      badge.remove();
-    }
-  }*/
  function setPayPalEnabled(enabled){
   const c = document.getElementById('paypal-button-container');
   if (!c) return;
@@ -488,38 +426,7 @@ function resetModalAppState() {
   }
 }
 
-  /*function openModal(){
-    resetModalAppState();
-
-    // Notifier les autres modules (finalize-addon.js) pour leur propre cleanup
-    document.dispatchEvent(new CustomEvent('modal:opening'));
-    
-    modal.classList.remove('hidden');
-
-    // Stats
-    //const blocksSold=Object.keys(sold).length, pixelsSold=blocksSold*100;
-    //const currentPrice = 1 + Math.floor(pixelsSold / 1000) * 0.01;
-    const selectedPixels = selected.size * 100;
-	// PATCH: dans le modal → utiliser reservedPrice si dispo
-    const unit = reservedPrice != null ? reservedPrice : globalPrice;
-    const total = selectedPixels * unit;
-    //const total = selectedPixels * currentPrice;
-    modalStats.textContent = `${formatInt(selectedPixels)} px — ${formatMoney(total)}`;
-
-    // Heartbeat pour maintenir la réservation (3 minutes + renouvellement étapes)
-    if (currentLock.length) {
-      window.LockManager.heartbeat.start(currentLock, 30000, 180000, {
-        maxMs: 180000,          // 3 minutes max au total
-        autoUnlock: true,       // libère proprement si on stoppe
-        requireActivity: true   // coupe si l'utilisateur est inactif 2 min
-      });
-    } else {
-      window.LockManager.heartbeat.stop();
-    }
-
-    // Surveiller l'expiration (plus permissif)
-    startModalMonitor();
-  }*/
+  
  function openModal(){
     resetModalAppState();
 
