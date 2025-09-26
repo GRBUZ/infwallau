@@ -47,7 +47,7 @@
   let reservedPrice = null; // vient de reserve.js (modal)
   let reservedTotal = null; // ✅ nouveau
 
-  //let reservedTotalAmount = null; // Montant total calculé par le backend
+  let reservedTotalAmount = null; // Montant total calculé par le backend
 
   //new instruction
   // Variables pour le guide curseur
