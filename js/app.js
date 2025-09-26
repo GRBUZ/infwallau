@@ -55,6 +55,9 @@
 let hasUserDragged = false; // Changé de hasUserInteracted
 let isMouseOverGrid = false;
   //new instruction
+  // State
+let modalOpened = false; // <-- simple flag
+
 
   // Expose la sélection au besoin (pour d'autres modules)
   window.getSelectedIndices = () => Array.from(selected);
@@ -244,6 +247,11 @@ function updateSelectionInfo() {
     if (selectionGuide) {
     selectionGuide.classList.remove('hidden');
     }
+    //new hide
+    // selection changed by user -> re-allow the bubble
+modalOpened = false;
+
+    //new hide
     refreshTopbar();
     // Réafficher le guide si l'utilisateur n'a jamais dragué
   resetGuideState();
@@ -285,7 +293,10 @@ function updateSelectionInfo() {
       selectionGuide.classList.add('hidden');
     }
   }
-  
+  //new hide
+  // selection changed by user -> re-allow the bubble
+  modalOpened = false;
+  //new hide
   refreshTopbar();
 }
 
@@ -310,6 +321,10 @@ function updateSelectionInfo() {
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(refreshTopbar);
   } else {
+    //new hide
+    // selection changed by user -> re-allow the bubble
+    modalOpened = false;
+    //new hide
     refreshTopbar();
   }
 }
@@ -540,6 +555,14 @@ function resetModalAppState() {
 
     document.dispatchEvent(new CustomEvent('modal:opening'));
     modal.classList.remove('hidden');
+
+    //new hide
+    // once modal is opened, suppress the selection bubble until user changes selection
+modalOpened = true;
+const selectionInfo = document.getElementById('selectionInfo');
+if (selectionInfo) selectionInfo.classList.remove('show');
+
+    //new hide
 
     //new
        const selectedPixels = selected.size * 100;
