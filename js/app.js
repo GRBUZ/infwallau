@@ -47,9 +47,13 @@
   let reservedPrice = null; // vient de reserve.js (modal)
   let reservedTotal = null; // ✅ nouveau
 
-  //new
-let reservedTotalAmount = null; // Montant total calculé par le backend
-  //new
+  //let reservedTotalAmount = null; // Montant total calculé par le backend
+
+  //new instruction
+  // Variables pour le guide curseur
+let hasUserInteracted = false;
+let isMouseOverGrid = false;
+  //new instruction
 
   // Expose la sélection au besoin (pour d'autres modules)
   window.getSelectedIndices = () => Array.from(selected);
@@ -203,7 +207,7 @@ function updateSelectionInfo() {
   const approximateTotal = total.toFixed(2);
   //selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~$${approximateTotal}`;
   //selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~$${approximateTotal.toLocaleString()}`;
-  selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~$${total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span>pixels selected • ~$${total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
   selectionInfo.classList.add('show');
 }
 
@@ -308,16 +312,75 @@ function updateSelectionInfo() {
     return gy*N + gx;
   }
 
-  grid.addEventListener('mousedown',(e)=>{
-  // Masquer le guide au premier clic
-  //if (selectionGuide) {
-    //selectionGuide.classList.add('hidden');
-  //}
+  //new instruction
+  // Fonction pour mettre à jour la position du guide
+function updateGuidePosition(e) {
+  if (hasUserInteracted || !isMouseOverGrid) return;
   
+  if (selectionGuide) {
+    selectionGuide.style.left = e.clientX + 'px';
+    selectionGuide.style.top = e.clientY + 'px';
+  }
+}
+
+// Fonction pour dismisser définitivement le guide
+function dismissGuide() {
+  hasUserInteracted = true;
+  if (selectionGuide) {
+    selectionGuide.classList.add('dismissed');
+  }
+}
+
+// Events pour le hover de la grille
+grid.addEventListener('mouseenter', (e) => {
+  if (hasUserInteracted) return;
+  isMouseOverGrid = true;
+  if (selectionGuide) {
+    selectionGuide.classList.add('show');
+    updateGuidePosition(e);
+  }
+});
+
+grid.addEventListener('mouseleave', () => {
+  isMouseOverGrid = false;
+  if (selectionGuide && !hasUserInteracted) {
+    selectionGuide.classList.remove('show');
+  }
+});
+
+// Suivre le curseur
+grid.addEventListener('mousemove', updateGuidePosition);
+
+// Modifier votre mousedown existant pour dismisser le guide
+grid.addEventListener('mousedown', (e) => {
+  // Dismisser le guide à la première interaction
+  if (!hasUserInteracted) {
+    dismissGuide();
+  }
+  
+  // Masquer le guide pendant l'interaction
+  if (selectionGuide) {
+    selectionGuide.classList.remove('show');
+  }
+  
+  // Votre code mousedown existant...
+  const idx = idxFromClientXY(e.clientX, e.clientY); 
+  if (idx < 0) return;
+  isDragging = true; 
+  dragStartIdx = idx; 
+  lastDragIdx = idx; 
+  movedDuringDrag = false; 
+  suppressNextClick = false;
+  selectRect(idx, idx); 
+  e.preventDefault();
+});
+  //new instruction
+
+  /*grid.addEventListener('mousedown',(e)=>{
   const idx=idxFromClientXY(e.clientX,e.clientY); if(idx<0) return;
   isDragging=true; dragStartIdx=idx; lastDragIdx=idx; movedDuringDrag=false; suppressNextClick=false;
   selectRect(idx, idx); e.preventDefault();
-  });
+  });*/
  
   window.addEventListener('mousemove',(e)=>{
     if(!isDragging) return;

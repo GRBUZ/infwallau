@@ -782,47 +782,56 @@ body:not(.heavy-selection) .cell.sel::before {
 
 /* instruction selection */
 /* ====== INSTRUCTION SÉLECTION ====== */
+/* Guide qui suit le curseur */
 .selection-guide {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(139, 92, 246, 0.95);
+  position: fixed; /* Fixed pour suivre globalement */
+  background: rgba(139, 92, 246, 0.9);
   color: white;
-  padding: 16px 24px;
-  border-radius: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
   font-family: "Inter", sans-serif;
   font-weight: 600;
-  font-size: 15px;
-  z-index: 10;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.3);
+  font-size: 12px;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
   pointer-events: none;
-  opacity: 1;
-  visibility: visible;
-  transition: all 0.3s ease;
-}
-
-.selection-guide.hidden {
   opacity: 0;
   visibility: hidden;
-  transform: translate(-50%, -50%) scale(0.95);
+  transition: opacity 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transform: translate(-50%, -120%); /* Centré au-dessus du curseur */
+  white-space: nowrap;
 }
 
-.guide-content {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* Flèche pointant vers le curseur */
+.selection-guide::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -4px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid rgba(139, 92, 246, 0.9);
 }
 
-.guide-icon {
-  font-size: 18px;
+.selection-guide.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.selection-guide.dismissed {
+  display: none !important;
 }
 
 @media (max-width: 768px) {
   .selection-guide {
-    padding: 12px 20px;
-    font-size: 13px;
+    font-size: 11px;
+    padding: 6px 10px;
+    transform: translate(-50%, -130%); /* Un peu plus haut sur mobile */
   }
 }
 /* instruction selection */
