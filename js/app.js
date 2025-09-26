@@ -51,7 +51,7 @@
 
   //new instruction
   // Variables pour le guide curseur
-let hasUserInteracted = false;
+let hasUserDragged = false; // Changé de hasUserInteracted
 let isMouseOverGrid = false;
   //new instruction
 
@@ -238,6 +238,8 @@ function updateSelectionInfo() {
     selectionGuide.classList.remove('hidden');
     }
     refreshTopbar();
+    // Réafficher le guide si l'utilisateur n'a jamais dragué
+  showGuideIfNeeded();
   }
 
   let isDragging=false, dragStartIdx=-1, movedDuringDrag=false, lastDragIdx=-1, suppressNextClick=false;
@@ -292,6 +294,7 @@ function updateSelectionInfo() {
   if (selectionGuide) {
     if (selected.size === 0) {
       selectionGuide.classList.remove('hidden');
+      showGuideIfNeeded(); // Réafficher si nécessaire
     } else {
       selectionGuide.classList.add('hidden');
     }
@@ -315,7 +318,7 @@ function updateSelectionInfo() {
   //new instruction
   // Fonction pour mettre à jour la position du guide
 function updateGuidePosition(e) {
-  if (hasUserInteracted || !isMouseOverGrid) return;
+  if (hasUserDragged || !isMouseOverGrid) return;
   
   if (selectionGuide) {
     selectionGuide.style.left = e.clientX + 'px';
@@ -323,19 +326,30 @@ function updateGuidePosition(e) {
   }
 }
 
-// Fonction pour dismisser définitivement le guide
 function dismissGuide() {
-  hasUserInteracted = true;
+  hasUserDragged = true;
   if (selectionGuide) {
     selectionGuide.classList.add('dismissed');
   }
 }
 
+function showGuideIfNeeded() {
+  // Réafficher le guide si l'utilisateur n'a jamais dragué ET n'a rien de sélectionné
+  if (!hasUserDragged && selected.size === 0) {
+    if (selectionGuide) {
+      selectionGuide.classList.remove('dismissed');
+      if (isMouseOverGrid) {
+        selectionGuide.classList.add('show');
+      }
+    }
+  }
+}
+
 // Events pour le hover de la grille
 grid.addEventListener('mouseenter', (e) => {
-  if (hasUserInteracted) return;
+  if (hasUserDragged) return;
   isMouseOverGrid = true;
-  if (selectionGuide) {
+  if (selectionGuide && selected.size === 0) { // Seulement si rien n'est sélectionné
     selectionGuide.classList.add('show');
     updateGuidePosition(e);
   }
@@ -343,29 +357,18 @@ grid.addEventListener('mouseenter', (e) => {
 
 grid.addEventListener('mouseleave', () => {
   isMouseOverGrid = false;
-  if (selectionGuide && !hasUserInteracted) {
+  if (selectionGuide && !hasUserDragged) {
     selectionGuide.classList.remove('show');
   }
 });
 
-// Suivre le curseur
 grid.addEventListener('mousemove', updateGuidePosition);
 
-// Modifier votre mousedown existant pour dismisser le guide
+// Modifier votre mousedown existant - NE PAS dismisser ici
 grid.addEventListener('mousedown', (e) => {
-  // Dismisser le guide à la première interaction
-  if (!hasUserInteracted) {
-    dismissGuide();
-  }
-  
-  // Masquer le guide pendant l'interaction
-  if (selectionGuide) {
-    selectionGuide.classList.remove('show');
-  }
-  
-  // Votre code mousedown existant...
   const idx = idxFromClientXY(e.clientX, e.clientY); 
   if (idx < 0) return;
+  
   isDragging = true; 
   dragStartIdx = idx; 
   lastDragIdx = idx; 
@@ -373,6 +376,26 @@ grid.addEventListener('mousedown', (e) => {
   suppressNextClick = false;
   selectRect(idx, idx); 
   e.preventDefault();
+});
+
+// Modifier votre mousemove existant pour détecter le vrai drag
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  
+  const idx = idxFromClientXY(e.clientX, e.clientY); 
+  if (idx < 0) return;
+  
+  if (idx !== lastDragIdx) { 
+    movedDuringDrag = true; 
+    lastDragIdx = idx; 
+    
+    // ICI : Dismisser le guide seulement quand on fait un vrai drag
+    if (!hasUserDragged && movedDuringDrag) {
+      dismissGuide();
+    }
+  }
+  
+  selectRect(dragStartIdx, idx);
 });
   //new instruction
 
