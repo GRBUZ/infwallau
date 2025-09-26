@@ -250,7 +250,6 @@ function updateSelectionInfo() {
     //new hide
     // selection changed by user -> re-allow the bubble
 modalOpened = false;
-
     //new hide
     refreshTopbar();
     // Réafficher le guide si l'utilisateur n'a jamais dragué
@@ -561,7 +560,6 @@ function resetModalAppState() {
 modalOpened = true;
 const selectionInfo = document.getElementById('selectionInfo');
 if (selectionInfo) selectionInfo.classList.remove('show');
-
     //new hide
 
     //new
@@ -598,6 +596,10 @@ if (selectionInfo) selectionInfo.classList.remove('show');
   }
 
   function closeModal(){
+    //new hide
+    // selection changed by user -> re-allow the bubble
+    modalOpened = false;
+    //new hide
     document.dispatchEvent(new CustomEvent('modal:closing'));
     modal.classList.add('hidden');
     window.LockManager.heartbeat.stop();
