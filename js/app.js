@@ -201,7 +201,8 @@ function updateSelectionInfo() {
   }
 
   const approximateTotal = total.toFixed(2);
-  selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels sélectionnés • ~$${approximateTotal}`;
+  //selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~$${approximateTotal}`;
+  selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~$${approximateTotal.toLocaleString()}`;
   selectionInfo.classList.add('show');
 }
 
