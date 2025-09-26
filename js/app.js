@@ -23,6 +23,7 @@
   const buyBtn = document.getElementById('buyBtn');
   const priceLine = document.getElementById('priceLine');
   const pixelsLeftEl = document.getElementById('pixelsLeft');
+  const selectionInfo = document.getElementById('selectionInfo');
 
   const modal = document.getElementById('modal');
   const form = document.getElementById('form');
@@ -529,6 +530,7 @@ function resetModalAppState() {
   
  function openModal(){
     resetModalAppState();
+    if (selectionInfo) selectionInfo.classList.remove('show');
 
     document.dispatchEvent(new CustomEvent('modal:opening'));
     modal.classList.remove('hidden');
@@ -615,8 +617,6 @@ function resetModalAppState() {
 
   // Buy flow
   buyBtn.addEventListener('click', async ()=>{
-    //if(!selected.size) return;
-
     //warning
     // Vérifier s'il y a une sélection
   if(!selected.size) {

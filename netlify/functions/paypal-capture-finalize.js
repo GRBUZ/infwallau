@@ -51,9 +51,9 @@ async function getPayPalAccessToken() {
 async function refundPayPalCapture(accessToken, captureId, amount, currency) {
   //refund fail simu
   // 🎯 Test mode: forcer l’échec du refund
-  if (FORCE_REFUND_FAIL) {
-    throw new Error('TEST_FORCED_REFUND_FAIL');
-  }
+  //if (FORCE_REFUND_FAIL) {
+    //throw new Error('TEST_FORCED_REFUND_FAIL');
+  //}
   //refund fail simu
   try {
     const resp = await fetch(`${PAYPAL_BASE_URL}/v2/payments/captures/${captureId}/refund`, {
