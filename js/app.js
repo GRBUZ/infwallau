@@ -169,9 +169,16 @@ let isMouseOverGrid = false;
 
 //new
 function updateSelectionInfo() {
+  
   const selectionInfo = document.getElementById('selectionInfo');
   if (!selectionInfo) return;
-
+//new hide
+  // If modal is open we never show the little selection bubble
+  if (modal && !modal.classList.contains('hidden')) {
+    selectionInfo.classList.remove('show');
+    return;
+  }
+//new hide
   const selectedPixels = selected.size * 100;
   if (selectedPixels <= 0) {
     selectionInfo.classList.remove('show');
@@ -530,7 +537,6 @@ function resetModalAppState() {
   
  function openModal(){
     resetModalAppState();
-    if (selectionInfo) selectionInfo.classList.remove('show');
 
     document.dispatchEvent(new CustomEvent('modal:opening'));
     modal.classList.remove('hidden');
