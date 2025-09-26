@@ -202,7 +202,8 @@ function updateSelectionInfo() {
 
   const approximateTotal = total.toFixed(2);
   //selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~$${approximateTotal}`;
-  selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~$${approximateTotal.toLocaleString()}`;
+  //selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~$${approximateTotal.toLocaleString()}`;
+  selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~$${total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
   selectionInfo.classList.add('show');
 }
 
@@ -397,7 +398,8 @@ function resetModalAppState() {
     //setPayPalEnabled(ok);
     confirmBtn.disabled = !ok;
     // Un seul système de message: le header PayPal
-    confirmBtn.textContent = 'Confirm';
+    //confirmBtn.textContent = 'Confirm';
+    confirmBtn.textContent = ok ? 'Confirm' : '⏰ Reservation expired — reselect';
     setPayPalEnabled(ok); // met 'active' / 'expired' sur le container
 
 
