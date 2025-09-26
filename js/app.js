@@ -645,11 +645,21 @@ async function loadStatus(){
           const blocks = currentLock.length ? currentLock : Array.from(selected);
           const ok = haveMyValidLocks(blocks, 5000);
           confirmBtn.disabled = !ok;
-          confirmBtn.textContent = 'Confirm';
-          setPayPalEnabled(ok);
-          if (!ok) {
+
+          //new
+          if (ok) {
+            confirmBtn.textContent = 'Confirm';
+          } else {
+            confirmBtn.textContent = '⏰ Reservation expired — reselect';
+            // arrêter le heartbeat (déjà présent)
             window.LockManager.heartbeat.stop();
           }
+          //new
+          //confirmBtn.textContent = 'Confirm';
+          setPayPalEnabled(ok);
+          //if (!ok) {
+            //window.LockManager.heartbeat.stop();
+          //}
         }
       }
 
