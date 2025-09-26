@@ -177,37 +177,36 @@ function updateSelectionInfo() {
     return;
   }
 
-  // Prix unitaire courant (par pixel) – supposé refléter l'état "maintenant"
+  // Base price per pixel (currentPrice should be in dollars, e.g. 1.00)
   const currentPrice = Number.isFinite(+globalPrice) ? +globalPrice : 1;
 
-  // Paramètres de la courbe
-  const STEP_PX = 1000;   // palier tous les 1 000 px (10 blocs)
-  const GROWTH  = 0.01;   // +1% par palier
+  // Pricing curve parameters
+  const STEP_PX = 1000;        // each step = 1000 px
+  const STEP_INCREMENT = 0.01; // fixed +$0.01 per step (per pixel price increases by this)
 
-  // Somme par paliers: le k-ième palier coûte currentPrice * (1.01)^k
   let remaining = selectedPixels;
-  let tierIndex = 0; // 0 pour le palier courant, 1 pour le suivant, etc.
+  let tierIndex = 0;
   let total = 0;
 
-  // Nombre de paliers complets
   const fullSteps = Math.floor(remaining / STEP_PX);
   for (let k = 0; k < fullSteps; k++) {
-    const pricePerPixel = currentPrice * Math.pow(1 + GROWTH, tierIndex);
+    // price per pixel for this tier = base + tierIndex * increment
+    const pricePerPixel = currentPrice + (STEP_INCREMENT * tierIndex);
     total += pricePerPixel * STEP_PX;
     tierIndex++;
   }
 
-  // Reste (palier partiel)
   const rest = remaining % STEP_PX;
   if (rest > 0) {
-    const pricePerPixel = currentPrice * Math.pow(1 + GROWTH, tierIndex);
+    const pricePerPixel = currentPrice + (STEP_INCREMENT * tierIndex);
     total += pricePerPixel * rest;
   }
 
-  const approximateTotal = total.toFixed(2);
-  //selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~$${approximateTotal}`;
-  //selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~$${approximateTotal.toLocaleString()}`;
-  selectionInfo.innerHTML = `<span class="count">${selectedPixels.toLocaleString()}</span>pixels selected • ~$${total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  // Round to cents for display
+  const totalRounded = Math.round(total * 100) / 100;
+
+  selectionInfo.innerHTML =
+    `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~$${totalRounded.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   selectionInfo.classList.add('show');
 }
 
@@ -239,7 +238,7 @@ function updateSelectionInfo() {
     }
     refreshTopbar();
     // Réafficher le guide si l'utilisateur n'a jamais dragué
-  showGuideIfNeeded();
+  resetGuideState();
   }
 
   let isDragging=false, dragStartIdx=-1, movedDuringDrag=false, lastDragIdx=-1, suppressNextClick=false;
@@ -338,6 +337,18 @@ function showGuideIfNeeded() {
   if (!hasUserDragged && selected.size === 0) {
     if (selectionGuide) {
       selectionGuide.classList.remove('dismissed');
+      if (isMouseOverGrid) {
+        selectionGuide.classList.add('show');
+      }
+    }
+  }
+}
+function resetGuideState() {
+  // Réinitialiser le guide si l'utilisateur n'a jamais dragué ET n'a rien de sélectionné
+  if (!hasUserDragged && selected.size === 0) {
+    if (selectionGuide) {
+      selectionGuide.classList.remove('dismissed');
+      // Si la souris est sur la grille, montrer immédiatement
       if (isMouseOverGrid) {
         selectionGuide.classList.add('show');
       }
