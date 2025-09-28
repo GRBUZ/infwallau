@@ -90,8 +90,8 @@
       if (window.__OFFLINE) {
         if (__offlineFirstNotified) return;
         __offlineFirstNotified = true;
-        if (window.Errors && typeof window.Errors.showToast === 'function') {
-          window.Errors.showToast('Network offline. Changes will sync when you're back online.', 'warn', 3500);
+        if (window.Error && typeof window.Errors.showToast === 'function') {
+          window.Error.showToast('Network offline. Changes will sync when you are back online.', 'warn', 3500);
           return;
         }
         return;
