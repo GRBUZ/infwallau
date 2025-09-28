@@ -1,33 +1,244 @@
-// core-manager.js — Gestionnaire centralisé pour UID, Auth et API calls (avec gestion d'erreurs via errors.js)
+// core-manager.js — Optimisé avec cache intelligent et retry adaptatif
 (function() {
   'use strict';
 
   // ===================
-  // Helpers robustes d'erreurs (non-breaking)
+  // OPTIMISATION 9: Initialisation
   // ===================
-  const CORE_TIMEOUT_MS = 20000;   // Mettre 0 pour désactiver le timeout
-  const CORE_RETRIES    = 2;       // Retries sur erreurs transitoires (en plus du refresh 401)
+  const uidManager = new UIDManager();
+  const apiManager = new APIManager(uidManager);
 
-  // --- NEW: anti-spam + offline awareness (léger, auto-contenu)
-  const NOTIFY_COOLDOWN_MS = 8000;           // évite les toasts répétés pendant X ms
+  // Exports globaux pour compatibilité
+  window.CoreManager = {
+    uid: uidManager.uid,
+    apiCall: (endpoint, options) => apiManager.call(endpoint, options),
+    apiCallMultipart: (endpoint, formData, options) => apiManager.callMultipart(endpoint, formData, options),
+    apiCallRaw: (endpoint, options) => apiManager.callRaw(endpoint, options),
+    clearCache: () => apiManager.clearCache(),
+    getStats: () => apiManager.getStats()
+  };
+
+  // Compatibilité avec l'ancien système
+  window.uid = uidManager.uid;
+  window.apiCall = window.CoreManager.apiCall;
+  window.apiCallMultipart = window.CoreManager.apiCallMultipart;
+  window.apiCallRaw = window.CoreManager.apiCallRaw;
+
+  // OPTIMISATION 10: Nettoyage périodique du cache
+  setInterval(() => {
+    if (requestCache.size > 30) {
+      const now = Date.now();
+      for (const [key, cached] of requestCache.entries()) {
+        const endpoint = key.split(':')[1];
+        const ttl = CACHE_TTL[endpoint] || 5000;
+        if (now - cached.timestamp > ttl) {
+          requestCache.delete(key);
+        }
+      }
+    }
+  }, 30000); // Nettoyage toutes les 30 secondes
+
+  // OPTIMISATION 11: Logging de performance
+  if (typeof performance !== 'undefined') {
+    setInterval(() => {
+      const stats = apiManager.getStats();
+      if (stats.requests > 0) {
+        console.log(`[CoreManager] Stats - Requests: ${stats.requests}, Cache hits: ${stats.cacheHitRate}, Avg response: ${stats.avgResponseTime.toFixed(1)}ms`);
+      }
+    }, 60000); // Log toutes les minutes
+  }
+
+  // OPTIMISATION 12: Préchargement intelligent pour endpoints critiques
+  function preloadCriticalEndpoints() {
+    // Précharger /status en arrière-plan si on n'a pas de données récentes
+    const statusCached = getCachedResponse('/status');
+    if (!statusCached) {
+      apiManager.call('/status').catch(() => {
+        // Échec silencieux pour le préchargement
+      });
+    }
+  }
+
+  // OPTIMISATION 13: Monitoring des métriques réseau
+  if (typeof PerformanceObserver !== 'undefined') {
+    try {
+      const perfObserver = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (entry.name.includes('/.netlify/functions/')) {
+            const duration = entry.duration;
+            if (duration > 5000) { // Plus de 5 secondes
+              console.warn(`[CoreManager] Slow API call: ${entry.name} took ${duration}ms`);
+            }
+          }
+        }
+      });
+      perfObserver.observe({ entryTypes: ['navigation', 'resource'] });
+    } catch (e) {
+      // PerformanceObserver pas supporté
+    }
+  }
+
+  // OPTIMISATION 14: Gestion intelligente de la visibilité de l'onglet
+  let tabVisible = true;
+  let backgroundRequestQueue = [];
+
+  document.addEventListener('visibilitychange', () => {
+    const wasVisible = tabVisible;
+    tabVisible = !document.hidden;
+    
+    if (tabVisible && !wasVisible) {
+      // Onglet redevient visible - traiter la queue
+      console.log(`[CoreManager] Tab visible again, processing ${backgroundRequestQueue.length} queued requests`);
+      
+      while (backgroundRequestQueue.length > 0) {
+        const queuedRequest = backgroundRequestQueue.shift();
+        queuedRequest.execute();
+      }
+      
+      // Précharger les données critiques
+      preloadCriticalEndpoints();
+    }
+  });
+
+  // OPTIMISATION 15: Request queuing pour onglet en arrière-plan
+  const originalCall = apiManager.call.bind(apiManager);
+  apiManager.call = function(endpoint, options = {}) {
+    // Si l'onglet n'est pas visible et que ce n'est pas critique, différer
+    if (!tabVisible && !CACHE_ENDPOINTS.includes(endpoint) && endpoint !== '/reserve' && endpoint !== '/unlock') {
+      return new Promise((resolve, reject) => {
+        backgroundRequestQueue.push({
+          execute: () => {
+            originalCall(endpoint, options).then(resolve).catch(reject);
+          }
+        });
+        
+        // Limiter la taille de la queue
+        if (backgroundRequestQueue.length > 10) {
+          const dropped = backgroundRequestQueue.shift();
+          console.warn('[CoreManager] Background queue full, dropping oldest request');
+        }
+      });
+    }
+    
+    return originalCall(endpoint, options);
+  };
+
+  // OPTIMISATION 16: Cleanup automatique en cas de fermeture
+  window.addEventListener('beforeunload', () => {
+    // Vider les caches
+    requestCache.clear();
+    backgroundRequestQueue.length = 0;
+    
+    // Stats finales
+    const finalStats = apiManager.getStats();
+    console.log('[CoreManager] Final stats:', finalStats);
+  });
+
+  // OPTIMISATION 17: Warmup au chargement de la page
+  window.addEventListener('load', () => {
+    // Petite pause pour laisser le reste s'initialiser
+    setTimeout(() => {
+      preloadCriticalEndpoints();
+      detectConnectionQuality();
+    }, 1000);
+  });
+
+  // OPTIMISATION 18: API de diagnostic pour développement
+  if (typeof window !== 'undefined') {
+    window.__debugCoreManager = {
+      getCache: () => Array.from(requestCache.entries()),
+      clearCache: () => apiManager.clearCache(),
+      getStats: () => apiManager.getStats(),
+      getConnectionQuality: () => ({
+        quality: connectionQuality,
+        adaptiveTimeout,
+        tabVisible,
+        queueSize: backgroundRequestQueue.length
+      }),
+      forceConnectionTest: () => detectConnectionQuality()
+    };
+  }
+
+  console.log('[CoreManager] Optimized version initialized with UID:', uidManager.uid);
+  console.log('[CoreManager] Available optimizations:');
+  console.log('- Intelligent caching with TTL');
+  console.log('- Adaptive network timeouts');
+  console.log('- Request queuing for background tabs');
+  console.log('- Connection quality detection');
+  console.log('- Performance monitoring');
+})(); 
+  // ===================OPTIMISATION 1: Configuration adaptative
+  const CORE_TIMEOUT_MS = 15000;   // Réduit de 20s à 15s
+  const CORE_RETRIES = 2;
+  
+  // Cache intelligent pour les endpoints lents
+  const CACHE_ENDPOINTS = ['/status', '/diag'];
+  const CACHE_TTL = {
+    '/status': 1500,    // 1.5s cache pour status
+    '/diag': 30000      // 30s cache pour diagnostic
+  };
+  
+  const requestCache = new Map();
+  
+  // Anti-spam optimisé
+  const NOTIFY_COOLDOWN_MS = 6000;    // Réduit de 8s à 6s
   const __notifySeen = new Map();
   let __offlineFirstNotified = false;
 
-  // drapeau global simple pour "offline"
-  window.addEventListener?.('offline', () => {
+  // ===================
+  // OPTIMISATION 2: Détection réseau améliorée
+  // ===================
+  let connectionQuality = 'unknown'; // 'fast' | 'slow' | 'offline' | 'unknown'
+  let adaptiveTimeout = CORE_TIMEOUT_MS;
+
+  function detectConnectionQuality() {
+    if (navigator.connection) {
+      const conn = navigator.connection;
+      const downlink = conn.downlink || 0;
+      const effectiveType = conn.effectiveType || '';
+      
+      if (downlink > 2 || effectiveType.includes('4g')) {
+        connectionQuality = 'fast';
+        adaptiveTimeout = CORE_TIMEOUT_MS * 0.8; // 12s
+      } else if (downlink > 0.5 || effectiveType.includes('3g')) {
+        connectionQuality = 'slow';
+        adaptiveTimeout = CORE_TIMEOUT_MS * 1.5; // 22.5s
+      } else {
+        connectionQuality = 'offline';
+        adaptiveTimeout = CORE_TIMEOUT_MS;
+      }
+      
+      console.log(`[CoreManager] Connection: ${connectionQuality} (${downlink}Mbps, ${effectiveType})`);
+    }
+  }
+
+  // Détecter la qualité initiale et la surveiller
+  detectConnectionQuality();
+  if (navigator.connection) {
+    navigator.connection.addEventListener('change', detectConnectionQuality);
+  }
+
+  window.addEventListener('offline', () => {
     window.__OFFLINE = true;
-    __offlineFirstNotified = false; // autoriser un seul toast générique
+    connectionQuality = 'offline';
+    __offlineFirstNotified = false;
   });
-  window.addEventListener?.('online', () => {
+  
+  window.addEventListener('online', () => {
     window.__OFFLINE = false;
+    connectionQuality = 'unknown';
+    detectConnectionQuality();
     __notifySeen.clear();
     __offlineFirstNotified = false;
   });
 
+  // ===================
+  // OPTIMISATION 3: Helpers d'erreur optimisés
+  // ===================
   function cm_isRetriableStatus(status){
-    // (on laisse 409 en non-retriable ici côté client, pour éviter le spam)
     return status === 0 || status === 408 || status === 429 || status === 502 || status === 503 || status === 504;
   }
+  
   function cm_guessCode(status){
     if (status === 401) return 'AUTH_REQUIRED';
     if (status === 403) return 'FORBIDDEN';
@@ -37,22 +248,18 @@
     return 'HTTP_ERROR';
   }
 
-  // NEW: notifyOnce avec throttling + silence pour endpoints bruyants en transitoire
   function cm_notifyOnce(err, endpoint){
     try {
-      // Silence global pendant offline (un seul toast générique)
       if (window.__OFFLINE) {
         if (__offlineFirstNotified) return;
         __offlineFirstNotified = true;
         if (window.Errors && typeof window.Errors.showToast === 'function') {
-          window.Errors.showToast('Network offline. Changes will sync when you’re back online.', 'warn', 3500);
+          window.Errors.showToast('Network offline. Changes will sync when you're back online.', 'warn', 3500);
           return;
         }
-        console.warn('[API] Offline');
         return;
       }
 
-      // Pas d'infra Errors -> fallback unique
       if (!window.Errors || typeof window.Errors.notifyError !== 'function') {
         console.error('[API] Error:', err);
         return;
@@ -61,13 +268,12 @@
       const code = err?.code || cm_guessCode(err?.status || 0);
       const retriable = !!err?.retriable || cm_isRetriableStatus(err?.status || 0);
 
-      // endpoints bruyants : /status et /reserve — on évite les toasts pour erreurs transitoires
+      // Endpoints bruyants avec connexion lente -> moins de notifications
       const noisyEndpoint = endpoint === '/status' || endpoint === '/reserve';
-      if (noisyEndpoint && retriable) {
-        return; // pas de toast dans ces cas
+      if (noisyEndpoint && retriable && connectionQuality === 'slow') {
+        return;
       }
 
-      // Throttling par (endpoint + code + status)
       const key = `${endpoint}|${code}|${err?.status||''}`;
       const now = Date.now();
       const last = __notifySeen.get(key);
@@ -78,24 +284,74 @@
     } catch {}
   }
 
-  function cm_backoff(attempt){
-    const base = 300 * Math.pow(2, Math.max(0, attempt)); // 300, 600, 1200ms...
-    const jitter = Math.floor(Math.random()*200);
-    return new Promise(res=>setTimeout(res, base + jitter));
+  function cm_backoff(attempt, connectionQuality = 'unknown'){
+    let base = 300 * Math.pow(2, Math.max(0, attempt));
+    
+    // Adapter le backoff selon la qualité de connexion
+    if (connectionQuality === 'slow') base *= 2;
+    else if (connectionQuality === 'fast') base *= 0.5;
+    
+    const jitter = Math.floor(Math.random() * 200);
+    return new Promise(res => setTimeout(res, base + jitter));
+  }
+
+  // ===================
+  // OPTIMISATION 4: Cache intelligent
+  // ===================
+  function getCacheKey(endpoint, options = {}) {
+    const method = options.method || 'GET';
+    const body = options.body || '';
+    return `${method}:${endpoint}:${btoa(body).slice(0, 20)}`;
+  }
+
+  function getCachedResponse(endpoint, options = {}) {
+    if (!CACHE_ENDPOINTS.includes(endpoint)) return null;
+    
+    const key = getCacheKey(endpoint, options);
+    const cached = requestCache.get(key);
+    
+    if (!cached) return null;
+    
+    const ttl = CACHE_TTL[endpoint] || 5000;
+    const age = Date.now() - cached.timestamp;
+    
+    if (age > ttl) {
+      requestCache.delete(key);
+      return null;
+    }
+    
+    console.log(`[Cache] Hit for ${endpoint} (age: ${age}ms)`);
+    return cached.response;
+  }
+
+  function setCachedResponse(endpoint, options = {}, response) {
+    if (!CACHE_ENDPOINTS.includes(endpoint)) return;
+    
+    const key = getCacheKey(endpoint, options);
+    requestCache.set(key, {
+      response: JSON.parse(JSON.stringify(response)), // Deep clone
+      timestamp: Date.now()
+    });
+    
+    // Limiter la taille du cache
+    if (requestCache.size > 50) {
+      const oldestKey = requestCache.keys().next().value;
+      requestCache.delete(oldestKey);
+    }
   }
 
   function cm_normalizeNetworkError(e){
-    // Timeout/Abort
     if (e && (e.name === 'AbortError' || /aborted/i.test(e.message||''))) {
       if (window.Errors) return window.Errors.create('TIMEOUT', 'Request timeout', { status: 0, retriable: true });
       const err = new Error('Request timeout'); err.code='TIMEOUT'; err.status=0; return err;
     }
-    // Network (TypeError/Fetched failed) + détection offline
+    
     const offline = typeof navigator !== 'undefined' && navigator && navigator.onLine === false;
     if (offline) {
       if (window.Errors) return window.Errors.create('OFFLINE', 'Network offline', { status: 0, retriable: true });
       const err = new Error('Network offline'); err.code='OFFLINE'; err.status=0; return err;
     }
+    
     if (e instanceof TypeError || /Failed to fetch|NetworkError|load failed/i.test(e?.message||'')) {
       if (window.Errors) return window.Errors.create('NETWORK_ERROR', 'Network error', { status: 0, retriable: true });
       const err = new Error('Network error'); err.code='NETWORK_ERROR'; err.status=0; return err;
@@ -113,7 +369,7 @@
   }
 
   // ===================
-  // UID UNIFIÉ
+  // OPTIMISATION 5: UID Manager optimisé
   // ===================
   class UIDManager {
     constructor() {
@@ -124,7 +380,6 @@
     get uid() {
       if (this._uid) return this._uid;
 
-      // Essayer localStorage d'abord
       let stored = null;
       try {
         stored = localStorage.getItem(this.KEY);
@@ -134,11 +389,10 @@
 
       if (stored && stored.length > 0) {
         this._uid = stored;
-        window.uid = this._uid; // Compatibilité
+        window.uid = this._uid;
         return this._uid;
       }
 
-      // Générer nouveau UID
       this._uid = this._generateUID();
       try {
         localStorage.setItem(this.KEY, this._uid);
@@ -146,12 +400,11 @@
         console.warn('[UID] Impossible de sauvegarder');
       }
 
-      window.uid = this._uid; // Compatibilité
+      window.uid = this._uid;
       return this._uid;
     }
 
     _generateUID() {
-      // Méthode robuste avec fallbacks
       if (window.crypto && window.crypto.randomUUID) {
         return crypto.randomUUID();
       }
@@ -162,19 +415,26 @@
         return Array.from(arr, byte => byte.toString(16).padStart(2, '0')).join('');
       }
 
-      // Fallback final
       return Date.now().toString(36) + Math.random().toString(36).slice(2);
     }
   }
 
   // ===================
-  // API MANAGER UNIFIÉ
+  // OPTIMISATION 6: API Manager avec cache et retry adaptatif
   // ===================
   class APIManager {
     constructor(uidManager) {
       this.uidManager = uidManager;
       this.BASE_URL = '/.netlify/functions';
-      this.MAX_RETRIES = 2; // héritage; CORE_RETRIES gère les erreurs transitoires de transport/serveur
+      this.MAX_RETRIES = 2;
+      
+      // Statistiques de performance
+      this.stats = {
+        requests: 0,
+        cacheHits: 0,
+        errors: 0,
+        avgResponseTime: 0
+      };
     }
 
     async getAuthHeaders() {
@@ -187,7 +447,6 @@
       }
     }
 
-    // Construit les headers en conservant le comportement existant
     async _buildHeaders(options = {}) {
       const authHeaders = await this.getAuthHeaders();
       const isForm = options.body && (options.body instanceof FormData);
@@ -198,7 +457,6 @@
         ...(options.headers || {})
       };
 
-      // Ajout non-bloquant de X-Client-UID
       try {
         const uid = (this.uidManager && this.uidManager.uid) || (window.CoreManager && window.CoreManager.uid);
         if (uid && !headers['X-Client-UID']) headers['X-Client-UID'] = uid;
@@ -207,24 +465,35 @@
       return headers;
     }
 
-    // fetch avec timeout optionnel
     async _fetchWithTimeout(url, config) {
-      if (!CORE_TIMEOUT_MS) {
+      if (!adaptiveTimeout) {
         return fetch(url, config);
       }
+      
       const ctl = new AbortController();
-      const t = setTimeout(()=>ctl.abort(), CORE_TIMEOUT_MS);
+      const timeout = setTimeout(() => ctl.abort(), adaptiveTimeout);
+      
       try {
         const res = await fetch(url, { ...config, signal: ctl.signal });
-        clearTimeout(t);
+        clearTimeout(timeout);
         return res;
       } catch (e) {
-        clearTimeout(t);
+        clearTimeout(timeout);
         throw e;
       }
     }
 
     async call(endpoint, options = {}) {
+      const startTime = performance.now();
+      this.stats.requests++;
+
+      // Vérifier le cache en premier
+      const cached = getCachedResponse(endpoint, options);
+      if (cached) {
+        this.stats.cacheHits++;
+        return cached;
+      }
+
       const url = `${this.BASE_URL}${endpoint}`;
       const headers = await this._buildHeaders(options);
       const baseConfig = {
@@ -240,7 +509,7 @@
         try {
           const response = await this._fetchWithTimeout(url, baseConfig);
 
-          // 401 → tenter un refresh une seule fois avant de continuer les retries transitoires
+          // 401 handling
           if (response.status === 401 && !refreshedOnce && window.AuthUtils) {
             console.warn('[API] Token expired, refreshing...');
             try {
@@ -248,57 +517,70 @@
               const newAuthHeaders = await this.getAuthHeaders();
               baseConfig.headers = { ...baseConfig.headers, ...newAuthHeaders };
               refreshedOnce = true;
-              // on ne compte pas ce cas comme un "attempt" de transport; on re-tente immédiatement
               continue;
             } catch (e) {
               console.error('[API] Auth refresh failed:', e);
-              // On laisse passer vers la gestion générique ci-dessous
             }
           }
 
           const contentType = response.headers.get && response.headers.get('content-type') || '';
           const isJson = contentType.includes('application/json');
 
-          // Tenter de parser quoi qu'il arrive (même si !ok, on renvoie payload pour rester compatible)
           let payload = null;
-          try { payload = isJson ? await response.json() : await response.text(); } catch {}
+          try { 
+            payload = isJson ? await response.json() : await response.text(); 
+          } catch {}
 
           if (!response.ok) {
-            // Erreur HTTP: si transitoire, retry avec backoff
             if (cm_isRetriableStatus(response.status) && attempt < CORE_RETRIES) {
               attempt++;
-              await cm_backoff(attempt);
+              await cm_backoff(attempt, connectionQuality);
               continue;
             }
-            // Notifier (dernier échec), puis conserver l'ancien comportement: renvoyer payload si dispo, sinon null
+            
+            this.stats.errors++;
             const httpErr = cm_httpError(response.status, isJson ? (payload || {}) : { error: String(payload || `HTTP ${response.status}`) });
             cm_notifyOnce(httpErr, endpoint);
             return isJson ? (payload || null) : null;
           }
 
-          // OK: renvoyer le JSON (ou texte) comme avant
-          return payload !== undefined ? payload : null;
+          // Succès - mettre en cache si applicable
+          const result = payload !== undefined ? payload : null;
+          if (result && isJson) {
+            setCachedResponse(endpoint, options, result);
+          }
+
+          // Mise à jour des statistiques
+          const duration = performance.now() - startTime;
+          this.stats.avgResponseTime = (this.stats.avgResponseTime + duration) / 2;
+
+          return result;
+
         } catch (e) {
           const ne = cm_normalizeNetworkError(e);
           if (cm_isRetriableStatus(ne.status || 0) && attempt < CORE_RETRIES) {
             attempt++;
-            console.error(`[API] Attempt ${attempt} failed (transient):`, ne);
-            await cm_backoff(attempt);
+            console.warn(`[API] Attempt ${attempt} failed (transient):`, ne);
+            await cm_backoff(attempt, connectionQuality);
             continue;
           }
-          // Dernier échec ou non-retriable → notifier et retourner null (comportement historique)
+          
+          this.stats.errors++;
           cm_notifyOnce(ne, endpoint);
           return null;
         }
       }
 
-      // Exhausted (ne devrait pas arriver)
       return null;
     }
 
     async callMultipart(endpoint, formData, options = {}) {
+      // Multipart ne peut pas être mis en cache facilement
+      const startTime = performance.now();
+      this.stats.requests++;
+
       const url = `${this.BASE_URL}${endpoint}`;
-      const headers = await this._buildHeaders({ ...(options || {}), body: formData }); // ne pas définir Content-Type
+      const headers = await this._buildHeaders({ ...(options || {}), body: formData });
       const baseConfig = {
         method: 'POST',
         body: formData,
@@ -330,28 +612,38 @@
           const contentType = response.headers.get && response.headers.get('content-type') || '';
           const isJson = contentType.includes('application/json');
           let payload = null;
-          try { payload = isJson ? await response.json() : await response.text(); } catch {}
+          try { 
+            payload = isJson ? await response.json() : await response.text(); 
+          } catch {}
 
           if (!response.ok) {
             if (cm_isRetriableStatus(response.status) && attempt < CORE_RETRIES) {
               attempt++;
-              await cm_backoff(attempt);
+              await cm_backoff(attempt, connectionQuality);
               continue;
             }
+            
+            this.stats.errors++;
             const httpErr = cm_httpError(response.status, isJson ? (payload || {}) : { error: String(payload || `HTTP ${response.status}`) });
             cm_notifyOnce(httpErr, endpoint);
             return isJson ? (payload || null) : null;
           }
 
+          const duration = performance.now() - startTime;
+          this.stats.avgResponseTime = (this.stats.avgResponseTime + duration) / 2;
+
           return payload !== undefined ? payload : null;
+
         } catch (e) {
           const ne = cm_normalizeNetworkError(e);
           if (cm_isRetriableStatus(ne.status || 0) && attempt < CORE_RETRIES) {
             attempt++;
             console.error(`[API] Multipart attempt ${attempt} failed (transient):`, ne);
-            await cm_backoff(attempt);
+            await cm_backoff(attempt, connectionQuality);
             continue;
           }
+          
+          this.stats.errors++;
           cm_notifyOnce(ne, endpoint);
           return null;
         }
@@ -371,40 +663,35 @@
         ...(options.headers || {})
       };
 
-      // X-Client-UID facultatif
       try {
         const uid = (this.uidManager && this.uidManager.uid) || (window.CoreManager && window.CoreManager.uid);
         if (uid && !headers['X-Client-UID']) headers['X-Client-UID'] = uid;
       } catch {}
 
-      // Pour callRaw on ne force pas de timeout pour éviter les régressions
       return await fetch(url, {
         ...options,
         headers,
         credentials: 'same-origin'
       });
     }
+
+    // OPTIMISATION 7: Méthode pour vider le cache
+    clearCache() {
+      requestCache.clear();
+      console.log('[CoreManager] Cache cleared');
+    }
+
+    // OPTIMISATION 8: Méthode pour obtenir les statistiques
+    getStats() {
+      return {
+        ...this.stats,
+        cacheSize: requestCache.size,
+        cacheHitRate: this.stats.requests > 0 ? (this.stats.cacheHits / this.stats.requests * 100).toFixed(1) + '%' : '0%',
+        connectionQuality,
+        adaptiveTimeout
+      };
+    }
   }
 
   // ===================
-  // INITIALISATION
-  // ===================
-  const uidManager = new UIDManager();
-  const apiManager = new APIManager(uidManager);
-
-  // Exports globaux pour compatibilité
-  window.CoreManager = {
-    uid: uidManager.uid,
-    apiCall: (endpoint, options) => apiManager.call(endpoint, options),
-    apiCallMultipart: (endpoint, formData, options) => apiManager.callMultipart(endpoint, formData, options),
-    apiCallRaw: (endpoint, options) => apiManager.callRaw(endpoint, options)
-  };
-
-  // Compatibilité avec l'ancien système
-  window.uid = uidManager.uid;
-  window.apiCall = window.CoreManager.apiCall;
-  window.apiCallMultipart = window.CoreManager.apiCallMultipart;
-  window.apiCallRaw = window.CoreManager.apiCallRaw;
-
-  console.log('[CoreManager] Initialized with UID:', uidManager.uid);
-})();
+  //
