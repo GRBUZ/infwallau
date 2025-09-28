@@ -3,171 +3,8 @@
   'use strict';
 
   // ===================
-  // OPTIMISATION 9: Initialisation
+  // OPTIMISATION 1: Configuration adaptative
   // ===================
-  const uidManager = new UIDManager();
-  const apiManager = new APIManager(uidManager);
-
-  // Exports globaux pour compatibilité
-  window.CoreManager = {
-    uid: uidManager.uid,
-    apiCall: (endpoint, options) => apiManager.call(endpoint, options),
-    apiCallMultipart: (endpoint, formData, options) => apiManager.callMultipart(endpoint, formData, options),
-    apiCallRaw: (endpoint, options) => apiManager.callRaw(endpoint, options),
-    clearCache: () => apiManager.clearCache(),
-    getStats: () => apiManager.getStats()
-  };
-
-  // Compatibilité avec l'ancien système
-  window.uid = uidManager.uid;
-  window.apiCall = window.CoreManager.apiCall;
-  window.apiCallMultipart = window.CoreManager.apiCallMultipart;
-  window.apiCallRaw = window.CoreManager.apiCallRaw;
-
-  // OPTIMISATION 10: Nettoyage périodique du cache
-  setInterval(() => {
-    if (requestCache.size > 30) {
-      const now = Date.now();
-      for (const [key, cached] of requestCache.entries()) {
-        const endpoint = key.split(':')[1];
-        const ttl = CACHE_TTL[endpoint] || 5000;
-        if (now - cached.timestamp > ttl) {
-          requestCache.delete(key);
-        }
-      }
-    }
-  }, 30000); // Nettoyage toutes les 30 secondes
-
-  // OPTIMISATION 11: Logging de performance
-  if (typeof performance !== 'undefined') {
-    setInterval(() => {
-      const stats = apiManager.getStats();
-      if (stats.requests > 0) {
-        console.log(`[CoreManager] Stats - Requests: ${stats.requests}, Cache hits: ${stats.cacheHitRate}, Avg response: ${stats.avgResponseTime.toFixed(1)}ms`);
-      }
-    }, 60000); // Log toutes les minutes
-  }
-
-  // OPTIMISATION 12: Préchargement intelligent pour endpoints critiques
-  function preloadCriticalEndpoints() {
-    // Précharger /status en arrière-plan si on n'a pas de données récentes
-    const statusCached = getCachedResponse('/status');
-    if (!statusCached) {
-      apiManager.call('/status').catch(() => {
-        // Échec silencieux pour le préchargement
-      });
-    }
-  }
-
-  // OPTIMISATION 13: Monitoring des métriques réseau
-  if (typeof PerformanceObserver !== 'undefined') {
-    try {
-      const perfObserver = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          if (entry.name.includes('/.netlify/functions/')) {
-            const duration = entry.duration;
-            if (duration > 5000) { // Plus de 5 secondes
-              console.warn(`[CoreManager] Slow API call: ${entry.name} took ${duration}ms`);
-            }
-          }
-        }
-      });
-      perfObserver.observe({ entryTypes: ['navigation', 'resource'] });
-    } catch (e) {
-      // PerformanceObserver pas supporté
-    }
-  }
-
-  // OPTIMISATION 14: Gestion intelligente de la visibilité de l'onglet
-  let tabVisible = true;
-  let backgroundRequestQueue = [];
-
-  document.addEventListener('visibilitychange', () => {
-    const wasVisible = tabVisible;
-    tabVisible = !document.hidden;
-    
-    if (tabVisible && !wasVisible) {
-      // Onglet redevient visible - traiter la queue
-      console.log(`[CoreManager] Tab visible again, processing ${backgroundRequestQueue.length} queued requests`);
-      
-      while (backgroundRequestQueue.length > 0) {
-        const queuedRequest = backgroundRequestQueue.shift();
-        queuedRequest.execute();
-      }
-      
-      // Précharger les données critiques
-      preloadCriticalEndpoints();
-    }
-  });
-
-  // OPTIMISATION 15: Request queuing pour onglet en arrière-plan
-  const originalCall = apiManager.call.bind(apiManager);
-  apiManager.call = function(endpoint, options = {}) {
-    // Si l'onglet n'est pas visible et que ce n'est pas critique, différer
-    if (!tabVisible && !CACHE_ENDPOINTS.includes(endpoint) && endpoint !== '/reserve' && endpoint !== '/unlock') {
-      return new Promise((resolve, reject) => {
-        backgroundRequestQueue.push({
-          execute: () => {
-            originalCall(endpoint, options).then(resolve).catch(reject);
-          }
-        });
-        
-        // Limiter la taille de la queue
-        if (backgroundRequestQueue.length > 10) {
-          const dropped = backgroundRequestQueue.shift();
-          console.warn('[CoreManager] Background queue full, dropping oldest request');
-        }
-      });
-    }
-    
-    return originalCall(endpoint, options);
-  };
-
-  // OPTIMISATION 16: Cleanup automatique en cas de fermeture
-  window.addEventListener('beforeunload', () => {
-    // Vider les caches
-    requestCache.clear();
-    backgroundRequestQueue.length = 0;
-    
-    // Stats finales
-    const finalStats = apiManager.getStats();
-    console.log('[CoreManager] Final stats:', finalStats);
-  });
-
-  // OPTIMISATION 17: Warmup au chargement de la page
-  window.addEventListener('load', () => {
-    // Petite pause pour laisser le reste s'initialiser
-    setTimeout(() => {
-      preloadCriticalEndpoints();
-      detectConnectionQuality();
-    }, 1000);
-  });
-
-  // OPTIMISATION 18: API de diagnostic pour développement
-  if (typeof window !== 'undefined') {
-    window.__debugCoreManager = {
-      getCache: () => Array.from(requestCache.entries()),
-      clearCache: () => apiManager.clearCache(),
-      getStats: () => apiManager.getStats(),
-      getConnectionQuality: () => ({
-        quality: connectionQuality,
-        adaptiveTimeout,
-        tabVisible,
-        queueSize: backgroundRequestQueue.length
-      }),
-      forceConnectionTest: () => detectConnectionQuality()
-    };
-  }
-
-  console.log('[CoreManager] Optimized version initialized with UID:', uidManager.uid);
-  console.log('[CoreManager] Available optimizations:');
-  console.log('- Intelligent caching with TTL');
-  console.log('- Adaptive network timeouts');
-  console.log('- Request queuing for background tabs');
-  console.log('- Connection quality detection');
-  console.log('- Performance monitoring');
-})(); 
-  // ===================OPTIMISATION 1: Configuration adaptative
   const CORE_TIMEOUT_MS = 15000;   // Réduit de 20s à 15s
   const CORE_RETRIES = 2;
   
@@ -694,4 +531,75 @@
   }
 
   // ===================
-  //
+  // OPTIMISATION 9: Initialisation
+  // ===================
+  const uidManager = new UIDManager();
+  const apiManager = new APIManager(uidManager);
+
+  // Exports globaux pour compatibilité
+  window.CoreManager = {
+    uid: uidManager.uid,
+    apiCall: (endpoint, options) => apiManager.call(endpoint, options),
+    apiCallMultipart: (endpoint, formData, options) => apiManager.callMultipart(endpoint, formData, options),
+    apiCallRaw: (endpoint, options) => apiManager.callRaw(endpoint, options),
+    clearCache: () => apiManager.clearCache(),
+    getStats: () => apiManager.getStats()
+  };
+
+  // Compatibilité avec l'ancien système
+  window.uid = uidManager.uid;
+  window.apiCall = window.CoreManager.apiCall;
+  window.apiCallMultipart = window.CoreManager.apiCallMultipart;
+  window.apiCallRaw = window.CoreManager.apiCallRaw;
+
+  // OPTIMISATION 10: Nettoyage périodique du cache
+  setInterval(() => {
+    if (requestCache.size > 30) {
+      const now = Date.now();
+      for (const [key, cached] of requestCache.entries()) {
+        const endpoint = key.split(':')[1];
+        const ttl = CACHE_TTL[endpoint] || 5000;
+        if (now - cached.timestamp > ttl) {
+          requestCache.delete(key);
+        }
+      }
+    }
+  }, 30000);
+
+  // OPTIMISATION 11: Logging de performance
+  if (typeof performance !== 'undefined') {
+    setInterval(() => {
+      const stats = apiManager.getStats();
+      if (stats.requests > 0) {
+        console.log(`[CoreManager] Stats - Requests: ${stats.requests}, Cache hits: ${stats.cacheHitRate}, Avg response: ${stats.avgResponseTime.toFixed(1)}ms`);
+      }
+    }, 60000);
+  }
+
+  // OPTIMISATION 12: Préchargement intelligent pour endpoints critiques
+  function preloadCriticalEndpoints() {
+    // Précharger /status en arrière-plan si on n'a pas de données récentes
+    const statusCached = getCachedResponse('/status');
+    if (!statusCached) {
+      apiManager.call('/status').catch(() => {
+        // Échec silencieux pour le préchargement
+      });
+    }
+  }
+
+  // OPTIMISATION 13: API de diagnostic pour développement
+  if (typeof window !== 'undefined') {
+    window.__debugCoreManager = {
+      getCache: () => Array.from(requestCache.entries()),
+      clearCache: () => apiManager.clearCache(),
+      getStats: () => apiManager.getStats(),
+      getConnectionQuality: () => ({
+        quality: connectionQuality,
+        adaptiveTimeout
+      }),
+      forceConnectionTest: () => detectConnectionQuality()
+    };
+  }
+
+  console.log('[CoreManager] Optimized version initialized with UID:', uidManager.uid);
+})();
