@@ -252,12 +252,13 @@
     });
   }
 
-  // OPTIMISATION 8: updateSelectionInfo avec throttling
+  // OPTIMISATION 8: updateSelectionInfo avec throttling (CORRIGÉ)
   function updateSelectionInfo() {
     const selectionInfo = document.getElementById('selectionInfo');
     if (!selectionInfo) return;
 
-    if (modal && !modal.classList.contains('hidden')) {
+    // CORRECTION: Respecter le modalOpened au lieu de vérifier la classe CSS
+    if (modalOpened) {
       selectionInfo.classList.remove('show');
       return;
     }
@@ -299,7 +300,7 @@
     const totalRounded = Math.round(total * 100) / 100;
 
     selectionInfo.innerHTML =
-      `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~$${totalRounded.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~${totalRounded.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     selectionInfo.classList.add('show');
   }
 
@@ -475,7 +476,8 @@
   }
 
   function showGuideIfNeeded() {
-    if (!hasUserDragged && selected.size === 0) {
+    // RÃ©afficher le guide si l'utilisateur n'a jamais draguÃ© ET n'a rien de sÃ©lectionnÃ© ET pas en modal
+    if (!hasUserDragged && selected.size === 0 && !modalOpened) {
       if (selectionGuide) {
         selectionGuide.classList.remove('dismissed');
         if (isMouseOverGrid) {
@@ -486,9 +488,11 @@
   }
 
   function resetGuideState() {
-    if (!hasUserDragged && selected.size === 0) {
+    // RÃ©initialiser le guide si l'utilisateur n'a jamais draguÃ© ET n'a rien de sÃ©lectionnÃ© ET pas en modal
+    if (!hasUserDragged && selected.size === 0 && !modalOpened) {
       if (selectionGuide) {
         selectionGuide.classList.remove('dismissed');
+        // Si la souris est sur la grille, montrer immÃ©diatement
         if (isMouseOverGrid) {
           selectionGuide.classList.add('show');
         }
@@ -496,9 +500,9 @@
     }
   }
 
-  // OPTIMISATION 13: Event listeners avec delegation
+  // OPTIMISATION 13: Event listeners avec delegation (CORRIGÉ pour le guide)
   grid.addEventListener('mouseenter', (e) => {
-    if (hasUserDragged) return;
+    if (hasUserDragged || modalOpened) return; // CORRECTION: Vérifier modalOpened
     isMouseOverGrid = true;
     if (selectionGuide && selected.size === 0) {
       selectionGuide.classList.add('show');
@@ -508,7 +512,7 @@
 
   grid.addEventListener('mouseleave', () => {
     isMouseOverGrid = false;
-    if (selectionGuide && !hasUserDragged) {
+    if (selectionGuide && !hasUserDragged && !modalOpened) { // CORRECTION: Vérifier modalOpened
       selectionGuide.classList.remove('show');
     }
   });

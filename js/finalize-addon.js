@@ -421,8 +421,378 @@
     });
   }
 
+  //new optimisation upload
+  // Optimisation de l'upload dans finalize-addon.js
+// Ajoutez ces fonctions AVANT la fonction doConfirm()
+
+// OPTIMISATION 1: Compression d'image côté client
+async function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.8) {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      // Calculer les nouvelles dimensions
+      let { width, height } = img;
+      
+      if (width > maxWidth || height > maxHeight) {
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        width *= ratio;
+        height *= ratio;
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      
+      // Dessiner l'image redimensionnée
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      // Convertir en blob avec compression
+      canvas.toBlob(resolve, file.type, quality);
+    };
+    
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+// OPTIMISATION 2: Preview avec thumbnail
+function showImagePreview(file) {
+  const existingPreview = document.querySelector('.image-preview');
+  if (existingPreview) {
+    existingPreview.remove();
+  }
+  
+  const preview = document.createElement('div');
+  preview.className = 'image-preview';
+  preview.style.cssText = `
+    margin: 10px 0;
+    padding: 10px;
+    border: 2px dashed #e5e7eb;
+    border-radius: 8px;
+    background: #f9fafb;
+    text-align: center;
+  `;
+  
+  const img = document.createElement('img');
+  img.style.cssText = `
+    max-width: 150px;
+    max-height: 150px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  `;
+  
+  const fileInfo = document.createElement('div');
+  fileInfo.style.cssText = `
+    margin-top: 8px;
+    font-size: 12px;
+    color: #6b7280;
+  `;
+  
+  img.src = URL.createObjectURL(file);
+  fileInfo.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+  
+  preview.appendChild(img);
+  preview.appendChild(fileInfo);
+  
+  // Insérer après le file input
+  const fileInput = document.getElementById('image') || document.getElementById('avatar');
+  if (fileInput && fileInput.parentNode) {
+    fileInput.parentNode.insertBefore(preview, fileInput.nextSibling);
+  }
+  
+  // Nettoyer l'URL après un délai
+  setTimeout(() => URL.revokeObjectURL(img.src), 5000);
+}
+
+// OPTIMISATION 3: Progress bar
+function createProgressBar() {
+  const existing = document.querySelector('.upload-progress');
+  if (existing) existing.remove();
+  
+  const progressContainer = document.createElement('div');
+  progressContainer.className = 'upload-progress';
+  progressContainer.style.cssText = `
+    margin: 15px 0;
+    padding: 10px;
+    background: #f3f4f6;
+    border-radius: 6px;
+    display: none;
+  `;
+  
+  const progressLabel = document.createElement('div');
+  progressLabel.className = 'progress-label';
+  progressLabel.style.cssText = `
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 8px;
+  `;
+  progressLabel.textContent = 'Preparing upload...';
+  
+  const progressBarBg = document.createElement('div');
+  progressBarBg.style.cssText = `
+    width: 100%;
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+  `;
+  
+  const progressBarFill = document.createElement('div');
+  progressBarFill.className = 'progress-fill';
+  progressBarFill.style.cssText = `
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.3s ease;
+  `;
+  
+  progressBarBg.appendChild(progressBarFill);
+  progressContainer.appendChild(progressLabel);
+  progressContainer.appendChild(progressBarBg);
+  
+  // Insérer avant les boutons du modal
+  const modalFooter = document.querySelector('.modal .footer') || document.querySelector('.modal .body');
+  if (modalFooter) {
+    modalFooter.parentNode.insertBefore(progressContainer, modalFooter);
+  }
+  
+  return {
+    container: progressContainer,
+    label: progressLabel,
+    fill: progressBarFill,
+    show: () => progressContainer.style.display = 'block',
+    hide: () => progressContainer.style.display = 'none',
+    update: (percent, text) => {
+      progressBarFill.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+      if (text) progressLabel.textContent = text;
+    }
+  };
+}
+
+// OPTIMISATION 4: Upload en arrière-plan avec XMLHttpRequest pour le progress
+async function uploadWithProgress(file, progressBar) {
+  const compressedFile = await compressImage(file);
+  
+  progressBar.update(20, 'Compressing image...');
+  await new Promise(resolve => setTimeout(resolve, 500)); // Animation smooth
+  
+  const formData = new FormData();
+  formData.append('file', compressedFile);
+  formData.append('regionId', 'temp-' + Date.now()); // Temporaire
+  
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        const percentComplete = 20 + (e.loaded / e.total) * 60; // 20-80%
+        progressBar.update(percentComplete, `Uploading... ${Math.round(percentComplete)}%`);
+      }
+    });
+    
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        progressBar.update(90, 'Processing...');
+        try {
+          const response = JSON.parse(xhr.responseText);
+          resolve(response);
+        } catch (e) {
+          reject(new Error('Invalid response format'));
+        }
+      } else {
+        reject(new Error(`Upload failed: ${xhr.status}`));
+      }
+    });
+    
+    xhr.addEventListener('error', () => {
+      reject(new Error('Network error during upload'));
+    });
+    
+    // Utiliser votre endpoint d'upload existant
+    xhr.open('POST', '/.netlify/functions/upload');
+    
+    // Ajouter les headers d'authentification
+    if (window.CoreManager) {
+      window.CoreManager.getAuthHeaders?.().then(headers => {
+        Object.entries(headers).forEach(([key, value]) => {
+          xhr.setRequestHeader(key, value);
+        });
+      });
+    }
+    
+    xhr.send(formData);
+  });
+}
+
+// OPTIMISATION 5: File input listener optimisé
+const fileInput = document.getElementById('image') || document.getElementById('avatar');
+if (fileInput) {
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    try {
+      // Validation immédiate
+      await window.UploadManager.validateFile(file);
+      
+      // Preview
+      showImagePreview(file);
+      
+      // Stocker le fichier pour l'upload plus tard
+      fileInput._selectedFile = file;
+      
+      console.log(`[Upload] File selected and validated: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+      
+    } catch (error) {
+      console.error('[Upload] File validation failed:', error);
+      
+      // Effacer le preview si erreur
+      const preview = document.querySelector('.image-preview');
+      if (preview) preview.remove();
+      
+      // Afficher l'erreur
+      if (window.Errors) {
+        window.Errors.showToast(error.message, 'error');
+      } else {
+        alert(error.message);
+      }
+    }
+  });
+}
+
+async function doConfirm(){
+  const name = (nameInput && nameInput.value || '').trim();
+  const linkUrl = normalizeUrl(linkInput && linkInput.value);
+  const blocks = getSelectedIndices();
+
+  if (!blocks.length){ uiWarn('Please select at least one block.'); return; }
+  if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
+
+  // Récupérer le fichier pré-validé
+  const fileInput = document.getElementById('image') || document.getElementById('avatar');
+  const file = fileInput && fileInput._selectedFile;
+  
+  if (!file) {
+    uiWarn('Please select an image.');
+    return;
+  }
+
+  pauseHB();
+  btnBusy(true);
+
+  // Créer la progress bar
+  const progressBar = createProgressBar();
+  progressBar.show();
+  progressBar.update(5, 'Validating reservation...');
+
+  try {
+    // Key step 1: renew locks on Confirm (+3 minutes)
+    if (!haveMyValidLocks(blocks, 1000)) {
+      await refreshStatus().catch(()=>{});
+      progressBar.hide();
+      uiWarn('Your reservation expired. Please reselect your pixels.');
+      btnBusy(false);
+      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+      return;
+    }
+
+    progressBar.update(10, 'Extending reservation...');
+
+    // Explicit renewal for +3 minutes
+    try {
+      if (window.LockManager) {
+        console.log('[Finalize] Renewing locks for confirm step');
+        await window.LockManager.lock(blocks, 180000, { optimistic: false });
+      }
+    } catch (e) {
+      console.warn('[Finalize] Lock renewal failed:', e);
+    }
+
+    progressBar.update(15, 'Uploading image...');
+
+    // === UPLOAD OPTIMISÉ ===
+    let uploadResult;
+    try {
+      uploadResult = await uploadWithProgress(file, progressBar);
+    } catch (uploadError) {
+      console.error('[Upload] Failed:', uploadError);
+      progressBar.hide();
+      uiError(uploadError, 'Upload');
+      btnBusy(false);
+      try { await unlockKeepalive(); } catch {}
+      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+      resumeHB();
+      return;
+    }
+
+    progressBar.update(85, 'Creating order...');
+
+    // === START-ORDER avec image déjà uploadée ===
+    console.log('UID before start-order', window.CoreManager.uid);
+    const start = await apiCall('/start-order', {
+      method: 'POST',
+      body: JSON.stringify({
+        name, 
+        linkUrl, 
+        blocks,
+        imageUrl: uploadResult.imageUrl || uploadResult.url // Image déjà uploadée
+      })
+    });
+
+    if (!start || !start.ok) {
+      const message = (start && (start.error || start.message)) || 'Start order failed';
+      progressBar.hide();
+      uiError(window.Errors ? window.Errors.create('START_ORDER_FAILED', message, { details: start }) : new Error(message), 'Start order');
+      btnBusy(false);
+      try { await unlockKeepalive(); } catch {}
+      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+      resumeHB();
+      return;
+    }
+
+    progressBar.update(95, 'Preparing payment...');
+
+    // orderId + regionId
+    const { orderId, regionId, currency } = start;
+    if (fileInput && regionId) fileInput.dataset.regionId = regionId;
+
+    // Extend +3min BEFORE PayPal
+    if (window.LockManager) {
+      try {
+        await window.LockManager.lock(blocks, 180000, { optimistic: false });
+        console.log('[Finalize] Extended locks before PayPal phase');
+      } catch (e) {
+        console.warn('[Finalize] Lock extension before PayPal failed:', e);
+      }
+    }
+
+    progressBar.update(100, 'Ready for payment');
+    
+    // Masquer la progress bar après succès
+    setTimeout(() => progressBar.hide(), 1000);
+
+    // Render PayPal
+    showPaypalButton(orderId, currency);
+
+  } catch (e) {
+    console.error('[doConfirm] Error:', e);
+    progressBar.hide();
+    uiError(e, 'Confirm');
+    btnBusy(false);
+    try { await unlockKeepalive(); } catch {}
+    try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+    resumeHB();
+  }
+}
+
+console.log('[Upload Optimization] Loaded - compression, preview, and progress tracking enabled');
+  //new optimisation upload
+
   // Finalize flow
-  async function doConfirm(){
+  /*async function doConfirm(){
     const name = (nameInput && nameInput.value || '').trim();
     const linkUrl = normalizeUrl(linkInput && linkInput.value);
     const blocks = getSelectedIndices();
@@ -519,7 +889,7 @@
     // Render PayPal (header-only messaging via classes)
     showPaypalButton(orderId, currency);
     // PayPal handlers will take over (onApproved / onCancel / onError)
-  }
+  }*/
 
   // Triggered ONLY by app.js (after re-lock)
   document.addEventListener('finalize:submit', (e) => {
