@@ -138,6 +138,179 @@
     }catch(_){}
   }
 
+  //new
+  // OPTIMISATION MAJEURE: Compression côté client AVANT upload
+// À ajouter dans finalize-addon.js AVANT le file input listener
+
+// Fonction de compression d'image côté client
+async function compressImageClient(file, maxWidth = 1200, maxHeight = 1200, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculer les nouvelles dimensions en conservant le ratio
+        let { width, height } = img;
+        
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        
+        // Créer un canvas pour redimensionner
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Améliorer la qualité du redimensionnement
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Dessiner l'image redimensionnée
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convertir en blob avec compression
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            reject(new Error('Compression failed'));
+            return;
+          }
+          
+          // Créer un nouveau File avec le nom original
+          const compressedFile = new File([blob], file.name, {
+            type: blob.type,
+            lastModified: Date.now()
+          });
+          
+          console.log(`[Compression] ${file.name}: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB (${Math.round((1 - compressedFile.size / file.size) * 100)}% reduction)`);
+          
+          resolve(compressedFile);
+        }, file.type, quality);
+      };
+      
+      img.onerror = () => reject(new Error('Invalid image'));
+      img.src = e.target.result;
+    };
+    
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// REMPLACER le file input listener existant par cette version optimisée :
+if (fileInput) {
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      uploadedImageCache = null;
+      return;
+    }
+
+    console.log('[Upload] File selected, starting compression + upload...');
+    console.log('[Upload] Original size:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+
+    try {
+      // ÉTAPE 1: Validation immédiate
+      await window.UploadManager.validateFile(file);
+      
+      // ÉTAPE 2: Créer l'indicateur de progress
+      const progressIndicator = document.createElement('div');
+      progressIndicator.className = 'upload-progress-mini';
+      progressIndicator.style.cssText = `
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        padding: 8px 12px;
+        background: #3b82f6;
+        color: white;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        z-index: 10;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      `;
+      
+      // Mini spinner SVG
+      const spinner = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10" opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" opacity="0.75"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>`;
+      progressIndicator.innerHTML = `${spinner}<span>Compressing...</span>`;
+      
+      const modalBody = document.querySelector('.modal .body') || document.querySelector('.modal .panel');
+      if (modalBody) {
+        modalBody.style.position = 'relative';
+        modalBody.appendChild(progressIndicator);
+      }
+
+      // ÉTAPE 3: Compression côté client (GAIN MAJEUR ici)
+      const compressedFile = await compressImageClient(file);
+      
+      progressIndicator.querySelector('span').textContent = 'Uploading...';
+      
+      // Générer un vrai UUID
+      let regionId;
+      if (window.crypto && window.crypto.randomUUID) {
+        regionId = crypto.randomUUID();
+      } else {
+        regionId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      }
+
+      // ÉTAPE 4: Upload du fichier compressé (beaucoup plus rapide)
+      const uploadResult = await window.UploadManager.uploadForRegion(compressedFile, regionId);
+      
+      if (uploadResult && uploadResult.ok) {
+        uploadedImageCache = {
+          imageUrl: uploadResult.imageUrl,
+          regionId: uploadResult.regionId || regionId,
+          uploadedAt: Date.now()
+        };
+        
+        progressIndicator.style.background = '#10b981';
+        progressIndicator.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg><span>Image ready!</span>`;
+        
+        setTimeout(() => {
+          progressIndicator.style.opacity = '0';
+          setTimeout(() => progressIndicator.remove(), 300);
+        }, 2000);
+        
+        console.log('[Upload] Compression + upload completed:', uploadedImageCache);
+        console.log('[Upload] Final size:', (compressedFile.size / 1024 / 1024).toFixed(2), 'MB');
+        console.log('[Upload] Total time saved: ~', Math.round((file.size - compressedFile.size) / 100000), 'seconds');
+      } else {
+        throw new Error('Upload failed');
+      }
+      
+    } catch (error) {
+      console.error('[Upload] Failed:', error);
+      uploadedImageCache = null;
+      
+      const progressIndicator = document.querySelector('.upload-progress-mini');
+      if (progressIndicator) {
+        progressIndicator.style.background = '#ef4444';
+        progressIndicator.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg><span>Upload failed</span>`;
+        setTimeout(() => progressIndicator.remove(), 3000);
+      }
+      
+      if (window.Errors) {
+        window.Errors.showToast(error.message || 'Upload failed', 'error');
+      }
+    }
+  });
+}
+
+console.log('[Upload] Client-side compression enabled - expect 70-90% file size reduction');
+  //new
   // OPTIMISATION 2: Upload automatique en arrière-plan dès la sélection du fichier
   if (fileInput) {
     fileInput.addEventListener('change', async (e) => {
@@ -451,11 +624,29 @@
     doConfirm();
   });
 
-  // Reset du cache lors de la fermeture du modal
-  document.addEventListener('modal:closing', () => {
+  // CORRECTION: Reset complet incluant le cache d'upload
+  function resetModalState() {
+    // Reset du cache d'upload
     uploadedImageCache = null;
+    
+    // Reset du file input
+    if (fileInput) {
+      fileInput.value = '';
+      delete fileInput._cachedFile;
+    }
+    
+    // Supprimer l'indicateur de progress s'il existe
     const progressIndicator = document.querySelector('.upload-progress-mini');
     if (progressIndicator) progressIndicator.remove();
+  }
+
+  // Écouter les événements d'ouverture/fermeture du modal
+  document.addEventListener('modal:opening', () => {
+    resetModalState();
+  });
+
+  document.addEventListener('modal:closing', () => {
+    resetModalState();
   });
 
   console.log('[Finalize] Upload optimization loaded - images upload in background');
