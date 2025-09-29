@@ -178,8 +178,22 @@
           modalBody.appendChild(progressIndicator);
         }
 
+        // CORRECTION: Générer un vrai UUID pour le regionId
+        // Utiliser crypto.randomUUID() ou fallback
+        let regionId;
+        if (window.crypto && window.crypto.randomUUID) {
+          regionId = crypto.randomUUID();
+        } else {
+          // Fallback: générer un UUID v4 compatible
+          regionId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+          });
+        }
+        
         // Upload en parallèle (non-bloquant)
-        const uploadResult = await window.UploadManager.uploadForRegion(file, 'temp-' + Date.now());
+        const uploadResult = await window.UploadManager.uploadForRegion(file, regionId);
         
         if (uploadResult && uploadResult.ok) {
           uploadedImageCache = {
