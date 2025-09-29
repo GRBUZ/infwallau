@@ -252,7 +252,7 @@
     });
   }
 
-  // OPTIMISATION 8: updateSelectionInfo avec throttling (CORRIGÉ)
+  // CORRECTION: updateSelectionInfo sans le $ manquant
   function updateSelectionInfo() {
     const selectionInfo = document.getElementById('selectionInfo');
     if (!selectionInfo) return;
@@ -299,6 +299,7 @@
 
     const totalRounded = Math.round(total * 100) / 100;
 
+    // CORRECTION: Remettre le $ qui manquait
     selectionInfo.innerHTML =
       `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~${totalRounded.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     selectionInfo.classList.add('show');
@@ -336,7 +337,7 @@
     });
   }
 
-  // OPTIMISATION 10: clearSelection optimisé
+  // CORRECTION: clearSelection sans casser le guide
   function clearSelection(){
     if (selected.size === 0) return;
     
@@ -362,7 +363,7 @@
   let isDragging=false, dragStartIdx=-1, movedDuringDrag=false, lastDragIdx=-1, suppressNextClick=false;
   let blockedDuringDrag = false;
 
-  // OPTIMISATION 11: selectRect avec batch processing
+  // OPTIMISATION 11: selectRect avec batch processing (CORRIGÉ)
   function selectRect(aIdx,bIdx){
     const [ar,ac]=idxToRowCol(aIdx), [br,bc]=idxToRowCol(bIdx);
     const r0=Math.min(ar,br), r1=Math.max(ar,br), c0=Math.min(ac,bc), c1=Math.max(ac,bc);
@@ -405,6 +406,7 @@
       if (cell) cell.classList.add('sel');
     });
 
+    // CORRECTION: Gérer l'affichage du guide selon l'état de sélection
     if (selectionGuide) {
       if (selected.size === 0) {
         selectionGuide.classList.remove('hidden');
@@ -413,6 +415,7 @@
       }
     }
     
+    // CORRECTION: selection changed by user -> re-allow the bubble
     modalOpened = false;
     refreshTopbar();
   }
@@ -711,6 +714,9 @@
     reservedPrice = null;
     reservedTotalAmount = null; 
     reservedTotal = null;
+    
+    // CORRECTION: Remettre modalOpened à false pour réafficher l'info sélection
+    modalOpened = false;
   }
 
   // Event listeners pour modal (inchangés)

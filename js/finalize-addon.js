@@ -897,6 +897,49 @@ console.log('[Upload Optimization] Loaded - compression, preview, and progress t
     doConfirm();
   });
 
+  //new upload progress
+  // AJOUT SIMPLE pour améliorer l'upload - à ajouter à la fin de finalize-addon.js
+
+// Progress bar simple
+function showProgress(text, percent = 0) {
+  let progressEl = document.querySelector('.simple-progress');
+  if (!progressEl) {
+    progressEl = document.createElement('div');
+    progressEl.className = 'simple-progress';
+    progressEl.style.cssText = `
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      z-index: 10000; min-width: 250px; text-align: center;
+    `;
+    document.body.appendChild(progressEl);
+  }
+  progressEl.innerHTML = `
+    <div style="margin-bottom: 15px; font-weight: 600;">${text}</div>
+    <div style="background: #e5e7eb; height: 4px; border-radius: 2px; overflow: hidden;">
+      <div style="background: #3b82f6; height: 100%; width: ${percent}%; transition: width 0.3s;"></div>
+    </div>
+  `;
+}
+
+function hideProgress() {
+  const progressEl = document.querySelector('.simple-progress');
+  if (progressEl) progressEl.remove();
+}
+
+// Modifier doConfirm pour ajouter feedback visuel
+const originalConfirm = window.doConfirm;
+if (originalConfirm) {
+  window.doConfirm = async function() {
+    showProgress('Processing...', 10);
+    try {
+      await originalConfirm.call(this);
+    } finally {
+      hideProgress();
+    }
+  };
+}
+  //new upload progress
+
   // Expose helpers if needed
   window.__finalizeHelpers = { resetFinalizeState, showPaypalButton };
   // Debug exports
