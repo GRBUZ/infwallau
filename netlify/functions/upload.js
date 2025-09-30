@@ -86,20 +86,44 @@ exports.handler = async (event) => {
       const file = form.file;
       regionId = String(form.regionId || "").trim();
 
-      if (!file || !file.name) return bad(400, "NO_FILE");
+      /*if (!file || !file.name) return bad(400, "NO_FILE");
       if (!file.type || !file.type.startsWith("image/")) return bad(400, "NOT_IMAGE");
 
       contentType = file.type;
       filename = safeFilename(file.name);
-      buffer = Buffer.from(file.data || "", 'binary'); // binaire
+      buffer = Buffer.from(file.data || "", 'binary'); */
+      if (!file || !file.name) return bad(400, "NO_FILE");
+if (!file.type || !file.type.startsWith("image/")) return bad(400, "NOT_IMAGE");
+
+// Liste blanche stricte
+const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+if (!allowedTypes.includes(file.type)) {
+  return bad(400, "UNSUPPORTED_IMAGE_TYPE", { allowed: allowedTypes });
+}
+
+contentType = file.type;
+filename = safeFilename(file.name);
+buffer = Buffer.from(file.data || "", 'binary'); // binaire
+
+
+
     } else {
       // JSON { regionId, filename, contentType, contentBase64 }
       let body = {};
       try { body = event.body ? JSON.parse(event.body) : {}; } catch { return bad(400, "BAD_JSON"); }
       regionId = String(body.regionId || "").trim();
       filename = safeFilename(body.filename || "image.jpg");
+      //contentType = String(body.contentType || "image/jpeg");
+      //if (!contentType.startsWith("image/")) return bad(400, "NOT_IMAGE");
+
       contentType = String(body.contentType || "image/jpeg");
-      if (!contentType.startsWith("image/")) return bad(400, "NOT_IMAGE");
+
+// Liste blanche stricte
+const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+if (!allowedTypes.includes(contentType)) {
+  return bad(400, "UNSUPPORTED_IMAGE_TYPE", { allowed: allowedTypes });
+}
+
 
       let b64 = String(body.contentBase64 || body.data || "");
       const m = b64.match(/^data:[^;]+;base64,(.*)$/i); if (m) b64 = m[1];

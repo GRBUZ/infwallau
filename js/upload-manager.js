@@ -58,10 +58,12 @@
   }
 
   class UploadManager {
+
     constructor() {
-      this.MAX_SIZE = 1.5 * 1024 * 1024; // 1.5MB max
-      this.ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
-    }
+  this.MAX_SIZE = 1.5 * 1024 * 1024; // 1.5MB max
+  this.ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+}
+
 
     // Validation stricte (async pour sniff)
     async validateFile(file) {
