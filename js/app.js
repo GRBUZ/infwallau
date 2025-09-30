@@ -44,6 +44,8 @@
   let hasUserDragged = false;
   let isMouseOverGrid = false;
   let modalOpened = false;
+  // en haut, ajouter
+  let lastStatusTs = 0;
 
   window.getSelectedIndices = () => Array.from(selected);
 
@@ -589,7 +591,7 @@
   }
 
   // OPTIMISATION 2: Polling moins agressif (3.5s au lieu de 2.5s)
-  async function loadStatus(){
+  /*async function loadStatus(){
     try{
       const s = await apiCall('/status');
       if (!s || !s.ok) return;
@@ -634,8 +636,53 @@
     } catch (e) {
       console.warn('[status] failed', e);
     }
-  }
+  }*/
 
+    async function loadStatus(){
+  try{
+    // use since param if server supports it
+    const sinceParam = lastStatusTs ? '?since=' + encodeURIComponent(lastStatusTs) : '?ts=' + Date.now();
+    const s = await apiCall('/status' + sinceParam);
+
+    if (!s || !s.ok) return;
+
+    // update price & regions quickly
+    if (typeof s.currentPrice === 'number') globalPrice = s.currentPrice;
+    window.regions = s.regions || window.regions || {};
+
+    // compute diffs between old & new sold/locks to avoid full repaint
+    const newSold = s.sold || {};
+    const newLocks = s.locks || {};
+    const changed = new Set();
+
+    // union of keys touched
+    for (const k of Object.keys(sold || {})) changed.add(k);
+    for (const k of Object.keys(newSold)) changed.add(k);
+    for (const k of Object.keys(locks || {})) changed.add(k);
+    for (const k of Object.keys(newLocks)) changed.add(k);
+
+    // update local sold and locks (merge locks with manager)
+    sold = newSold;
+    const merged = window.LockManager.merge(newLocks || {});
+    locks = merged;
+
+    // paint only changed indices
+    for (const k of changed) {
+      const idx = parseInt(k, 10);
+      if (!Number.isNaN(idx) && grid.children[idx]) paintCell(idx);
+    }
+
+    // update regions visuals and topbar
+    if (typeof window.renderRegions === 'function') window.renderRegions();
+    refreshTopbar();
+
+    // update last status timestamp if server provides it (helpful for since)
+    if (typeof s.ts === 'number') lastStatusTs = Number(s.ts) || lastStatusTs;
+
+  } catch (e) {
+    console.warn('[status] failed', e);
+  }
+}
   (async function init(){
     await loadStatus();
     paintAll();

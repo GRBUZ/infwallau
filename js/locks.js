@@ -381,6 +381,13 @@
   function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, options = {}){
     stopHeartbeat();
     hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
+    // limiter la taille pour éviter d'envoyer trop d'appels
+const MAX_HEARTBEAT_BLOCKS = 500;
+if (hbBlocks.length > MAX_HEARTBEAT_BLOCKS) {
+  console.warn(`[LockManager] startHeartbeat requested for ${hbBlocks.length} blocks — clamping to ${MAX_HEARTBEAT_BLOCKS} to avoid network storm`);
+  hbBlocks = hbBlocks.slice(0, MAX_HEARTBEAT_BLOCKS);
+}
+
     if (!hbBlocks.length) return;
 
     hbMaxMs = Math.max(30000, options.maxMs || 180000);
