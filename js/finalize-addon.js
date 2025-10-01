@@ -25,59 +25,6 @@
   // OPTIMISATION 1: Cache de l'upload terminé
   let uploadedImageCache = null; // { imageUrl, regionId, uploadedAt }
 
-  // ---------- UTILITAIRES (PATCH) ----------
-  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-  // backgroundFinalize: lance /finalize en arrière-plan, retourne la réponse ou { ok:false, error }
-  async function backgroundFinalize(regionId, payload = {}) {
-    try {
-      // payload attendu: { name, linkUrl, blocks }
-      const body = {
-        regionId,
-        name: payload.name || '',
-        linkUrl: payload.linkUrl || '',
-        blocks: payload.blocks || []
-      };
-      const resp = await apiCall('/finalize', {
-        method: 'POST',
-        body: JSON.stringify(body)
-      });
-      if (!resp || !resp.ok) {
-        return { ok: false, error: resp?.error || resp?.message || 'finalize failed', details: resp };
-      }
-      return { ok: true, res: resp };
-    } catch (e) {
-      console.warn('[Finalize] backgroundFinalize exception', e);
-      return { ok: false, error: String(e?.message || e) };
-    }
-  }
-
-  // linkImageWithRetry: idempotent, retry exponentiel
-  async function linkImageWithRetry(regionId, imageUrl, maxRetries = 5) {
-    let attempt = 0;
-    let lastErr = null;
-    while (attempt < maxRetries) {
-      try {
-        const resp = await apiCall('/link-image', {
-          method: 'POST',
-          body: JSON.stringify({ regionId, imageUrl })
-        });
-        if (resp && resp.ok) return resp;
-        lastErr = new Error(resp?.error || resp?.message || 'link-image returned error');
-      } catch (e) {
-        lastErr = e;
-      }
-      attempt++;
-      const backoff = Math.min(2000 * Math.pow(1.7, attempt), 10000) + Math.floor(Math.random() * 300);
-      await sleep(backoff);
-    }
-    const e = new Error('link-image failed after retries: ' + (lastErr?.message || 'unknown'));
-    e.cause = lastErr;
-    throw e;
-  }
-  // ---------- FIN UTILITAIRES ----------
-
-
   function pauseHB(){
     if (__processing) return;
     __processing = true;
@@ -191,149 +138,131 @@
     }catch(_){}
   }
 
-  // Fonction de compression d'image côté client (ton code original)
-  async function compressImageClient(file, maxWidth = 1200, maxHeight = 1200, quality = 0.85) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      
-      reader.onload = (e) => {
-        const img = new Image();
-        
-        img.onload = () => {
-          // Calculer les nouvelles dimensions en conservant le ratio
-          let { width, height } = img;
-          
-          if (width > maxWidth || height > maxHeight) {
-            const ratio = Math.min(maxWidth / width, maxHeight / height);
-            width = Math.round(width * ratio);
-            height = Math.round(height * ratio);
-          }
-          
-          // Créer un canvas pour redimensionner
-          const canvas = document.createElement('canvas');
+  // --- Compression & Upload (ONE robust implementation) ---
+  if (fileInput) {
+    const supportsWebP = (() => {
+      try {
+        const c = document.createElement('canvas');
+        return !!(c.getContext && c.getContext('2d') && c.toDataURL('image/webp').indexOf('data:image/webp') === 0);
+      } catch { return false; }
+    })();
+
+    // Legacy compress fallback (Image + canvas + toBlob) used only if createImageBitmap path fails
+    async function compressImageLegacy(file, maxWidth = 1200, maxHeight = 1200, quality = 0.82) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let { width, height } = img;
+            if (width > maxWidth || height > maxHeight) {
+              const ratio = Math.min(maxWidth / width, maxHeight / height);
+              width = Math.round(width * ratio);
+              height = Math.round(height * ratio);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, width, height);
+
+            let outType = 'image/jpeg';
+            // attempt to preserve alpha if present (but legacy path can't easily detect alpha without getImageData)
+            if (supportsWebP) outType = 'image/webp';
+
+            canvas.toBlob((blob) => {
+              if (!blob) {
+                reject(new Error('Compression failed'));
+                return;
+              }
+              const ext = blob.type.includes('webp') ? '.webp' : blob.type.includes('jpeg') ? '.jpg' : '.png';
+              const newName = file.name.replace(/\.[^/.]+$/, '') + ext;
+              const compressedFile = new File([blob], newName, { type: blob.type, lastModified: Date.now() });
+              resolve(compressedFile);
+            }, outType, quality);
+          };
+          img.onerror = () => reject(new Error('Invalid image'));
+          img.src = e.target.result;
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Modern compress using createImageBitmap + OffscreenCanvas when available
+    async function compressImageClient(file, { maxWidth = 1200, maxHeight = 1200, quality = 0.80 } = {}) {
+      try {
+        if (file.size < 50 * 1024) return file;
+
+        let imgBitmap;
+        try {
+          imgBitmap = await createImageBitmap(file);
+        } catch (e) {
+          // fallback to legacy if createImageBitmap is unavailable or fails
+          return compressImageLegacy(file, maxWidth, maxHeight, quality);
+        }
+
+        let { width, height } = imgBitmap;
+        const ratio = Math.min(1, maxWidth / width, maxHeight / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+
+        let canvas;
+        if (typeof OffscreenCanvas !== 'undefined') {
+          canvas = new OffscreenCanvas(width, height);
+        } else {
+          canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
-          
-          const ctx = canvas.getContext('2d');
-          
-          // Améliorer la qualité du redimensionnement
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          
-          // Dessiner l'image redimensionnée
-          ctx.drawImage(img, 0, 0, width, height);
-          
-          // Convertir en blob avec compression
-          canvas.toBlob((blob) => {
-            if (!blob) {
-              reject(new Error('Compression failed'));
-              return;
-            }
-            
-            // Créer un nouveau File avec le nom original
-            const compressedFile = new File([blob], file.name, {
-              type: blob.type,
-              lastModified: Date.now()
-            });
-            
-            console.log(`[Compression] ${file.name}: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB (${Math.round((1 - compressedFile.size / file.size) * 100)}% reduction)`);
-            
-            resolve(compressedFile);
-          }, file.type, quality);
-        };
-        
-        img.onerror = () => reject(new Error('Invalid image'));
-        img.src = e.target.result;
-      };
-      
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsDataURL(file);
-    });
-  }
+        }
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(imgBitmap, 0, 0, width, height);
 
-  // helper : detecte support webp
-  const supportsWebP = (() => {
-    try {
-      const c = document.createElement('canvas');
-      return !!(c.getContext && c.getContext('2d') && c.toDataURL('image/webp').indexOf('data:image/webp') === 0);
-    } catch { return false; }
-  })();
+        // detect alpha quickly (sample)
+        let hasAlpha = false;
+        try {
+          const id = ctx.getImageData(0, 0, 1, 1).data;
+          hasAlpha = id[3] !== 255;
+        } catch (e) { hasAlpha = false; }
 
-  // optimized compress (uses createImageBitmap when available) — keeps behaviour similar to original
-  async function compressImageClientFast(file, { maxWidth = 1200, maxHeight = 1200, quality = 0.80 } = {}) {
-    // Skip tiny files
-    if (file.size < 50 * 1024) return file;
+        let outType = 'image/jpeg';
+        if (supportsWebP) outType = 'image/webp';
+        else if (hasAlpha) outType = 'image/png';
+        if (hasAlpha && supportsWebP) outType = 'image/webp';
 
-    // createImageBitmap is faster and uses less memory than Image + dataURL
-    const blob = file;
-    let imgBitmap;
-    try { imgBitmap = await createImageBitmap(blob); } catch (e) { console.warn('createImageBitmap failed, fallback', e); return file; }
+        let outBlob;
+        if (canvas.convertToBlob) {
+          outBlob = await canvas.convertToBlob({ type: outType, quality });
+        } else {
+          outBlob = await new Promise(res => canvas.toBlob(res, outType, quality));
+        }
+        if (!outBlob) return file;
 
-    let { width, height } = imgBitmap;
-    const ratio = Math.min(1, maxWidth / width, maxHeight / height);
-    width = Math.round(width * ratio);
-    height = Math.round(height * ratio);
+        const ext = outBlob.type.includes('webp') ? '.webp' : outBlob.type.includes('jpeg') ? '.jpg' : '.png';
+        const newName = file.name.replace(/\.[^/.]+$/, '') + ext;
+        const newFile = new File([outBlob], newName, { type: outBlob.type, lastModified: Date.now() });
 
-    // canvas (OffscreenCanvas if dispo)
-    let canvas;
-    if (typeof OffscreenCanvas !== 'undefined') {
-      canvas = new OffscreenCanvas(width, height);
-    } else {
-      canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-    }
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(imgBitmap, 0, 0, width, height);
-
-    // detect alpha quickly (sample 1px)
-    let hasAlpha = false;
-    try {
-      const id = ctx.getImageData(0, 0, 1, 1).data;
-      hasAlpha = id[3] !== 255;
-    } catch (e) {
-      hasAlpha = false;
+        console.log(`[Compression] ${file.name}: ${(file.size/1024).toFixed(0)}KB → ${(newFile.size/1024).toFixed(0)}KB (${Math.round(100*(1 - newFile.size/file.size))}% change)`);
+        return newFile;
+      } catch (err) {
+        console.warn('[Compression] error, falling back to original file', err);
+        return file;
+      }
     }
 
-    // Choose output type: prefer webp, else jpeg (webp supports alpha too)
-    let outType = 'image/jpeg';
-    if (supportsWebP) outType = 'image/webp';
-    else if (hasAlpha) outType = 'image/png'; // last resort to preserve alpha
-
-    if (hasAlpha && supportsWebP) outType = 'image/webp';
-
-    // Convert to blob
-    let outBlob;
-    if (canvas.convertToBlob) {
-      outBlob = await canvas.convertToBlob({ type: outType, quality });
-    } else {
-      outBlob = await new Promise((res) => canvas.toBlob(res, outType, quality));
-    }
-    if (!outBlob) return file;
-
-    const ext = outBlob.type.includes('webp') ? '.webp' : outBlob.type.includes('jpeg') ? '.jpg' : '.png';
-    const newName = file.name.replace(/\.[^/.]+$/, '') + ext;
-    const newFile = new File([outBlob], newName, { type: outBlob.type, lastModified: Date.now() });
-
-    console.log(`[Compression] ${file.name}: ${(file.size/1024).toFixed(0)}KB → ${(newFile.size/1024).toFixed(0)}KB (${Math.round(100*(1 - newFile.size/file.size))}% change)`);
-    return newFile;
-  }
-
-  // Single handler for file input (keeps same UX as your original)
-  if (fileInput) {
+    // Single handler for file input (keeps UX)
     fileInput.addEventListener('change', async (e) => {
       const file = e.target.files && e.target.files[0];
       if (!file) { uploadedImageCache = null; return; }
 
-      // ensure single active selection - use selectionId to ignore stale uploads
       const selectionId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('sel-' + Date.now() + '-' + Math.random().toString(36).slice(2,8));
       fileInput.dataset.selectionId = selectionId;
-      // reuse selectionId as regionId (idempotence côté serveur possible)
       const regionId = selectionId;
 
-      // small UI progress
       const modalBody = document.querySelector('.modal .body') || document.querySelector('.modal .panel');
       const progressIndicator = document.createElement('div');
       progressIndicator.className = 'upload-progress-mini';
@@ -341,32 +270,33 @@
       progressIndicator.innerHTML = 'Validating…';
       if (modalBody) { modalBody.style.position = 'relative'; modalBody.appendChild(progressIndicator); }
 
+      let removedIndicator = false;
+      const removeIndicator = () => {
+        if (removedIndicator) return;
+        removedIndicator = true;
+        try { progressIndicator.remove(); } catch {}
+      };
+
       try {
         await window.UploadManager.validateFile(file);
-
         progressIndicator.innerHTML = 'Compressing…';
+
         let fileToUpload;
         try {
-          // try faster compress first; fallback to slower if it fails
-          fileToUpload = await compressImageClientFast(file, { maxWidth: 1600, maxHeight: 1600, quality: 0.82 });
-        } catch (errFast) {
-          console.warn('Fast compression failed, falling back to slower compress', errFast);
-          try {
-            fileToUpload = await compressImageClient(file, 1200, 1200, 0.82);
-          } catch (errSlow) {
-            console.warn('Slow compression failed, using original', errSlow);
-            fileToUpload = file;
-          }
+          fileToUpload = await compressImageClient(file, { maxWidth: 1600, maxHeight: 1600, quality: 0.82 });
+        } catch (err) {
+          console.warn('Compression failed, continuing with original file', err);
+          fileToUpload = file;
         }
 
         progressIndicator.innerHTML = 'Uploading…';
 
-        // Upload: pass regionId so server can treat it idempotently
         const uploadResult = await window.UploadManager.uploadForRegion(fileToUpload, regionId);
 
-        // If user reselected meanwhile, drop stale result
+        // If user reselected meanwhile, drop stale result (and clean indicator)
         if (fileInput.dataset.selectionId !== selectionId) {
           console.log('[Upload] Stale upload result, ignoring (new selection arrived)');
+          removeIndicator();
           return;
         }
 
@@ -382,21 +312,20 @@
 
         progressIndicator.style.background = '#10b981';
         progressIndicator.innerHTML = '✓ Image ready';
-        setTimeout(()=> { progressIndicator.style.opacity = '0'; setTimeout(()=>progressIndicator.remove(), 300); }, 1200);
+        setTimeout(()=> { try { progressIndicator.style.opacity = '0'; setTimeout(()=>{ try{ progressIndicator.remove(); }catch{} }, 300); } catch{} }, 1200);
 
         console.log('[Upload] Completed:', uploadedImageCache);
       } catch (err) {
         uploadedImageCache = null;
-        progressIndicator.style.background = '#ef4444';
-        progressIndicator.innerHTML = '✗ Upload failed';
+        try { progressIndicator.style.background = '#ef4444'; progressIndicator.innerHTML = '✗ Upload failed'; } catch {}
         console.error('[Upload] Failed:', err);
-        setTimeout(()=>progressIndicator.remove(), 2200);
+        setTimeout(()=>removeIndicator(), 2200);
         uiError(err, 'Upload');
       }
     });
   }
 
-  console.log('[Upload] Client-side compression enabled - expect 70-90% file size reduction');
+  console.log('[Upload] Client-side compression enabled - ready');
 
   // OPTIMISATION 3: doConfirm allégé - l'image est déjà uploadée
   async function doConfirm(){
@@ -470,9 +399,6 @@
 
       const { orderId, regionId, currency } = start;
 
-      // [PATCH] lancer finalize en arrière-plan pour accélérer l'UX
-      const finalizePromise = backgroundFinalize(regionId, { name, linkUrl, blocks });
-
       // Étendre les locks avant PayPal
       if (window.LockManager) {
         try {
@@ -483,8 +409,8 @@
         }
       }
 
-      // Afficher PayPal — on passe finalizePromise pour que showPaypalButton puisse attendre si nécessaire
-      showPaypalButton(orderId, currency, regionId, finalizePromise);
+      // Afficher PayPal
+      showPaypalButton(orderId, currency);
 
     } catch (e) {
       console.error('[doConfirm] Error:', e);
@@ -513,8 +439,7 @@
     el.className = String(state || '').trim();
   }
 
-  // showPaypalButton now accepts finalizePromise and regionId to allow background finalize + link-image
-  function showPaypalButton(orderId, currency, regionId, finalizePromise) {
+  function showPaypalButton(orderId, currency) {
     if (confirmBtn) confirmBtn.style.display = 'none';
     
     const existing = document.getElementById('paypal-button-container');
@@ -560,44 +485,15 @@
             throw new Error(res?.error || res?.message || 'FINALIZE_INIT_FAILED');
           }
 
-          console.log('[PayPal] Waiting for finalization (background)');
-          // Wait for background finalize to complete (but don't crash if it errors)
-          try {
-            const fin = await finalizePromise;
-            if (!fin || !fin.ok) {
-              console.warn('[PayPal] finalize result not ok', fin);
-              // We do not block payment success, but warn user if finalize failed
-              uiWarn('Payment succeeded but reservation finalization had an issue. We will retry automatically.');
-            } else {
-              console.log('[PayPal] finalize succeeded', fin.res);
-            }
-          } catch (e) {
-            console.warn('[PayPal] finalizePromise threw', e);
-            uiWarn('Payment succeeded but finalization encountered an error; we will recover in background.');
+          console.log('[PayPal] Waiting for finalization');
+          const ok = await waitForCompleted(orderId, 60);
+          
+          if (!ok) {
+            setPayPalHeaderState('pending');
+            btnBusy(false);
+            return;
           }
 
-          // After capture, ensure image is linked to region (idempotent)
-          try {
-            if (uploadedImageCache && uploadedImageCache.imageUrl && regionId) {
-              await linkImageWithRetry(regionId, uploadedImageCache.imageUrl);
-            } else {
-              console.warn('[PayPal] No uploadedImageCache or regionId to link');
-            }
-          } catch (linkErr) {
-            console.error('[PayPal] link-image failed after payment', linkErr);
-            // Try to inform server to retry later (optional endpoint)
-            try {
-              await apiCall('/record-pending-link', {
-                method: 'POST',
-                body: JSON.stringify({ regionId, imageUrl: uploadedImageCache?.imageUrl, orderId })
-              });
-            } catch (recErr) {
-              console.warn('[PayPal] record-pending-link failed', recErr);
-            }
-            uiWarn('Your payment succeeded but we had trouble associating your image. We will retry automatically.');
-          }
-
-          // final UI updates
           setPayPalHeaderState('completed');
           try { window.LockManager?.heartbeat?.stop?.(); } catch {}
           try { await unlockSelection(); } catch {}
@@ -657,6 +553,7 @@
     }
     return false;
   }
+
 
   // Écouter l'événement de soumission
   document.addEventListener('finalize:submit', (e) => {
