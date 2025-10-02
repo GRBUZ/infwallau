@@ -835,3 +835,14 @@ body:not(.heavy-selection) .cell.sel::before {
   }
 }
 /* instruction selection */
+/* Cacher le header PayPal pendant le loading */
+#paypal-button-container.loading::before {
+  display: none !important;
+}
+
+/* Assurer que le wrapper prend toute la place */
+#paypal-button-container.loading .paypal-buttons-wrapper {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
