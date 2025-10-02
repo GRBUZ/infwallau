@@ -439,11 +439,18 @@
     const container = document.createElement('div');
     container.id = 'paypal-button-container';
     container.className = 'loading';
-    container.style.cssText = 'min-height:150px;display:flex;align-items:center;justify-content:center;';
+    
+    // Ne pas forcer de styles inline - laisser le CSS existant gérer l'apparence
+    // Juste assurer une hauteur minimale pour éviter le jump visuel
+    container.style.minHeight = '150px';
+    container.style.display = 'flex';
+    container.style.alignItems = 'center';
+    container.style.justifyContent = 'center';
+    
     container.innerHTML = `
       <div style="text-align:center;">
         <div style="width:40px;height:40px;border:4px solid #f3f3f3;border-top:4px solid #0070ba;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px;"></div>
-        <p style="color:#666;font-size:14px;">Preparing payment...</p>
+        <p style="color:#666;font-size:14px;margin:0;">Preparing payment...</p>
       </div>
     `;
 
