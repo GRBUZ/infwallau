@@ -430,7 +430,7 @@
   // ========================================
   // 🆕 Afficher placeholder PayPal (spinner)
   // ========================================
-  function showPaypalPlaceholder() {
+  /*function showPaypalPlaceholder() {
     if (confirmBtn) confirmBtn.style.display = 'none';
     
     const existing = document.getElementById('paypal-button-container');
@@ -459,7 +459,54 @@
     if (target) target.appendChild(container);
     
     return container;
+  }*/
+ function showPaypalPlaceholder() {
+  // Au lieu de cacher confirmBtn, on le "remplace"
+  if (confirmBtn) {
+    confirmBtn.style.visibility = 'hidden'; // garde la place dans le flux
   }
+
+  const existing = document.getElementById('paypal-button-container');
+  if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+  const container = document.createElement('div');
+  container.id = 'paypal-button-container';
+  container.className = 'loading';
+  container.style.cssText = 'flex:1;min-height:60px;display:flex;align-items:center;justify-content:center;';
+
+  container.innerHTML = `
+    <div style="text-align:center;">
+      <div style="width:28px;height:28px;border:3px solid #f3f3f3;border-top:3px solid #0070ba;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 8px;"></div>
+      <p style="color:#666;font-size:13px;">Preparing payment…</p>
+    </div>
+  `;
+
+  if (!document.getElementById('paypal-spinner-style')) {
+    const style = document.createElement('style');
+    style.id = 'paypal-spinner-style';
+    style.textContent = '@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }';
+    document.head.appendChild(style);
+  }
+
+  // 👉 Insérer juste avant le bouton Cancel si dispo
+  const cancelBtn = form?.querySelector('[data-cancel], .cancel, button.cancel');
+  if (cancelBtn && cancelBtn.parentNode) {
+    cancelBtn.parentNode.insertBefore(container, cancelBtn);
+  } else if (form || modal) {
+    (form || modal).appendChild(container);
+  }
+
+  return container;
+}
+
+function removePaypalContainer() {
+  const container = document.getElementById('paypal-button-container');
+  if (container && container.parentNode) {
+    container.parentNode.removeChild(container);
+  }
+  if (confirmBtn) confirmBtn.style.visibility = ''; // restaure confirm
+}
+
 
   // ========================================
   // 🆕 Rendre les boutons PayPal
@@ -562,13 +609,13 @@
   // ========================================
   // Fonctions utilitaires
   // ========================================
-  function removePaypalContainer() {
+  /*function removePaypalContainer() {
     const container = document.getElementById('paypal-button-container');
     if (container && container.parentNode) {
       container.parentNode.removeChild(container);
     }
     if (confirmBtn) confirmBtn.style.display = '';
-  }
+  }*/
 
   function haveMyValidLocks(blocks, graceMs = 5000) {
     if (!window.LockManager) return true;
