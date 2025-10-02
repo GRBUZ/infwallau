@@ -438,21 +438,23 @@
 
     const container = document.createElement('div');
     container.id = 'paypal-button-container';
+    
+    // IMPORTANT: Ajouter la classe 'loading' pour désactiver le ::before du CSS
+    // qui affiche "💳 Choose your payment method"
     container.className = 'loading';
     
-    // Ne pas forcer de styles inline - laisser le CSS existant gérer l'apparence
-    // Juste assurer une hauteur minimale pour éviter le jump visuel
-    container.style.minHeight = '150px';
-    container.style.display = 'flex';
-    container.style.alignItems = 'center';
-    container.style.justifyContent = 'center';
-    
-    container.innerHTML = `
+    // Wrapper pour contenir le spinner (structure identique aux boutons PayPal)
+    const wrapper = document.createElement('div');
+    wrapper.className = 'paypal-buttons-wrapper';
+    wrapper.style.cssText = 'min-height:150px;display:flex;align-items:center;justify-content:center;';
+    wrapper.innerHTML = `
       <div style="text-align:center;">
         <div style="width:40px;height:40px;border:4px solid #f3f3f3;border-top:4px solid #0070ba;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px;"></div>
         <p style="color:#666;font-size:14px;margin:0;">Preparing payment...</p>
       </div>
     `;
+    
+    container.appendChild(wrapper);
 
     // Ajouter animation spinner si pas déjà présent
     if (!document.getElementById('paypal-spinner-style')) {
