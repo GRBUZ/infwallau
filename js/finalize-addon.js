@@ -1,4 +1,4 @@
-// finalize-addon.js — OPTIMISATION: Upload en parallèle pendant que l'utilisateur remplit le formulaire
+// finalize-addon.js – OPTIMISATION: Parallélisation PayPal SDK + start-order
 (function(){
   'use strict';
 
@@ -21,9 +21,7 @@
   const fileInput = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
 
   let __processing = false;
-  
-  // OPTIMISATION 1: Cache de l'upload terminé
-  let uploadedImageCache = null; // { imageUrl, regionId, uploadedAt }
+  let uploadedImageCache = null;
 
   function pauseHB(){
     if (__processing) return;
@@ -138,214 +136,131 @@
     }catch(_){}
   }
 
-  //new
-  // OPTIMISATION MAJEURE: Compression côté client AVANT upload
-// À ajouter dans finalize-addon.js AVANT le file input listener
+  // ========================================
+  // COMPRESSION IMAGE (inchangée)
+  // ========================================
+  if (fileInput) {
+    const supportsWebP = (() => {
+      try {
+        const c = document.createElement('canvas');
+        return !!(c.getContext && c.getContext('2d') && c.toDataURL('image/webp').indexOf('data:image/webp') === 0);
+      } catch { return false; }
+    })();
 
-// Fonction de compression d'image côté client
-async function compressImageClient(file, maxWidth = 1200, maxHeight = 1200, quality = 0.85) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-      const img = new Image();
-      
-      img.onload = () => {
-        // Calculer les nouvelles dimensions en conservant le ratio
-        let { width, height } = img;
-        
-        if (width > maxWidth || height > maxHeight) {
-          const ratio = Math.min(maxWidth / width, maxHeight / height);
-          width = Math.round(width * ratio);
-          height = Math.round(height * ratio);
-        }
-        
-        // Créer un canvas pour redimensionner
-        const canvas = document.createElement('canvas');
+    async function compressImageClient(file, { maxWidth = 1200, maxHeight = 1200, quality = 0.80 } = {}) {
+      if (file.size < 50 * 1024) return file;
+
+      let imgBitmap;
+      try { imgBitmap = await createImageBitmap(file); } catch (e) { console.warn('createImageBitmap failed, fallback', e); return file; }
+
+      let { width, height } = imgBitmap;
+      const ratio = Math.min(1, maxWidth / width, maxHeight / height);
+      width = Math.round(width * ratio);
+      height = Math.round(height * ratio);
+
+      let canvas;
+      if (typeof OffscreenCanvas !== 'undefined') {
+        canvas = new OffscreenCanvas(width, height);
+      } else {
+        canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
-        
-        const ctx = canvas.getContext('2d');
-        
-        // Améliorer la qualité du redimensionnement
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        
-        // Dessiner l'image redimensionnée
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        // Convertir en blob avec compression
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            reject(new Error('Compression failed'));
-            return;
-          }
-          
-          // Créer un nouveau File avec le nom original
-          const compressedFile = new File([blob], file.name, {
-            type: blob.type,
-            lastModified: Date.now()
-          });
-          
-          console.log(`[Compression] ${file.name}: ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB (${Math.round((1 - compressedFile.size / file.size) * 100)}% reduction)`);
-          
-          resolve(compressedFile);
-        }, file.type, quality);
-      };
-      
-      img.onerror = () => reject(new Error('Invalid image'));
-      img.src = e.target.result;
-    };
-    
-    reader.onerror = () => reject(new Error('Failed to read file'));
-    reader.readAsDataURL(file);
-  });
-}
+      }
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(imgBitmap, 0, 0, width, height);
 
-// --- Remplacer les deux fileInput.addEventListener('change', ...) par ce handler unique ---
-// (Place ce bloc à l'endroit où les handlers actuels existaient dans finalize-addon.js)
+      let hasAlpha = false;
+      try {
+        const id = ctx.getImageData(0, 0, 1, 1).data;
+        hasAlpha = id[3] !== 255;
+      } catch (e) {
+        hasAlpha = false;
+      }
 
-if (fileInput) {
-  // helper : detecte support webp
-  const supportsWebP = (() => {
-    try {
-      const c = document.createElement('canvas');
-      return !!(c.getContext && c.getContext('2d') && c.toDataURL('image/webp').indexOf('data:image/webp') === 0);
-    } catch { return false; }
-  })();
+      let outType = 'image/jpeg';
+      if (supportsWebP) outType = 'image/webp';
+      else if (hasAlpha) outType = 'image/png';
+      if (hasAlpha && supportsWebP) outType = 'image/webp';
 
-  async function compressImageClient(file, { maxWidth = 1200, maxHeight = 1200, quality = 0.80 } = {}) {
-    // Skip tiny files
-    if (file.size < 50 * 1024) return file;
+      let outBlob;
+      if (canvas.convertToBlob) {
+        outBlob = await canvas.convertToBlob({ type: outType, quality });
+      } else {
+        outBlob = await new Promise((res) => canvas.toBlob(res, outType, quality));
+      }
+      if (!outBlob) return file;
 
-    // createImageBitmap is faster and uses less memory than Image + dataURL
-    const blob = file;
-    let imgBitmap;
-    try { imgBitmap = await createImageBitmap(blob); } catch (e) { console.warn('createImageBitmap failed, fallback', e); return file; }
+      const ext = outBlob.type.includes('webp') ? '.webp' : outBlob.type.includes('jpeg') ? '.jpg' : '.png';
+      const newName = file.name.replace(/\.[^/.]+$/, '') + ext;
+      const newFile = new File([outBlob], newName, { type: outBlob.type, lastModified: Date.now() });
 
-    let { width, height } = imgBitmap;
-    const ratio = Math.min(1, maxWidth / width, maxHeight / height);
-    width = Math.round(width * ratio);
-    height = Math.round(height * ratio);
-
-    // canvas (OffscreenCanvas if dispo)
-    let canvas;
-    if (typeof OffscreenCanvas !== 'undefined') {
-      canvas = new OffscreenCanvas(width, height);
-    } else {
-      canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-    }
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(imgBitmap, 0, 0, width, height);
-
-    // detect alpha quickly (sample 1px)
-    let hasAlpha = false;
-    try {
-      const id = ctx.getImageData(0, 0, 1, 1).data;
-      hasAlpha = id[3] !== 255;
-    } catch (e) {
-      hasAlpha = false;
+      console.log(`[Compression] ${file.name}: ${(file.size/1024).toFixed(0)}KB → ${(newFile.size/1024).toFixed(0)}KB`);
+      return newFile;
     }
 
-    // Choose output type: prefer webp, else jpeg (webp supports alpha too)
-    let outType = 'image/jpeg';
-    if (supportsWebP) outType = 'image/webp';
-    else if (hasAlpha) outType = 'image/png'; // last resort to preserve alpha
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) { uploadedImageCache = null; return; }
 
-    // If alpha present and webp supported, we use webp (smaller and preserves alpha).
-    if (hasAlpha && supportsWebP) outType = 'image/webp';
+      const selectionId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('sel-' + Date.now() + '-' + Math.random().toString(36).slice(2,8));
+      fileInput.dataset.selectionId = selectionId;
+      const regionId = selectionId;
 
-    // Convert to blob
-    let outBlob;
-    if (canvas.convertToBlob) {
-      outBlob = await canvas.convertToBlob({ type: outType, quality });
-    } else {
-      outBlob = await new Promise((res) => canvas.toBlob(res, outType, quality));
-    }
-    if (!outBlob) return file;
+      const modalBody = document.querySelector('.modal .body') || document.querySelector('.modal .panel');
+      const progressIndicator = document.createElement('div');
+      progressIndicator.className = 'upload-progress-mini';
+      progressIndicator.style.cssText = 'position:absolute;right:12px;bottom:12px;padding:8px 12px;border-radius:8px;background:#2563eb;color:#fff;font-size:12px;z-index:9999';
+      progressIndicator.innerHTML = 'Validating…';
+      if (modalBody) { modalBody.style.position = 'relative'; modalBody.appendChild(progressIndicator); }
 
-    // create File and return
-    const ext = outBlob.type.includes('webp') ? '.webp' : outBlob.type.includes('jpeg') ? '.jpg' : '.png';
-    const newName = file.name.replace(/\.[^/.]+$/, '') + ext;
-    const newFile = new File([outBlob], newName, { type: outBlob.type, lastModified: Date.now() });
+      try {
+        await window.UploadManager.validateFile(file);
 
-    console.log(`[Compression] ${file.name}: ${(file.size/1024).toFixed(0)}KB → ${(newFile.size/1024).toFixed(0)}KB (${Math.round(100*(1 - newFile.size/file.size))}% change)`);
-    return newFile;
+        progressIndicator.innerHTML = 'Compressing…';
+        let fileToUpload;
+        try {
+          fileToUpload = await compressImageClient(file, { maxWidth: 1600, maxHeight: 1600, quality: 0.82 });
+        } catch (err) {
+          console.warn('Compression failed, continuing with original file', err);
+          fileToUpload = file;
+        }
+
+        progressIndicator.innerHTML = 'Uploading…';
+
+        const uploadResult = await window.UploadManager.uploadForRegion(fileToUpload, regionId);
+        if (fileInput.dataset.selectionId !== selectionId) {
+          console.log('[Upload] Stale upload result, ignoring');
+          return;
+        }
+
+        if (!uploadResult || !uploadResult.ok) throw new Error(uploadResult && (uploadResult.error || uploadResult.message) || 'Upload failed');
+
+        uploadedImageCache = {
+          imageUrl: uploadResult.imageUrl,
+          regionId: uploadResult.regionId || regionId,
+          uploadedAt: Date.now()
+        };
+
+        progressIndicator.style.background = '#10b981';
+        progressIndicator.innerHTML = '✓ Image ready';
+        setTimeout(()=> { progressIndicator.style.opacity = '0'; setTimeout(()=>progressIndicator.remove(), 300); }, 1200);
+
+        console.log('[Upload] Completed:', uploadedImageCache);
+      } catch (err) {
+        uploadedImageCache = null;
+        progressIndicator.style.background = '#ef4444';
+        progressIndicator.innerHTML = '✗ Upload failed';
+        setTimeout(()=>progressIndicator.remove(), 2200);
+        uiError(err, 'Upload');
+      }
+    });
   }
 
-  fileInput.addEventListener('change', async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) { uploadedImageCache = null; return; }
-
-    // ensure single active selection - use selectionId to ignore stale uploads
-    const selectionId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('sel-' + Date.now() + '-' + Math.random().toString(36).slice(2,8));
-    fileInput.dataset.selectionId = selectionId;
-    // reuse selectionId as regionId (idempotence côté serveur possible)
-    const regionId = selectionId;
-
-    // small UI progress
-    const modalBody = document.querySelector('.modal .body') || document.querySelector('.modal .panel');
-    const progressIndicator = document.createElement('div');
-    progressIndicator.className = 'upload-progress-mini';
-    progressIndicator.style.cssText = 'position:absolute;right:12px;bottom:12px;padding:8px 12px;border-radius:8px;background:#2563eb;color:#fff;font-size:12px;z-index:9999';
-    progressIndicator.innerHTML = 'Validating…';
-    if (modalBody) { modalBody.style.position = 'relative'; modalBody.appendChild(progressIndicator); }
-
-    try {
-      await window.UploadManager.validateFile(file);
-
-      progressIndicator.innerHTML = 'Compressing…';
-      let fileToUpload;
-      try {
-        // compress when beneficial (we attempt, fallback to original if compress fails)
-        fileToUpload = await compressImageClient(file, { maxWidth: 1600, maxHeight: 1600, quality: 0.82 });
-      } catch (err) {
-        console.warn('Compression failed, continuing with original file', err);
-        fileToUpload = file;
-      }
-
-      progressIndicator.innerHTML = 'Uploading…';
-
-      // Upload: pass regionId so server can treat it idempotently
-      const uploadResult = await window.UploadManager.uploadForRegion(fileToUpload, regionId);
-      // If user reselected meanwhile, drop stale result
-      if (fileInput.dataset.selectionId !== selectionId) {
-        console.log('[Upload] Stale upload result, ignoring (new selection arrived)');
-        return;
-      }
-
-      if (!uploadResult || !uploadResult.ok) throw new Error(uploadResult && (uploadResult.error || uploadResult.message) || 'Upload failed');
-
-      uploadedImageCache = {
-        imageUrl: uploadResult.imageUrl,
-        regionId: uploadResult.regionId || regionId,
-        uploadedAt: Date.now()
-      };
-
-      progressIndicator.style.background = '#10b981';
-      progressIndicator.innerHTML = '✓ Image ready';
-      setTimeout(()=> { progressIndicator.style.opacity = '0'; setTimeout(()=>progressIndicator.remove(), 300); }, 1200);
-
-      console.log('[Upload] Completed:', uploadedImageCache);
-    } catch (err) {
-      uploadedImageCache = null;
-      progressIndicator.style.background = '#ef4444';
-      progressIndicator.innerHTML = '✗ Upload failed';
-      setTimeout(()=>progressIndicator.remove(), 2200);
-      uiError(err, 'Upload');
-    }
-  });
-}
-
-
-console.log('[Upload] Client-side compression enabled - expect 70-90% file size reduction');
-  //new
-
-  // OPTIMISATION 3: doConfirm allégé - l'image est déjà uploadée
+  // ========================================
+  // 🚀 OPTIMISATION CRITIQUE : doConfirm parallélisé
+  // ========================================
   async function doConfirm(){
     const name = (nameInput && nameInput.value || '').trim();
     const linkUrl = normalizeUrl(linkInput && linkInput.value);
@@ -354,13 +269,11 @@ console.log('[Upload] Client-side compression enabled - expect 70-90% file size 
     if (!blocks.length){ uiWarn('Please select at least one block.'); return; }
     if (!name || !linkUrl){ uiWarn('Name and Profile URL are required.'); return; }
 
-    // Vérifier que l'upload est terminé
     if (!uploadedImageCache) {
       uiWarn('Please wait for image upload to complete or select an image.');
       return;
     }
 
-    // Vérifier que l'upload n'est pas trop vieux (5 minutes max)
     const uploadAge = Date.now() - uploadedImageCache.uploadedAt;
     if (uploadAge > 300000) {
       uiWarn('Image upload expired, please reselect your image.');
@@ -372,7 +285,7 @@ console.log('[Upload] Client-side compression enabled - expect 70-90% file size 
     btnBusy(true);
 
     try {
-      // Vérifier les locks
+      // Vérifier les locks rapidement
       if (!haveMyValidLocks(blocks, 1000)) {
         await refreshStatus().catch(()=>{});
         uiWarn('Your reservation expired. Please reselect your pixels.');
@@ -381,38 +294,82 @@ console.log('[Upload] Client-side compression enabled - expect 70-90% file size 
         return;
       }
 
-      // Renouveler les locks
-      try {
-        if (window.LockManager) {
-          console.log('[Finalize] Renewing locks');
-          await window.LockManager.lock(blocks, 180000, { optimistic: false });
+      // 🎯 CHANGEMENT CRITIQUE 1: Afficher conteneur PayPal IMMÉDIATEMENT
+      console.log('[Finalize] Showing PayPal placeholder immediately');
+      const paypalContainer = showPaypalPlaceholder();
+
+      // 🎯 CHANGEMENT CRITIQUE 2: Lancer SDK + start-order EN PARALLÈLE
+      console.log('[Finalize] Starting parallel: PayPal SDK + start-order');
+      const startTime = performance.now();
+
+      const [sdkReady, orderResult] = await Promise.all([
+        ensurePayPalSDKLoaded(),
+        finalizeOrder(name, linkUrl, blocks, uploadedImageCache)
+      ]);
+
+      const parallelTime = ((performance.now() - startTime) / 1000).toFixed(2);
+      console.log(`[Finalize] Parallel execution completed in ${parallelTime}s`);
+
+      if (!orderResult || !orderResult.success) {
+        // Erreur: nettoyer et réafficher confirm
+        removePaypalContainer();
+        btnBusy(false);
+        if (orderResult && orderResult.error) {
+          uiError(new Error(orderResult.error), 'Start order');
         }
-      } catch (e) {
-        console.warn('[Finalize] Lock renewal failed:', e);
+        try { await unlockSelection(); } catch {}
+        try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+        resumeHB();
+        return;
       }
 
-      console.log('[Finalize] Creating order with pre-uploaded image');
+      // ✅ Succès: Rendre les boutons PayPal (quasi-instantané)
+      const { orderId, currency } = orderResult;
+      console.log('[Finalize] Rendering PayPal buttons (SDK + order ready)');
+      renderPaypalButtons(paypalContainer, orderId, currency);
+
+    } catch (e) {
+      console.error('[doConfirm] Error:', e);
+      uiError(e, 'Confirm');
+      removePaypalContainer();
+      btnBusy(false);
+      try { await unlockSelection(); } catch {}
+      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+      resumeHB();
+    }
+  }
+
+  // ========================================
+  // 🆕 Fonction de finalization (extraction de la logique)
+  // ========================================
+  async function finalizeOrder(name, linkUrl, blocks, imageCache) {
+    try {
+      // Renouveler les locks
+      if (window.LockManager) {
+        try {
+          console.log('[Finalize] Renewing locks');
+          await window.LockManager.lock(blocks, 180000, { optimistic: false });
+        } catch (e) {
+          console.warn('[Finalize] Lock renewal failed:', e);
+        }
+      }
+
+      console.log('[Finalize] Calling /start-order with pre-uploaded image');
       
-      // OPTIMISATION: start-order avec imageUrl déjà disponible
       const start = await apiCall('/start-order', {
         method: 'POST',
         body: JSON.stringify({
           name, 
           linkUrl, 
           blocks,
-          imageUrl: uploadedImageCache.imageUrl,  // Image déjà uploadée
-          regionId: uploadedImageCache.regionId
+          imageUrl: imageCache.imageUrl,
+          regionId: imageCache.regionId
         })
       });
 
       if (!start || !start.ok) {
         const message = (start && (start.error || start.message)) || 'Start order failed';
-        uiError(window.Errors ? window.Errors.create('START_ORDER_FAILED', message, { details: start }) : new Error(message), 'Start order');
-        btnBusy(false);
-        try { await unlockSelection(); } catch {}
-        try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-        resumeHB();
-        return;
+        return { success: false, error: message };
       }
 
       const { orderId, regionId, currency } = start;
@@ -427,41 +384,95 @@ console.log('[Upload] Client-side compression enabled - expect 70-90% file size 
         }
       }
 
-      // Afficher PayPal
-      showPaypalButton(orderId, currency);
+      return { success: true, orderId, regionId, currency };
 
     } catch (e) {
-      console.error('[doConfirm] Error:', e);
-      uiError(e, 'Confirm');
-      btnBusy(false);
-      try { await unlockSelection(); } catch {}
-      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-      resumeHB();
+      console.error('[finalizeOrder] Error:', e);
+      return { success: false, error: e.message || 'Unknown error' };
     }
   }
 
-  function haveMyValidLocks(blocks, graceMs = 5000) {
-    if (!window.LockManager) return true;
-    const locks = window.LockManager.getLocalLocks?.() || {};
-    const t = Date.now() + graceMs;
-    for (const i of blocks || []) {
-      const l = locks[String(i)];
-      if (!l || l.uid !== uid || !(l.until > t)) return false;
+  // ========================================
+  // 🆕 Assurer que le SDK PayPal est chargé
+  // ========================================
+  async function ensurePayPalSDKLoaded() {
+    // Si déjà chargé, retourner immédiatement
+    if (window.paypal && window.paypal.Buttons) {
+      console.log('[PayPal SDK] Already loaded');
+      return true;
+    }
+
+    // Si PayPalIntegration gère le chargement, attendre
+    if (window.PayPalIntegration && typeof window.PayPalIntegration.ensureSDK === 'function') {
+      console.log('[PayPal SDK] Loading via PayPalIntegration');
+      try {
+        await window.PayPalIntegration.ensureSDK();
+        return true;
+      } catch (e) {
+        console.error('[PayPal SDK] Load failed:', e);
+        throw e;
+      }
+    }
+
+    // Fallback: attendre que window.paypal soit disponible (max 5s)
+    console.log('[PayPal SDK] Waiting for window.paypal');
+    const timeout = 5000;
+    const start = Date.now();
+    while (!window.paypal || !window.paypal.Buttons) {
+      if (Date.now() - start > timeout) {
+        throw new Error('PayPal SDK load timeout');
+      }
+      await new Promise(r => setTimeout(r, 100));
     }
     return true;
   }
 
-  function setPayPalHeaderState(state){
-    const el = document.getElementById('paypal-button-container');
-    if (!el) return;
-    el.className = String(state || '').trim();
-  }
-
-  function showPaypalButton(orderId, currency) {
+  // ========================================
+  // 🆕 Afficher placeholder PayPal (spinner)
+  // ========================================
+  function showPaypalPlaceholder() {
     if (confirmBtn) confirmBtn.style.display = 'none';
     
     const existing = document.getElementById('paypal-button-container');
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+    const container = document.createElement('div');
+    container.id = 'paypal-button-container';
+    container.className = 'loading';
+    container.style.cssText = 'min-height:150px;display:flex;align-items:center;justify-content:center;';
+    container.innerHTML = `
+      <div style="text-align:center;">
+        <div style="width:40px;height:40px;border:4px solid #f3f3f3;border-top:4px solid #0070ba;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px;"></div>
+        <p style="color:#666;font-size:14px;">Preparing payment...</p>
+      </div>
+    `;
+
+    // Ajouter animation spinner si pas déjà présent
+    if (!document.getElementById('paypal-spinner-style')) {
+      const style = document.createElement('style');
+      style.id = 'paypal-spinner-style';
+      style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
+      document.head.appendChild(style);
+    }
+
+    const target = form || modal;
+    if (target) target.appendChild(container);
+    
+    return container;
+  }
+
+  // ========================================
+  // 🆕 Rendre les boutons PayPal
+  // ========================================
+  function renderPaypalButtons(container, orderId, currency) {
+    if (!container) {
+      console.error('[PayPal] Container not found');
+      return;
+    }
+
+    // Vider le spinner
+    container.innerHTML = '';
+    container.className = '';
 
     if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
       uiWarn('Payment: missing PayPal configuration');
@@ -516,7 +527,6 @@ console.log('[Upload] Client-side compression enabled - expect 70-90% file size 
           try { window.LockManager?.heartbeat?.stop?.(); } catch {}
           try { await unlockSelection(); } catch {}
           
-          // Nettoyer le cache d'upload
           uploadedImageCache = null;
           
           await refreshStatus();
@@ -549,53 +559,77 @@ console.log('[Upload] Client-side compression enabled - expect 70-90% file size 
     });
   }
 
-  async function waitForCompleted(orderId, maxSeconds = 120) {
-  const maxAttempts = 12;
-  let delay = 1000;
-  for (let i = 0; i < maxAttempts; i++) {
-    try {
-      const st = await apiCall('/order-status?orderId=' + encodeURIComponent(orderId));
-      if (st?.ok) {
-        const s = String(st.status || '').toLowerCase();
-        if (s === 'completed') return true;
-        if (['failed', 'failed_refund', 'cancelled', 'expired'].includes(s)) return false;
-        // if processing/pending, continue and backoff
-        console.log('[Finalize] order status', s);
-      }
-    } catch (e) {
-      console.warn('[Finalize] order-status check failed', e);
+  // ========================================
+  // Fonctions utilitaires
+  // ========================================
+  function removePaypalContainer() {
+    const container = document.getElementById('paypal-button-container');
+    if (container && container.parentNode) {
+      container.parentNode.removeChild(container);
     }
-    await new Promise(r => setTimeout(r, delay));
-    // increase delay up to 10s
-    delay = Math.min(10000, Math.round(delay * 1.7));
+    if (confirmBtn) confirmBtn.style.display = '';
   }
-  return false;
-}
 
+  function haveMyValidLocks(blocks, graceMs = 5000) {
+    if (!window.LockManager) return true;
+    const locks = window.LockManager.getLocalLocks?.() || {};
+    const t = Date.now() + graceMs;
+    for (const i of blocks || []) {
+      const l = locks[String(i)];
+      if (!l || l.uid !== uid || !(l.until > t)) return false;
+    }
+    return true;
+  }
 
-  // Écouter l'événement de soumission
+  function setPayPalHeaderState(state){
+    const el = document.getElementById('paypal-button-container');
+    if (!el) return;
+    el.className = String(state || '').trim();
+  }
+
+  async function waitForCompleted(orderId, maxSeconds = 120) {
+    const maxAttempts = 12;
+    let delay = 1000;
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        const st = await apiCall('/order-status?orderId=' + encodeURIComponent(orderId));
+        if (st?.ok) {
+          const s = String(st.status || '').toLowerCase();
+          if (s === 'completed') return true;
+          if (['failed', 'failed_refund', 'cancelled', 'expired'].includes(s)) return false;
+          console.log('[Finalize] order status', s);
+        }
+      } catch (e) {
+        console.warn('[Finalize] order-status check failed', e);
+      }
+      await new Promise(r => setTimeout(r, delay));
+      delay = Math.min(10000, Math.round(delay * 1.7));
+    }
+    return false;
+  }
+
+  // Écouteur d'événement de soumission
   document.addEventListener('finalize:submit', (e) => {
     try { e.preventDefault && e.preventDefault(); } catch {}
     doConfirm();
   });
 
-  // CORRECTION: Reset complet incluant le cache d'upload
+  // Reset complet
   function resetModalState() {
-    // Reset du cache d'upload
     uploadedImageCache = null;
     
-    // Reset du file input
     if (fileInput) {
       fileInput.value = '';
       delete fileInput._cachedFile;
     }
     
-    // Supprimer l'indicateur de progress s'il existe
     const progressIndicator = document.querySelector('.upload-progress-mini');
     if (progressIndicator) progressIndicator.remove();
+
+    removePaypalContainer();
   }
 
-  // Écouter les événements d'ouverture/fermeture du modal
+  // Événements d'ouverture/fermeture du modal
   document.addEventListener('modal:opening', () => {
     resetModalState();
   });
@@ -604,5 +638,5 @@ console.log('[Upload] Client-side compression enabled - expect 70-90% file size 
     resetModalState();
   });
 
-  console.log('[Finalize] Upload optimization loaded - images upload in background');
+  console.log('[Finalize] Parallel optimization loaded - PayPal SDK + start-order in parallel');
 })();
