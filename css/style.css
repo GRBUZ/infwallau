@@ -835,26 +835,3 @@ body:not(.heavy-selection) .cell.sel::before {
   }
 }
 /* instruction selection */
-
-/*alignement cancel*/
-/* Fix: Aligner Cancel et PayPal côte à côte */
-.modal .footer {
-  display: flex;
-  justify-content: flex-end !important; /* Tout à droite */
-  align-items: center !important; /* Centré verticalement */
-  gap: 16px !important;
-  padding: 20px;
-}
-
-/* Cancel button plus compact */
-.modal .footer .btn:not(.primary) {
-  padding: 8px 18px;
-  align-self: center; /* Centré verticalement */
-}
-
-/* PayPal container compact */
-#paypal-button-container {
-  flex: 0 0 auto !important; /* Ne pas étirer */
-  max-width: 320px !important; /* Largeur fixe */
-}
-/*alignement cancel*/
