@@ -836,62 +836,39 @@ body:not(.heavy-selection) .cell.sel::before {
 }
 /* instruction selection */
 
-/*new patch paypal*/
-/* === PayPal wrapper & Cancel button (ajouté par assistant) === */
+/* Forcer l’empilement vertical de PayPal + Cancel */
 #paypal-button-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 14px;
+  gap: 16px;
   width: 100%;
-  max-width: 420px;
-  margin: 14px auto 0;
-  padding: 6px 12px;
-  box-sizing: border-box;
+  margin-top: 12px;
 }
 
-/* Conserver le container PayPal tel quel mais forcer la largeur max */
+/* Forcer le conteneur PayPal à prendre toute la largeur dispo */
 #paypal-button-container {
   width: 100%;
   max-width: 420px;
-  box-sizing: border-box;
-  display: block;
   margin: 0 auto;
-  min-height: 80px; /* évite jump visuel */
 }
 
-/* La zone interne où PayPal place ses boutons (déjà utilisée dans ton CSS) */
-.paypal-buttons-wrapper {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 12px !important;
-  align-items: stretch !important;
-}
-
-/* Bouton Cancel — style discret, centré sous PayPal (copie du style du modal pour cohérence) */
+/* Bouton Cancel sous PayPal */
 #paypal-cancel-btn {
-  background: #ffffff;
+  order: 2; /* toujours après PayPal */
+  background: #fff;
   color: #374151;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #d1d5db;
   border-radius: 12px;
-  padding: 10px 18px;
+  padding: 10px 20px;
   font-weight: 600;
   font-size: 15px;
   cursor: pointer;
+  width: auto;
   min-width: 160px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-  transition: transform .12s ease, background .12s ease;
+  text-align: center;
 }
 #paypal-cancel-btn:hover {
   background: #f9fafb;
-  transform: translateY(-2px);
 }
-
-/* Mobile tweaks */
-@media (max-width: 480px) {
-  #paypal-button-wrapper { padding: 8px; gap: 10px; max-width: 92%; }
-  #paypal-cancel-btn { min-width: 140px; font-size: 14px; padding: 9px 14px; }
-}
-
-/*new patch paypal*/
