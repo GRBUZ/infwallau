@@ -528,12 +528,39 @@ body:not(.heavy-selection) .cell.sel::before {
 }
 
 /* ====== RÉORGANISATION COMPLÈTE DE L'INTERFACE PAYPAL ====== */
-/*new paypal*/
-/* ====== PAYPAL MODAL - LAYOUT VERTICAL ====== */
+/* paypal claude new */
+/* ====== CLEAN PAYPAL MODAL LAYOUT ====== */
+/* ====== PAYPAL MODAL - VERSION SIMPLE ET ÉLÉGANTE ====== */
+/* ====== PAYPAL MODAL - VERSION SIMPLE ET ÉLÉGANTE ====== */
+/* ====== OPTION 1: DESIGN MODERNE AVEC HEADER INTÉGRÉ ====== */
 
-/* Footer en mode colonne (vertical) */
+
+
+/* Cancel button */
+.modal .footer .btn:not(.primary) {
+  padding: 10px 20px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #374151;
+  font-weight: 600;
+  font-size: 14px;
+  font-family: "Inter", sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal .footer .btn:not(.primary):hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+}
+/*new payal*/
+/* ====== PAYPAL MODAL - LAYOUT VERTICAL CORRECT ====== */
+
+/* Footer en mode colonne */
 .modal .footer {
-  display: flex;
+  display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
   gap: 16px !important;
@@ -542,121 +569,24 @@ body:not(.heavy-selection) .cell.sel::before {
   background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
 }
 
-/* Container PayPal centré et compact */
+/* PayPal container EN PREMIER (order: 1) */
 #paypal-button-container {
+  order: 1 !important;
   display: flex !important;
   flex-direction: column !important;
   gap: 0 !important;
   width: 100%;
   max-width: 300px !important;
-  margin: 0 auto !important;
+  margin: 0 !important;
   padding: 0 !important;
   background: none !important;
   border: none !important;
   position: relative;
 }
 
-/* Header au-dessus des boutons PayPal */
-#paypal-button-container::before {
-  content: "💳 Choose your payment method";
-  display: block;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border: 1px solid #e2e8f0;
-  border-radius: 8px 8px 0 0;
-  padding: 10px 14px;
-  font-family: "Inter", sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  color: #374151;
-  text-align: center;
-  margin-bottom: -1px;
-  transition: all 0.3s ease;
-}
-
-/* Cacher le header pendant loading */
-#paypal-button-container.loading::before {
-  display: none !important;
-}
-
-/* États du header */
-#paypal-button-container.active::before {
-  content: "💳 Choose your payment method";
-  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
-  border-color: #bbf7d0;
-  color: #166534;
-}
-
-#paypal-button-container.expired::before {
-  content: "⏰ Reservation expired — reselect";
-  background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
-  border-color: #fecaca;
-  color: #dc2626;
-}
-
-#paypal-button-container.cancelled::before {
-  content: "❌ Payment cancelled";
-  background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
-  border-color: #fecaca;
-  color: #dc2626;
-}
-
-#paypal-button-container.error::before {
-  content: "⚠️ Payment failed — try again";
-  background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
-  border-color: #fecaca;
-  color: #dc2626;
-}
-
-#paypal-button-container.processing::before {
-  content: "⏳ Processing payment…";
-  background: linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%);
-  border-color: #fed7aa;
-  color: #9a3412;
-}
-
-#paypal-button-container.pending::before {
-  content: "⌛ Payment recorded — finalizing…";
-  background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%);
-  border-color: #bfdbfe;
-  color: #1d4ed8;
-}
-
-#paypal-button-container.completed::before {
-  content: "✅ Payment completed";
-  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
-  border-color: #bbf7d0;
-  color: #166534;
-}
-
-/* Wrapper pour les boutons */
-.paypal-buttons-wrapper {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0 0 8px 8px;
-  padding: 10px;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-}
-
-/* Boutons PayPal réduits à 38px */
-#paypal-button-container .paypal-buttons-wrapper > div[data-funding-source] {
-  border-radius: 6px !important;
-  overflow: hidden !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
-  transition: all 0.2s ease !important;
-  height: 38px !important;
-  min-height: 38px !important;
-}
-
-#paypal-button-container .paypal-buttons-wrapper > div[data-funding-source]:hover {
-  transform: translateY(-1px) !important;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15) !important;
-}
-
-/* Cancel button centré en dessous */
+/* Cancel button EN DESSOUS (order: 2) */
 .modal .footer .btn:not(.primary) {
-  order: 2;
+  order: 2 !important;
   padding: 8px 20px;
   border: 2px solid #e5e7eb;
   border-radius: 12px;
@@ -676,22 +606,76 @@ body:not(.heavy-selection) .cell.sel::before {
   transform: translateY(-1px);
 }
 
-/* PayPal container en premier */
-#paypal-button-container {
-  order: 1;
+/* Header PayPal */
+#paypal-button-container::before {
+  content: "💳 Choose your payment method";
+  display: block;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px 8px 0 0;
+  padding: 8px 12px;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  text-align: center;
+  margin-bottom: -1px;
 }
 
-/* Disabled state */
-#paypal-button-container.expired .paypal-buttons-wrapper,
-#paypal-button-container.cancelled .paypal-buttons-wrapper,
-#paypal-button-container.error .paypal-buttons-wrapper {
-  pointer-events: none;
-  opacity: 0.6;
-  filter: grayscale(0.1);
+#paypal-button-container.loading::before {
+  display: none !important;
+}
+
+/* Wrapper boutons */
+.paypal-buttons-wrapper {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0 0 8px 8px;
+  padding: 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+
+/* RÉDUIRE les boutons PayPal à 36px */
+#paypal-button-container .paypal-buttons-wrapper > div[data-funding-source] {
+  border-radius: 6px !important;
+  overflow: hidden !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.2s ease !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+}
+
+#paypal-button-container .paypal-buttons-wrapper > div[data-funding-source]:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* États header (inchangés) */
+#paypal-button-container.processing::before {
+  content: "⏳ Processing payment…";
+  background: linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%);
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+
+#paypal-button-container.completed::before {
+  content: "✅ Payment completed";
+  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+#paypal-button-container.error::before,
+#paypal-button-container.cancelled::before {
+  content: "❌ Payment cancelled";
+  background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
+  border-color: #fecaca;
+  color: #dc2626;
 }
 /*new paypal*/
-
-
 
 /*warning message*/
 /* ====== MESSAGE D'AVERTISSEMENT SÉLECTION ====== */
