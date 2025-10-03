@@ -430,8 +430,8 @@
   // ========================================
   // 🆕 Afficher placeholder PayPal (spinner)
   // ========================================
-  function showPaypalPlaceholder() {
-    //if (confirmBtn) confirmBtn.style.display = 'none';
+  /*function showPaypalPlaceholder() {
+    if (confirmBtn) confirmBtn.style.display = 'none';
     
     const existing = document.getElementById('paypal-button-container');
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
@@ -466,8 +466,49 @@
     if (target) target.appendChild(container);
     
     return container;
+  }*/
+function showPaypalPlaceholder() {
+  if (confirmBtn) confirmBtn.style.display = 'none';
+  
+  const existing = document.getElementById('paypal-button-container');
+  if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+  const container = document.createElement('div');
+  container.id = 'paypal-button-container';
+  container.className = 'loading';
+  
+  // Spinner réduit
+  container.style.minHeight = '120px';
+  container.style.display = 'flex';
+  container.style.alignItems = 'center';
+  container.style.justifyContent = 'center';
+  
+  container.innerHTML = `
+    <div style="text-align:center;">
+      <div style="width:32px;height:32px;border:3px solid #f3f3f3;border-top:3px solid #0070ba;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 10px;"></div>
+      <p style="color:#666;font-size:13px;margin:0;">Preparing payment...</p>
+    </div>
+  `;
+
+  if (!document.getElementById('paypal-spinner-style')) {
+    const style = document.createElement('style');
+    style.id = 'paypal-spinner-style';
+    style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
+    document.head.appendChild(style);
   }
 
+  // CORRECTION : Insérer dans le footer au lieu du form/modal
+  const footer = modal?.querySelector('.footer') || document.querySelector('.modal .footer');
+  if (footer) {
+    footer.appendChild(container);
+  } else {
+    // Fallback si pas de footer trouvé
+    const target = form || modal;
+    if (target) target.appendChild(container);
+  }
+  
+  return container;
+}
 
   // ========================================
   // 🆕 Rendre les boutons PayPal

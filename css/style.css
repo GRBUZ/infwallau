@@ -836,39 +836,23 @@ body:not(.heavy-selection) .cell.sel::before {
 }
 /* instruction selection */
 
-/* Forcer l’empilement vertical de PayPal + Cancel */
-#paypal-button-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 16px;
-  width: 100%;
-  margin-top: 12px;
+.modal .footer {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 16px !important;
 }
 
-/* Forcer le conteneur PayPal à prendre toute la largeur dispo */
+.modal .footer .btn:not(.primary) {
+  order: 1 !important;
+}
+
 #paypal-button-container {
-  width: 100%;
-  max-width: 420px;
-  margin: 0 auto;
+  order: 2 !important;
+  max-width: 300px !important;
 }
 
-/* Bouton Cancel sous PayPal */
-#paypal-cancel-btn {
-  order: 2; /* toujours après PayPal */
-  background: #fff;
-  color: #374151;
-  border: 1px solid #d1d5db;
-  border-radius: 12px;
-  padding: 10px 20px;
-  font-weight: 600;
-  font-size: 15px;
-  cursor: pointer;
-  width: auto;
-  min-width: 160px;
-  text-align: center;
-}
-#paypal-cancel-btn:hover {
-  background: #f9fafb;
+#paypal-button-container .paypal-buttons-wrapper > div[data-funding-source] {
+  height: 36px !important;
+  min-height: 36px !important;
 }
