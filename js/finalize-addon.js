@@ -231,7 +231,7 @@
 
         const uploadResult = await window.UploadManager.uploadForRegion(fileToUpload, regionId);
         if (fileInput.dataset.selectionId !== selectionId) {
-          console.log('[Upload] Stale upload result, ignoring');
+          console.log('[Upload] Stale upload result, ignoring (new selection arrived)');
           return;
         }
 
@@ -285,7 +285,6 @@
     btnBusy(true);
 
     try {
-      // Vérifier les locks rapidement
       if (!haveMyValidLocks(blocks, 1000)) {
         await refreshStatus().catch(()=>{});
         uiWarn('Your reservation expired. Please reselect your pixels.');
@@ -294,11 +293,9 @@
         return;
       }
 
-      // 🎯 CHANGEMENT CRITIQUE 1: Afficher conteneur PayPal IMMÉDIATEMENT
       console.log('[Finalize] Showing PayPal placeholder immediately');
       const paypalContainer = showPaypalPlaceholder();
 
-      // 🎯 CHANGEMENT CRITIQUE 2: Lancer SDK + start-order EN PARALLÈLE
       console.log('[Finalize] Starting parallel: PayPal SDK + start-order');
       const startTime = performance.now();
 
@@ -311,7 +308,6 @@
       console.log(`[Finalize] Parallel execution completed in ${parallelTime}s`);
 
       if (!orderResult || !orderResult.success) {
-        // Erreur: nettoyer et réafficher confirm
         removePaypalContainer();
         btnBusy(false);
         if (orderResult && orderResult.error) {
@@ -323,7 +319,6 @@
         return;
       }
 
-      // ✅ Succès: Rendre les boutons PayPal (quasi-instantané)
       const { orderId, currency } = orderResult;
       console.log('[Finalize] Rendering PayPal buttons (SDK + order ready)');
       renderPaypalButtons(paypalContainer, orderId, currency);
@@ -344,7 +339,6 @@
   // ========================================
   async function finalizeOrder(name, linkUrl, blocks, imageCache) {
     try {
-      // Renouveler les locks
       if (window.LockManager) {
         try {
           console.log('[Finalize] Renewing locks');
@@ -374,7 +368,6 @@
 
       const { orderId, regionId, currency } = start;
 
-      // Étendre les locks avant PayPal
       if (window.LockManager) {
         try {
           await window.LockManager.lock(blocks, 180000, { optimistic: false });
@@ -396,13 +389,11 @@
   // 🆕 Assurer que le SDK PayPal est chargé
   // ========================================
   async function ensurePayPalSDKLoaded() {
-    // Si déjà chargé, retourner immédiatement
     if (window.paypal && window.paypal.Buttons) {
       console.log('[PayPal SDK] Already loaded');
       return true;
     }
 
-    // Si PayPalIntegration gère le chargement, attendre
     if (window.PayPalIntegration && typeof window.PayPalIntegration.ensureSDK === 'function') {
       console.log('[PayPal SDK] Loading via PayPalIntegration');
       try {
@@ -414,7 +405,6 @@
       }
     }
 
-    // Fallback: attendre que window.paypal soit disponible (max 5s)
     console.log('[PayPal SDK] Waiting for window.paypal');
     const timeout = 5000;
     const start = Date.now();
@@ -428,33 +418,51 @@
   }
 
   // ========================================
-  // 🆕 Afficher placeholder PayPal (spinner)
+  // 🆕 Afficher placeholder PayPal + wrapper CANCEL (modifié)
   // ========================================
-  /*function showPaypalPlaceholder() {
+  function showPaypalPlaceholder() {
     if (confirmBtn) confirmBtn.style.display = 'none';
     
-    const existing = document.getElementById('paypal-button-container');
-    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+    // remove existing wrapper if present
+    const oldWrapper = document.getElementById('paypal-button-wrapper');
+    if (oldWrapper && oldWrapper.parentNode) oldWrapper.parentNode.removeChild(oldWrapper);
 
+    // wrapper that centers PayPal & Cancel
+    const wrapper = document.createElement('div');
+    wrapper.id = 'paypal-button-wrapper';
+
+    // PayPal container (PayPalIntegration expects id 'paypal-button-container')
     const container = document.createElement('div');
     container.id = 'paypal-button-container';
     container.className = 'loading';
-    
-    // Ne pas forcer de styles inline - laisser le CSS existant gérer l'apparence
-    // Juste assurer une hauteur minimale pour éviter le jump visuel
     container.style.minHeight = '150px';
     container.style.display = 'flex';
     container.style.alignItems = 'center';
     container.style.justifyContent = 'center';
-    
     container.innerHTML = `
       <div style="text-align:center;">
         <div style="width:40px;height:40px;border:4px solid #f3f3f3;border-top:4px solid #0070ba;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px;"></div>
-        <p style="color:#666;font-size:14px;margin:0;">Preparing payment...</p>
+        <p style="color:#666;font-size:14px;margin:0;">Preparing payment…</p>
       </div>
     `;
 
-    // Ajouter animation spinner si pas déjà présent
+    // Cancel button under PayPal
+    const cancelBtn = document.createElement('button');
+    cancelBtn.id = 'paypal-cancel-btn';
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', async () => {
+      try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+      try { await unlockSelection(); } catch {}
+      removePaypalContainer();
+      if (confirmBtn) confirmBtn.style.display = '';
+    });
+
+    // append in order
+    wrapper.appendChild(container);
+    wrapper.appendChild(cancelBtn);
+
+    // ensure spinner animation style exists
     if (!document.getElementById('paypal-spinner-style')) {
       const style = document.createElement('style');
       style.id = 'paypal-spinner-style';
@@ -463,65 +471,13 @@
     }
 
     const target = form || modal;
-    if (target) target.appendChild(container);
-    
+    if (target) target.appendChild(wrapper);
+
     return container;
-  }*/
- function showPaypalPlaceholder() {
-  if (confirmBtn) confirmBtn.style.display = 'none';
-
-  // Supprimer ancien wrapper s'il existe
-  const oldWrapper = document.getElementById('paypal-button-wrapper');
-  if (oldWrapper) oldWrapper.remove();
-
-  // Nouveau wrapper
-  const wrapper = document.createElement('div');
-  wrapper.id = 'paypal-button-wrapper';
-
-  // Conteneur PayPal
-  const container = document.createElement('div');
-  container.id = 'paypal-button-container';
-  container.className = 'loading';
-  container.style.minHeight = '150px';
-
-  // Spinner en attendant
-  container.innerHTML = `
-    <div style="text-align:center;">
-      <div style="width:40px;height:40px;border:4px solid #f3f3f3;border-top:4px solid #0070ba;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px;"></div>
-      <p style="color:#666;font-size:14px;margin:0;">Preparing payment...</p>
-    </div>
-  `;
-
-  // Bouton Cancel
-  const cancelBtn = document.createElement('button');
-  cancelBtn.id = 'cancel-btn';
-  cancelBtn.textContent = 'Cancel';
-  cancelBtn.addEventListener('click', () => {
-    try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-    removePaypalContainer();
-    if (confirmBtn) confirmBtn.style.display = '';
-  });
-
-  wrapper.appendChild(container);
-  wrapper.appendChild(cancelBtn);
-
-  const target = form || modal;
-  if (target) target.appendChild(wrapper);
-
-  // Spinner animation si pas déjà présent
-  if (!document.getElementById('paypal-spinner-style')) {
-    const style = document.createElement('style');
-    style.id = 'paypal-spinner-style';
-    style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
-    document.head.appendChild(style);
   }
 
-  return container;
-}
-
-
   // ========================================
-  // 🆕 Rendre les boutons PayPal
+  // 🆕 Rendre les boutons PayPal (inchangé sauf qu'on s'attend au container dans le wrapper)
   // ========================================
   function renderPaypalButtons(container, orderId, currency) {
     if (!container) {
@@ -622,9 +578,13 @@
   // Fonctions utilitaires
   // ========================================
   function removePaypalContainer() {
-    const container = document.getElementById('paypal-button-container');
-    if (container && container.parentNode) {
-      container.parentNode.removeChild(container);
+    // remove wrapper first if exists
+    const wrapper = document.getElementById('paypal-button-wrapper');
+    if (wrapper && wrapper.parentNode) {
+      wrapper.parentNode.removeChild(wrapper);
+    } else {
+      const container = document.getElementById('paypal-button-container');
+      if (container && container.parentNode) container.parentNode.removeChild(container);
     }
     if (confirmBtn) confirmBtn.style.display = '';
   }
