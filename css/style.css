@@ -843,15 +843,18 @@ body:not(.heavy-selection) .cell.sel::before {
   gap: 16px !important;
 }
 
-.modal .footer .btn:not(.primary) {
-  order: 1 !important;
-}
-
+/* PayPal EN HAUT (order: 1) */
 #paypal-button-container {
-  order: 2 !important;
+  order: 1 !important;
   max-width: 300px !important;
 }
 
+/* Cancel EN BAS (order: 2) */
+.modal .footer .btn:not(.primary) {
+  order: 2 !important;
+}
+
+/* Réduire les boutons PayPal */
 #paypal-button-container .paypal-buttons-wrapper > div[data-funding-source] {
   height: 36px !important;
   min-height: 36px !important;
