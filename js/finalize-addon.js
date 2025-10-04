@@ -327,8 +327,9 @@
       const { orderId, currency } = orderResult;
       console.log('[Finalize] Rendering PayPal buttons (SDK + order ready)');
       // 🆕 TRANSFORMER LE MODAL EN MODE PAIEMENT
-      switchToPaymentView();
+      
       renderPaypalButtons(paypalContainer, orderId, currency);
+      switchToPaymentView();
 
     } catch (e) {
       console.error('[doConfirm] Error:', e);
