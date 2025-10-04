@@ -19,6 +19,7 @@
 
   let connectionQuality = 'unknown';
   let adaptiveTimeout = CORE_TIMEOUT_MS;
+  let avgResponseTime = 1000; // [PATCH] mesure moyenne mobile du RTT
 
   function detectConnectionQuality() {
     if (navigator.connection) {
@@ -28,13 +29,13 @@
       
       if (downlink > 2 || effectiveType.includes('4g')) {
         connectionQuality = 'fast';
-        adaptiveTimeout = CORE_TIMEOUT_MS * 0.8;
+        adaptiveTimeout = 12000;
       } else if (downlink > 0.5 || effectiveType.includes('3g')) {
         connectionQuality = 'slow';
-        adaptiveTimeout = CORE_TIMEOUT_MS * 1.5;
+        adaptiveTimeout = 25000;
       } else {
-        connectionQuality = 'offline';
-        adaptiveTimeout = CORE_TIMEOUT_MS;
+        connectionQuality = 'very-slow';
+        adaptiveTimeout = 40000;
       }
       
       console.log(`[CoreManager] Connection: ${connectionQuality} (${downlink}Mbps, ${effectiveType})`);
@@ -115,6 +116,7 @@
   function cm_backoff(attempt, connectionQuality = 'unknown'){
     let base = 300 * Math.pow(2, Math.max(0, attempt));
     if (connectionQuality === 'slow') base *= 2;
+    else if (connectionQuality === 'very-slow') base *= 3;
     else if (connectionQuality === 'fast') base *= 0.5;
     const jitter = Math.floor(Math.random() * 200);
     return new Promise(res => setTimeout(res, base + jitter));
@@ -230,12 +232,22 @@
       return headers;
     }
 
+    // [PATCH] timeout adaptatif selon latence
     async _fetchWithTimeout(url, config) {
-      if (!adaptiveTimeout) return fetch(url, config);
+      const dynamicTimeout = Math.min(Math.max(adaptiveTimeout, avgResponseTime * 5), 45000);
       const ctl = new AbortController();
-      const timeout = setTimeout(()=>ctl.abort(), adaptiveTimeout);
-      try { const res = await fetch(url, {...config, signal:ctl.signal}); clearTimeout(timeout); return res; }
-      catch(e){ clearTimeout(timeout); throw e; }
+      const timeout = setTimeout(()=>ctl.abort(), dynamicTimeout);
+      const start = performance.now();
+      try {
+        const res = await fetch(url, {...config, signal:ctl.signal});
+        const duration = performance.now() - start;
+        avgResponseTime = (avgResponseTime * 0.8) + (duration * 0.2);
+        clearTimeout(timeout);
+        return res;
+      } catch(e){
+        clearTimeout(timeout);
+        throw e;
+      }
     }
 
     async call(endpoint, options={}) {
@@ -250,7 +262,7 @@
       const url=`${this.BASE_URL}${endpoint}`;
       const headers=await this._buildHeaders(options);
       const baseConfig={...options,headers,credentials:'same-origin'};
-      let attempt=0,refreshedOnce=false;
+      let attempt=0;
       while(attempt<=Math.max(this.MAX_RETRIES,CORE_RETRIES)){
         try{
           const response=await this._fetchWithTimeout(url,baseConfig);
@@ -274,6 +286,7 @@
       } return null;
     }
 
+    // (reste inchangé)
     async callMultipart(endpoint, formData, options={}) {
       if (window.__OFFLINE || this.isOffline) {
         this.isOffline=true;
@@ -285,7 +298,7 @@
       const url=`${this.BASE_URL}${endpoint}`;
       const headers=await this._buildHeaders({...(options||{}),body:formData});
       const baseConfig={method:'POST',body:formData,headers,credentials:'same-origin',...options};
-      let attempt=0,refreshedOnce=false;
+      let attempt=0;
       while(attempt<=Math.max(this.MAX_RETRIES,CORE_RETRIES)){
         try{
           const response=await this._fetchWithTimeout(url,baseConfig);
@@ -331,7 +344,7 @@
     }
 
     clearCache(){ requestCache.clear(); console.log('[CoreManager] Cache cleared'); }
-    getStats(){ return {...this.stats, cacheSize:requestCache.size, cacheHitRate:this.stats.requests>0?(this.stats.cacheHits/this.stats.requests*100).toFixed(1)+'%':'0%', connectionQuality, adaptiveTimeout}; }
+    getStats(){ return {...this.stats, cacheSize:requestCache.size, cacheHitRate:this.stats.requests>0?(this.stats.cacheHits/this.stats.requests*100).toFixed(1)+'%':'0%', connectionQuality, adaptiveTimeout, avgResponseTime:avgResponseTime.toFixed(0)+'ms'}; }
   }
 
   const uidManager = new UIDManager();
@@ -352,16 +365,57 @@
   window.apiCallMultipart = window.CoreManager.apiCallMultipart;
   window.apiCallRaw = window.CoreManager.apiCallRaw;
 
-  setInterval(()=>{ if(requestCache.size>30){ const now=Date.now(); for(const [key,cached] of requestCache.entries()){ const endpoint=key.split(':')[1]; const ttl=CACHE_TTL[endpoint]||5000; if(now-cached.timestamp>ttl) requestCache.delete(key); } } },30000);
+  //patch pause status
+    // [PATCH] Pause automatique du polling /status pendant les transactions ou uploads
+  const originalApiCall = window.CoreManager.apiCall;
+  const originalMultipart = window.CoreManager.apiCallMultipart;
 
-  if(typeof performance!=='undefined'){ setInterval(()=>{ const stats=apiManager.getStats(); if(stats.requests>0){ console.log(`[CoreManager] Stats - Requests: ${stats.requests}, Cache hits: ${stats.cacheHitRate}, Avg response: ${stats.avgResponseTime.toFixed(1)}ms`); } },60000); }
-
-  function preloadCriticalEndpoints() {
-    const statusCached=getCachedResponse('/status');
-    if(!statusCached){ apiManager.call('/status').catch(()=>{}); }
+  let statusPollingPaused = false;
+  function pauseStatusPolling(why) {
+    if (statusPollingPaused) return;
+    statusPollingPaused = true;
+    console.log(`[CoreManager] ⏸️ Polling /status paused (${why})`);
+  }
+  function resumeStatusPolling(why) {
+    if (!statusPollingPaused) return;
+    statusPollingPaused = false;
+    console.log(`[CoreManager] ▶️ Polling /status resumed (${why})`);
   }
 
-  if(typeof window!=='undefined'){ window.__debugCoreManager={ getCache:()=>Array.from(requestCache.entries()), clearCache:()=>apiManager.clearCache(), getStats:()=>apiManager.getStats(), getConnectionQuality:()=>({quality:connectionQuality,adaptiveTimeout}), forceConnectionTest:()=>detectConnectionQuality() }; }
+  // Wrapper intelligent
+  window.CoreManager.apiCall = async (endpoint, options) => {
+    if (endpoint === '/status' && statusPollingPaused) {
+      // Ne pas spammer quand on est en transaction
+      return null;
+    }
 
+    if (endpoint.includes('order') || endpoint.includes('upload') || endpoint.includes('paypal')) {
+      pauseStatusPolling(endpoint);
+      try {
+        const res = await originalApiCall(endpoint, options);
+        resumeStatusPolling(endpoint);
+        return res;
+      } catch (e) {
+        resumeStatusPolling(endpoint);
+        throw e;
+      }
+    }
+
+    return await originalApiCall(endpoint, options);
+  };
+
+  window.CoreManager.apiCallMultipart = async (endpoint, formData, options) => {
+    pauseStatusPolling('upload');
+    try {
+      const res = await originalMultipart(endpoint, formData, options);
+      resumeStatusPolling('upload');
+      return res;
+    } catch (e) {
+      resumeStatusPolling('upload');
+      throw e;
+    }
+  };
+
+  //patch pause status
   console.log('[CoreManager] Optimized version initialized with UID:', uidManager.uid);
 })();
