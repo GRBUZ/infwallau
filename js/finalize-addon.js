@@ -86,7 +86,7 @@
     return !!(name && link && uploadedImageCache && blocks.length);
   }
 
-  function checkFormReady() {
+  /*function checkFormReady() {
   const ready = isFormValid();
   if (!paypalContainer) return;
 
@@ -104,7 +104,15 @@
       b.style.pointerEvents = ready ? '' : 'none';
     } catch {}
   });
+}*/
+function checkFormReady() {
+  const ready = isFormValid();
+  const container = document.getElementById('paypal-button-container');
+  if (!container) return; // ✅ éviter l’erreur si le container n’est pas encore rendu
+  const btns = container.querySelectorAll('button');
+  btns.forEach(b => b.disabled = !ready);
 }
+
 
   form?.addEventListener('input', checkFormReady);
 
@@ -173,6 +181,7 @@
         uiWarn('Payment cancelled.');
       }
     });
+    setTimeout(checkFormReady, 1000);
   }
 
   // ======================================================
