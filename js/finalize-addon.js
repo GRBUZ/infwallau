@@ -499,6 +499,13 @@ function switchToPaymentView() {
   const blocks = getSelectedIndices();
   const selectedPixels = blocks.length * 100;
 
+  const paypalContainer = document.getElementById('paypal-button-container');
+
+  // ⚙️ Si le container est encore dans le form, on le déplace avant de cacher le form
+  if (paypalContainer && form && form.contains(paypalContainer)) {
+    form.parentNode.appendChild(paypalContainer);
+  }
+
   // Cacher le formulaire
   if (form) form.style.display = 'none';
 
@@ -548,6 +555,7 @@ function switchToPaymentView() {
       editBtn.style.background = 'none';
     });
   }
+  console.log('[switchToPaymentView] Payment view active');
 }
 //new fonction resume
   // ========================================
