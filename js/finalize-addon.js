@@ -87,11 +87,24 @@
   }
 
   function checkFormReady() {
-    const ready = isFormValid();
-    const btns = paypalContainer?.querySelectorAll('button');
-    if (!btns) return;
-    btns.forEach(b => b.disabled = !ready);
+  const ready = isFormValid();
+  if (!paypalContainer) return;
+
+  const btns = paypalContainer.querySelectorAll('button');
+  if (!btns || !btns.length) {
+    // Retry un peu plus tard car PayPal peut injecter ses boutons avec un léger délai
+    setTimeout(checkFormReady, 500);
+    return;
   }
+
+  btns.forEach(b => {
+    try {
+      b.disabled = !ready;
+      b.style.opacity = ready ? '' : '0.5';
+      b.style.pointerEvents = ready ? '' : 'none';
+    } catch {}
+  });
+}
 
   form?.addEventListener('input', checkFormReady);
 
