@@ -1,13 +1,14 @@
-// /js/paypal-integration.js — Optimized for Option 2 (inline PayPal in modal)
+// /js/paypal-integration.js — Option 2 compatible avec orderBuilder (inline PayPal)
 (function (w) {
   'use strict';
 
   let sdkPromise = null;
   let sdkLoadedClientId = null;
 
-  // 🚀 NOUVEAU : préchargement parallèle du SDK PayPal
+  // ======================================================
+  // SDK LOADING
+  // ======================================================
   function ensureSDK(clientId = null, currency = 'USD') {
-    // Si déjà chargé avec le bon clientId → retour immédiat
     if (w.paypal && w.paypal.Buttons) {
       const cid = clientId || w.PAYPAL_CLIENT_ID;
       if (!sdkLoadedClientId || sdkLoadedClientId === cid) {
@@ -24,15 +25,8 @@
   }
 
   function loadPayPalSdk(clientId, currency = 'USD') {
-    // Si déjà chargé → pas besoin de recharger
-    if (w.paypal && sdkLoadedClientId === clientId) {
-      return Promise.resolve();
-    }
-
-    // Si un chargement est déjà en cours → réutiliser la promesse
-    if (sdkPromise) {
-      return sdkPromise;
-    }
+    if (w.paypal && sdkLoadedClientId === clientId) return Promise.resolve();
+    if (sdkPromise) return sdkPromise;
 
     console.log('[PayPal SDK] Loading with clientId:', clientId.slice(0, 10) + '...');
 
@@ -45,7 +39,6 @@
         console.log('[PayPal SDK] Loaded successfully');
         resolve();
       };
-
       s.onerror = () => {
         sdkPromise = null;
         const err = new Error('PAYPAL_SDK_LOAD_FAILED');
@@ -59,7 +52,9 @@
     return sdkPromise;
   }
 
-  // --- Récupération du token pour les appels directs
+  // ======================================================
+  // UTILS
+  // ======================================================
   function getAuthToken() {
     try {
       if (typeof w.CoreManager?.getToken === 'function') return w.CoreManager.getToken() || '';
@@ -76,64 +71,34 @@
     catch { return { ok: false, error: 'SERVER_HTML_ERROR', message: text.slice(0, 4000) }; }
   }
 
-  // --- Initialisation et rendu des boutons PayPal ---
-  async function initAndRender({ orderId, currency = 'USD', onApproved, onCancel, onError } = {}) {
+  // ======================================================
+  // MAIN ENTRYPOINT
+  // ======================================================
+  async function initAndRender({
+    container,
+    orderId,
+    orderBuilder,
+    currency = 'USD',
+    onApproved,
+    onCancel,
+    onError
+  } = {}) {
     try {
       const clientId = w.PAYPAL_CLIENT_ID;
       if (!clientId) throw new Error('MISSING_PAYPAL_CLIENT_ID');
-      if (!orderId) throw new Error('MISSING_ORDER_ID');
-
-      console.log('[PayPal] Initializing buttons for order:', orderId);
       await loadPayPalSdk(clientId, currency);
 
-      const containerId = 'paypal-button-container';
-      const container = document.getElementById(containerId);
-
-      // ⚠️ OPTION 2 : le conteneur existe déjà dans le modal
-      if (!container) {
-        console.warn('[PayPal] Expected existing #paypal-button-container');
-        return;
-      }
-      container.innerHTML = '';
-
-      // --- Création d’ordre côté serveur ---
+      // --- Dynamic order creation (Option 2)
       const createOrder = async () => {
-        console.log('[PayPal] Creating PayPal order for orderId:', orderId);
-        const body = JSON.stringify({ orderId, currency });
-
         try {
-          if (w.CoreManager?.apiCall) {
-            const res = await w.CoreManager.apiCall('/paypal-create-order', {
-              method: 'POST',
-              body
-            });
-            const data = (res && typeof res.json === 'function') ? await res.json() : res;
-            const paypalId = data?.id || data?.paypalOrderId;
-            if (!paypalId) throw new Error(data?.error || 'PAYPAL_CREATE_FAILED');
-            console.log('[PayPal] PayPal order created:', paypalId);
-            return paypalId;
+          if (typeof orderBuilder === 'function') {
+            const id = await orderBuilder();
+            if (!id) throw new Error('ORDER_BUILDER_RETURNED_NULL');
+            console.log('[PayPalIntegration] Dynamic order created:', id);
+            return id;
           }
-
-          // Fallback : requête directe
-          const headers = { 'Content-Type': 'application/json' };
-          const token = getAuthToken();
-          if (token) headers['Authorization'] = `Bearer ${token}`;
-
-          const resp = await fetch('/.netlify/functions/paypal-create-order', {
-            method: 'POST',
-            headers,
-            body,
-            credentials: 'same-origin'
-          });
-
-          const j = await readJsonSafe(resp);
-          if (!resp.ok) throw new Error(j?.error || j?.message || 'PAYPAL_CREATE_FAILED');
-          const paypalId = j?.id || j?.paypalOrderId;
-          if (!paypalId) throw new Error('PAYPAL_CREATE_FAILED');
-
-          console.log('[PayPal] PayPal order created:', paypalId);
-          return paypalId;
-
+          if (!orderId) throw new Error('MISSING_ORDER_ID');
+          return orderId;
         } catch (e) {
           console.error('[PayPalIntegration] createOrder failed:', e);
           onError?.(e);
@@ -141,52 +106,23 @@
         }
       };
 
-      // --- Capture après validation ---
-      const onApprove = async (data, actions) => {
-        try {
-          console.log('[PayPal] Payment approved, paypalOrderId:', data.orderID);
-
-          if (typeof onApproved === 'function') {
-            await onApproved(data, actions);
-          } else {
-            const headers = { 'Content-Type': 'application/json' };
-            const token = getAuthToken();
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
-            const resp = await fetch('/.netlify/functions/paypal-capture-finalize', {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({ orderId, paypalOrderId: data?.orderID }),
-              credentials: 'same-origin'
-            });
-
-            const j = await readJsonSafe(resp);
-            if (!resp.ok || !j?.ok) throw new Error(j?.error || 'FINALIZE_FAILED');
-
-            console.log('[PayPal] Finalization completed successfully');
-          }
-        } catch (e) {
-          console.error('[PayPalIntegration] onApprove failed:', e);
-          onError?.(e);
-          throw e;
-        }
-      };
-
-      const onCancelCb = () => {
-        console.log('[PayPal] Payment cancelled by user');
-        onCancel?.();
-      };
-
-      const onErrorCb = (err) => {
-        console.error('[PayPal] Payment error:', err);
-        onError?.(err);
-      };
+      // --- Find or create container ---
+      const containerId = container?.id || 'paypal-button-container';
+      let containerEl = container || document.getElementById(containerId);
+      if (!containerEl) {
+        console.warn('[PayPal] Expected #paypal-button-container, creating one');
+        containerEl = document.createElement('div');
+        containerEl.id = containerId;
+        document.body.appendChild(containerEl);
+      } else {
+        containerEl.innerHTML = '';
+      }
 
       if (!w.paypal || !w.paypal.Buttons) {
         throw new Error('PAYPAL_SDK_NOT_LOADED');
       }
 
-      console.log('[PayPal] Rendering buttons');
+      console.log('[PayPal] Rendering buttons...');
 
       w.paypal.Buttons({
         style: {
@@ -196,13 +132,25 @@
           label: 'paypal'
         },
         createOrder,
-        onApprove,
-        onCancel: onCancelCb,
-        onError: onErrorCb
+        onApprove: async (data, actions) => {
+          try {
+            console.log('[PayPal] Payment approved:', data);
+            if (typeof onApproved === 'function') await onApproved(data, actions);
+          } catch (e) {
+            onError?.(e);
+          }
+        },
+        onCancel: () => {
+          console.log('[PayPal] Payment cancelled');
+          onCancel?.();
+        },
+        onError: (err) => {
+          console.error('[PayPal] Payment error:', err);
+          onError?.(err);
+        }
       }).render('#' + containerId);
 
-      console.log('[PayPal] Buttons rendered successfully');
-
+      console.log('[PayPalIntegration] Buttons rendered successfully');
     } catch (err) {
       console.error('[PayPalIntegration] initAndRender failed:', err);
       onError?.(err);
@@ -210,7 +158,9 @@
     }
   }
 
-  // --- Helper global : activer / désactiver le conteneur PayPal ---
+  // ======================================================
+  // EXPORTS
+  // ======================================================
   w.PayPalIntegration = {
     initAndRender,
     ensureSDK,
@@ -224,6 +174,5 @@
     }
   };
 
-  console.log('[PayPalIntegration] Module ready (Option 2 optimized)');
-
+  console.log('[PayPalIntegration] Module ready (Option 2 patched)');
 })(window);
