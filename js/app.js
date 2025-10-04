@@ -381,114 +381,29 @@
     c.setAttribute('aria-disabled', enabled ? 'false' : 'true');
     setPayPalHeaderState(enabled ? 'active' : 'expired');
   }*/
+ //new
+ function setPayPalEnabled(enabled){
+  // On garde l’état désiré
+  const ok = !!enabled;
+  setPayPalHeaderState(ok ? 'active' : 'expired');
 
- //new expir
- // ---------- Remplacer la fonction setPayPalEnabled par ce bloc ----------
+  // Cibler le wrapper fixe (footer du modal)
+  const footer = modal.querySelector('.footer');
+  if (footer) {
+    footer.style.pointerEvents = ok ? '' : 'none';
+    footer.style.opacity = ok ? '' : '0.45';
+  }
 
-// variable dans la closure de app.js pour garder l'état désiré
-let __desiredPayPalEnabled = true;
-
-function applyPayPalEnabledState(enabled) {
-  __desiredPayPalEnabled = !!enabled;
-
-  // Récupérer containers connus (idéalement #paypal-button-container)
-  const containers = [];
+  // Fallback : si jamais un conteneur PayPal existe, on le grise aussi
   const c = document.getElementById('paypal-button-container');
-  if (c) containers.push(c);
-
-  // autres wrappers possibles
-  document.querySelectorAll('.paypal-buttons, .paypal-button-container, [data-paypal-container]').forEach(el => {
-    if (el && !containers.includes(el)) containers.push(el);
-  });
-
-  // Appliquer l'état à chaque container trouvé
-  containers.forEach(container => {
-    try {
-      container.style.pointerEvents = enabled ? '' : 'none';
-      container.style.opacity = enabled ? '' : '0.45';
-      container.setAttribute('aria-disabled', enabled ? 'false' : 'true');
-
-      // désactiver wrappers internes (PayPal injecte souvent <div data-funding-source="...">)
-      container.querySelectorAll('div[data-funding-source], div[role="button"]').forEach(w => {
-        try {
-          w.style.pointerEvents = enabled ? '' : 'none';
-          w.style.opacity = enabled ? '' : '0.45';
-          w.setAttribute('aria-disabled', enabled ? 'false' : 'true');
-        } catch (_) {}
-      });
-    } catch (err) {
-      console.warn('[PayPal] Failed to apply state on container', err);
-    }
-  });
-
-  // Fallback si aucun container n'existe : désactiver / mettre texte sur confirm (optionnel)
-  if (!containers.length) {
-    const confirmBtn = document.getElementById('confirm');
-    if (confirmBtn) {
-      confirmBtn.disabled = !enabled;
-      if (!enabled) {
-        confirmBtn.dataset._origText = confirmBtn.dataset._origText || confirmBtn.textContent;
-        confirmBtn.textContent = '⏰ Reservation expired — reselect';
-      } else if (confirmBtn.dataset._origText) {
-        confirmBtn.textContent = confirmBtn.dataset._origText;
-        delete confirmBtn.dataset._origText;
-      }
-    }
+  if (c) {
+    c.style.pointerEvents = ok ? '' : 'none';
+    c.style.opacity = ok ? '' : '0.45';
+    c.setAttribute('aria-disabled', ok ? 'false' : 'true');
   }
 }
 
-function setPayPalEnabled(enabled){
-  applyPayPalEnabledState(!!enabled);
-  setPayPalHeaderState(enabled ? 'active' : 'expired');
-}
-
-// ---------- MutationObserver léger et idempotent pour ré-appliquer l'état si PayPal re-render ----------
-
-if (!window.__payPalObserverInstalled) {
-  window.__payPalObserverInstalled = true;
-
-  (function setupPayPalObserver(){
-    let debounceTimer = null;
-    const apply = () => applyPayPalEnabledState(__desiredPayPalEnabled);
-
-    const mo = new MutationObserver((mutations) => {
-      for (const m of mutations) {
-        // si on voit un nouveau node ajouté qui contient le container, on réapplique
-        if (m.addedNodes && m.addedNodes.length) {
-          for (const n of m.addedNodes) {
-            if (n && n.nodeType === 1) {
-              if (n.id === 'paypal-button-container' || n.querySelector && n.querySelector('#paypal-button-container')) {
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(apply, 60);
-                return;
-              }
-            }
-          }
-        }
-        // si attributs modifiés sur le container
-        if (m.type === 'attributes' && m.target && (m.target.id === 'paypal-button-container' || m.target.matches && m.target.matches('.paypal-button-container'))) {
-          clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(apply, 40);
-          return;
-        }
-      }
-    });
-
-    try {
-      mo.observe(document.body || document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'id'] });
-    } catch (e) {
-      // fallback périodique très léger si observe échoue
-      setInterval(() => applyPayPalEnabledState(__desiredPayPalEnabled), 1500);
-    }
-
-    // appliquer au démarrage (petit délai pour laisser PayPal s'initialiser si déjà en train)
-    setTimeout(() => applyPayPalEnabledState(__desiredPayPalEnabled), 200);
-  })();
-}
-
- //new expir
-
-
+ //new
 
   function haveMyValidLocks(arr, graceMs = 2000){
     if (!arr || !arr.length) return false;
