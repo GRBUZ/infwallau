@@ -893,7 +893,7 @@ body:not(.heavy-selection) .cell.sel::before {
 
 /* Nombre de pixels - même style que titre */
 .modal .header .pixels {
-  font-size: 18px;       /* 🔥 harmonisé */
+  font-size: 16px;       /* 🔥 harmonisé */
   font-weight: 700;
   color: #8b5cf6;
   font-family: "Inter", sans-serif;
@@ -901,7 +901,7 @@ body:not(.heavy-selection) .cell.sel::before {
 
 /* Montant $ - même taille mais gras + gradient */
 .modal .header .amount {
-  font-size: 18px;       /* 🔥 harmonisé */
+  font-size: 16px;       /* 🔥 harmonisé */
   font-weight: 700;
   color: #111827;
   font-family: "Inter", sans-serif;

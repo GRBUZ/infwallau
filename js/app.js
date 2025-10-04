@@ -458,7 +458,7 @@
       confirmBtn.disabled = true;
     }*/
    if (Number.isFinite(total)) {
-  modalStats.innerHTML = `<span class="pixels">${formatInt(selectedPixels)} px</span><span class="amount">${formatMoney(total)}</span>`;
+  modalStats.innerHTML = `<span class="pixels">${formatInt(selectedPixels)} px - </span><span class="amount">${formatMoney(total)}</span>`;
   confirmBtn.disabled = false;
 } else {
   modalStats.innerHTML = `<span class="pixels">${formatInt(selectedPixels)} px</span><span class="amount">price pending…</span>`;

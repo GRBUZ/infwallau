@@ -528,7 +528,10 @@ function showPaypalPlaceholder() {
   // NE PAS supprimer toutes les classes, juste 'loading'
   container.classList.remove('loading');
   // CORRECTION : Ajouter la classe 'active' par défaut
-  container.className = 'active';
+  //container.className = 'active';
+  //new
+  container.classList.add('active');
+  //new
 
     if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
       uiWarn('Payment: missing PayPal configuration');
@@ -637,11 +640,24 @@ function showPaypalPlaceholder() {
     return true;
   }
 
-  function setPayPalHeaderState(state){
+  /*function setPayPalHeaderState(state){
     const el = document.getElementById('paypal-button-container');
     if (!el) return;
     el.className = String(state || '').trim();
-  }
+  }*/
+
+  //new
+  // Remplace l'ancienne implémentation
+function setPayPalHeaderState(state){
+  const el = document.getElementById('paypal-button-container');
+  if (!el) return;
+  // liste complète des états que l'on utilise dans le CSS
+  const STATES = ['loading','active','expired','processing','pending','completed','cancelled','error'];
+  el.classList.remove(...STATES);
+  if (state) el.classList.add(String(state).trim());
+}
+
+  //new
 
   async function waitForCompleted(orderId, maxSeconds = 120) {
     const maxAttempts = 12;
@@ -695,7 +711,7 @@ function showPaypalPlaceholder() {
   });
 
   //new
-  
+
   //new
   console.log('[Finalize] Parallel optimization loaded - PayPal SDK + start-order in parallel');
 })();
