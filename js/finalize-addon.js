@@ -326,6 +326,8 @@
       // ✅ Succès: Rendre les boutons PayPal (quasi-instantané)
       const { orderId, currency } = orderResult;
       console.log('[Finalize] Rendering PayPal buttons (SDK + order ready)');
+      // 🆕 TRANSFORMER LE MODAL EN MODE PAIEMENT
+      switchToPaymentView();
       renderPaypalButtons(paypalContainer, orderId, currency);
 
     } catch (e) {
@@ -510,6 +512,69 @@ function showPaypalPlaceholder() {
   return container;
 }
 
+//new fonction resume
+// Transformer le modal en mode "paiement" avec résumé
+function switchToPaymentView() {
+  const modalBody = modal?.querySelector('.body') || document.querySelector('.modal .body');
+  if (!modalBody) return;
+
+  // Récupérer les valeurs du formulaire
+  const name = (nameInput?.value || '').trim();
+  const linkUrl = (linkInput?.value || '').trim();
+  const blocks = getSelectedIndices();
+  const selectedPixels = blocks.length * 100;
+
+  // Cacher le formulaire
+  if (form) form.style.display = 'none';
+
+  // Créer un résumé compact
+  const summary = document.createElement('div');
+  summary.id = 'order-summary';
+  summary.style.cssText = 'padding:16px 20px;background:#f9fafb;border-radius:12px;margin-bottom:20px;';
+  summary.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <span style="font-weight:600;color:#374151;font-size:14px;">Your order</span>
+      <button id="editOrder" style="background:none;border:none;color:#8b5cf6;font-size:13px;font-weight:600;cursor:pointer;padding:4px 8px;border-radius:6px;transition:all 0.2s;">Edit</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#6b7280;">
+      <div style="display:flex;justify-content:space-between;">
+        <span>Pseudo:</span>
+        <span style="font-weight:600;color:#111827;">${name}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;">
+        <span>Profile:</span>
+        <span style="font-weight:600;color:#111827;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${linkUrl}">${linkUrl}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;">
+        <span>Pixels:</span>
+        <span style="font-weight:600;color:#8b5cf6;">${selectedPixels} px</span>
+      </div>
+    </div>
+  `;
+
+  modalBody.insertBefore(summary, modalBody.firstChild);
+
+  // Bouton "Edit" pour revenir au formulaire
+  const editBtn = summary.querySelector('#editOrder');
+  if (editBtn) {
+    editBtn.addEventListener('click', () => {
+      if (form) form.style.display = '';
+      summary.remove();
+      removePaypalContainer();
+      btnBusy(false);
+      if (confirmBtn) confirmBtn.style.display = '';
+    });
+
+    // Hover effect
+    editBtn.addEventListener('mouseenter', () => {
+      editBtn.style.background = '#f3f4f6';
+    });
+    editBtn.addEventListener('mouseleave', () => {
+      editBtn.style.background = 'none';
+    });
+  }
+}
+//new fonction resume
   // ========================================
   // 🆕 Rendre les boutons PayPal
   // ========================================
