@@ -27,12 +27,7 @@
   const linkInput = document.getElementById('link');
   const nameInput = document.getElementById('name');
   const emailInput = document.getElementById('email');
-  const confirmBtn = document.getElementById('confirm'); // deprecated (Option 2)
-const paypalPlaceholder = document.createElement('div');
-paypalPlaceholder.id = 'paypal-button-container';
-paypalPlaceholder.style.minHeight = '120px';
-paypalPlaceholder.style.marginTop = '12px';
-
+  const confirmBtn = document.getElementById('confirm');
   const modalStats = document.getElementById('modalStats');
   const selectionGuide = document.getElementById('selectionGuide');
 
@@ -441,7 +436,6 @@ paypalPlaceholder.style.marginTop = '12px';
   
   function openModal(){
     resetModalAppState();
-    if (confirmBtn) confirmBtn.style.display = 'none';
 
     document.dispatchEvent(new CustomEvent('modal:opening'));
     modal.classList.remove('hidden');
@@ -484,28 +478,10 @@ paypalPlaceholder.style.marginTop = '12px';
       window.LockManager.heartbeat.stop();
     }
 
-    // OPTION 2: Inject PayPal container directly
-const footer = modal.querySelector('.footer');
-if (footer && !footer.querySelector('#paypal-button-container')) {
-  footer.appendChild(paypalPlaceholder);
-}
-
-if (window.PayPalIntegration && window.PayPalIntegration.initAndRender) {
-  const fakeOrderId = 'TEMP-' + Math.random().toString(36).slice(2);
-  window.PayPalIntegration.initAndRender({
-    orderId: fakeOrderId,
-    currency: 'USD',
-    onApproved: async () => { console.log('[PayPal] approved'); },
-    onCancel: () => { console.log('[PayPal] cancelled'); },
-    onError: (err) => console.error('[PayPal] error', err)
-  });
-}
-
     startModalMonitor();
   }
 
   function closeModal(){
-    if (confirmBtn) confirmBtn.style.display = '';
     document.dispatchEvent(new CustomEvent('modal:closing'));
     modal.classList.add('hidden');
     window.LockManager.heartbeat.stop();
@@ -597,7 +573,7 @@ if (window.PayPalIntegration && window.PayPalIntegration.initAndRender) {
     }
   });
 
-  /*form.addEventListener('submit', async (e)=>{
+  form.addEventListener('submit', async (e)=>{
     e.preventDefault();
 
     const blocks = currentLock.length ? currentLock.slice() : Array.from(selected);
@@ -612,7 +588,7 @@ if (window.PayPalIntegration && window.PayPalIntegration.initAndRender) {
     }
 
     document.dispatchEvent(new CustomEvent('finalize:submit'));
-  });*/
+  });
 
   function rectFromIndices(arr){
     if (!arr || !arr.length) return null;
