@@ -373,14 +373,33 @@
     }
   }
  
-  function setPayPalEnabled(enabled){
+  /*function setPayPalEnabled(enabled){
     const c = document.getElementById('paypal-button-container');
     if (!c) return;
     c.style.pointerEvents = enabled ? '' : 'none';
     c.style.opacity = enabled ? '' : '0.45';
     c.setAttribute('aria-disabled', enabled ? 'false' : 'true');
     setPayPalHeaderState(enabled ? 'active' : 'expired');
+  }*/
+ function setPayPalEnabled(enabled){
+  // cibler le container si dispo
+  const c = document.getElementById('paypal-button-container');
+  if (c) {
+    c.style.pointerEvents = enabled ? '' : 'none';
+    c.style.opacity = enabled ? '' : '0.45';
+    c.setAttribute('aria-disabled', enabled ? 'false' : 'true');
   }
+
+  // cibler directement les boutons PayPal rendus
+  document.querySelectorAll('.paypal-button, .paypal-button-card').forEach(btn => {
+    btn.style.pointerEvents = enabled ? '' : 'none';
+    btn.style.opacity = enabled ? '' : '0.45';
+    btn.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  });
+
+  setPayPalHeaderState(enabled ? 'active' : 'expired');
+}
+
 
   function haveMyValidLocks(arr, graceMs = 2000){
     if (!arr || !arr.length) return false;
