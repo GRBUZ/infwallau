@@ -382,24 +382,105 @@
     setPayPalHeaderState(enabled ? 'active' : 'expired');
   }*/
 
-    function setPayPalEnabled(enabled){
+ //new expir
+ // -------------------------
+// PayPal enable/disable helper (robuste face aux re-renders du SDK)
+// -------------------------
+window.__desiredPayPalEnabled = true; // état désiré global (par défaut true)
+
+function applyPayPalEnabledState(enabled) {
+  // garder l'état désiré
+  window.__desiredPayPalEnabled = !!enabled;
+
+  // cible principale : #paypal-button-container (créé par paypal-integration)
+  const containers = [];
   const c = document.getElementById('paypal-button-container');
-  if (c) {
-    // Désactiver tout le conteneur
-    c.style.pointerEvents = enabled ? '' : 'none';
-    c.style.opacity = enabled ? '' : '0.45';
-    c.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+  if (c) containers.push(c);
 
-    // Désactiver chaque "funding source" (paypal, card…)
-    c.querySelectorAll('div[data-funding-source]').forEach(el => {
-      el.style.pointerEvents = enabled ? '' : 'none';
-      el.style.opacity = enabled ? '' : '0.45';
-      el.setAttribute('aria-disabled', enabled ? 'false' : 'true');
-    });
+  // parfois d'autres wrappers existent ; tenter de les attraper aussi
+  document.querySelectorAll('.paypal-buttons, .paypal-button-container, '[data-paypal-container]').forEach(el => {
+    if (el && !containers.includes(el)) containers.push(el);
+  });
+
+  // Appliquer l'état sur chaque container trouvé
+  containers.forEach(container => {
+    try {
+      container.style.pointerEvents = enabled ? '' : 'none';
+      container.style.opacity = enabled ? '' : '0.45';
+      container.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+
+      // désactiver aussi les wrappers internes (PayPal injecte souvent <div data-funding-source="...">)
+      container.querySelectorAll('div[data-funding-source], div[role="button"]').forEach(w => {
+        w.style.pointerEvents = enabled ? '' : 'none';
+        w.style.opacity = enabled ? '' : '0.45';
+        w.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+      });
+    } catch (err) {
+      // ne pas faire planter l'app si un container est spécial
+      console.warn('[PayPal] apply state failed for container', err);
+    }
+  });
+
+  // fallback visuel si aucun container trouvé (utile si confirm button existait)
+  const confirmBtn = document.getElementById('confirm');
+  if (!containers.length && confirmBtn) {
+    confirmBtn.disabled = !enabled;
+    if (!enabled) {
+      confirmBtn.textContent = '⏰ Reservation expired — reselect';
+    } else if (confirmBtn.dataset._origText) {
+      confirmBtn.textContent = confirmBtn.dataset._origText;
+    }
   }
+}
 
+// wrapper public utilisé par le reste de l'app
+function setPayPalEnabled(enabled){
+  applyPayPalEnabledState(!!enabled);
   setPayPalHeaderState(enabled ? 'active' : 'expired');
 }
+
+// -------------------------
+// MutationObserver léger pour ré-appliquer l'état quand PayPal re-render
+// -------------------------
+(function watchPayPalContainer(){
+  let debounce = null;
+  const apply = () => applyPayPalEnabledState(window.__desiredPayPalEnabled);
+
+  const mo = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      // si un node avec id paypal-button-container est ajouté, appliquer
+      if (m.addedNodes && m.addedNodes.length) {
+        for (const n of m.addedNodes) {
+          if (n && n.nodeType === 1) {
+            if (n.id === 'paypal-button-container' || n.querySelector && n.querySelector('#paypal-button-container')) {
+              clearTimeout(debounce);
+              debounce = setTimeout(apply, 50);
+              return;
+            }
+          }
+        }
+      }
+      // si des changements d'attributs sur le container
+      if (m.type === 'attributes' && m.target && m.target.id === 'paypal-button-container') {
+        clearTimeout(debounce);
+        debounce = setTimeout(apply, 40);
+        return;
+      }
+    }
+  });
+
+  try {
+    mo.observe(document.body || document.documentElement, { childList: true, subtree: true, attributes: true });
+  } catch (e) {
+    // si observation impossible, on retente une application périodique très légère
+    setInterval(apply, 1500);
+  }
+
+  // appliquer l'état souhaité au démarrage
+  setTimeout(() => applyPayPalEnabledState(window.__desiredPayPalEnabled), 200);
+})();
+
+ //new expir
 
 
 
