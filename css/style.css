@@ -936,3 +936,8 @@ body:not(.heavy-selection) .cell.sel::before {
 }
 
 /*new haut modal*/
+
+#paypal-button-container iframe {
+  max-height: 80vh !important;
+  min-height: 400px;
+}

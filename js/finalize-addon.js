@@ -614,22 +614,20 @@ function showPaypalPlaceholder() {
       }*/
      //new oncancel et onerror
     onCancel: async () => {
-  // Arrêter le monitoring des locks
   if (window.stopModalMonitor) {
     window.stopModalMonitor();
   }
-  try { window.LockManager?.heartbeat?.stop?.(); } catch {}
   
-  // Désactiver TOUT le container PayPal
-  const container = document.getElementById('paypal-button-container');
-  if (container) {
-    container.style.pointerEvents = 'none';
-    container.style.opacity = '0.5';
-  }
+  // NE PAS désactiver les boutons
+  // NE PAS arrêter le heartbeat (les locks sont encore valides)
   
-  setPayPalHeaderState('cancelled');
-  try { await unlockSelection(); } catch {}
+  setPayPalHeaderState('cancelled'); // Message "Payment cancelled"
   btnBusy(false);
+  
+  // Redémarrer le monitoring pour vérifier l'expiration naturelle des locks
+  if (window.startModalMonitor) {
+    window.startModalMonitor(0);
+  }
 },
 
 onError: async (err) => {
