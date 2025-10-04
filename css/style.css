@@ -866,57 +866,52 @@ body:not(.heavy-selection) .cell.sel::before {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
   padding: 16px 20px;
   border-bottom: 1px solid #f1f5f9;
   background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
+  position: relative; /* pour éviter les chevauchements */
 }
 
 /* Titre à gauche */
-.modal .header h2,
-.modal .header > span,
-.modal .header > div:first-child {
+.modal .header h2 {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
   color: #111827;
   font-family: "Inter", sans-serif;
+  flex: 1; /* prend l’espace dispo */
 }
 
-/* Infos prix à droite - stylisées */
-.modal .header .price-info,
-.modal .header > div:last-child:not(.close) {
+/* Infos prix à droite sur une ligne */
+.modal .header .price-info {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+  flex-direction: row;   /* 🔥 une seule ligne */
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;   /* évite le retour à la ligne */
 }
 
-/* Nombre de pixels - violet et gras */
-.modal .header .pixels,
-.modal .header > div:last-child > span:first-child {
-  font-size: 16px;
+/* Nombre de pixels - même style que titre */
+.modal .header .pixels {
+  font-size: 18px;       /* 🔥 harmonisé */
   font-weight: 700;
   color: #8b5cf6;
   font-family: "Inter", sans-serif;
-  letter-spacing: -0.3px;
 }
 
-/* Montant $ - gros et très gras */
-.modal .header .amount,
-.modal .header > div:last-child > span:last-child {
-  font-size: 22px;
-  font-weight: 900;
+/* Montant $ - même taille mais gras + gradient */
+.modal .header .amount {
+  font-size: 18px;       /* 🔥 harmonisé */
+  font-weight: 700;
   color: #111827;
   font-family: "Inter", sans-serif;
-  letter-spacing: -0.5px;
   background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Bouton close si présent */
+/* Bouton close */
 .modal .header .close,
 .modal .header button[data-close] {
   width: 28px;
@@ -931,9 +926,8 @@ body:not(.heavy-selection) .cell.sel::before {
   transition: all 0.2s ease;
   font-size: 18px;
   color: #9ca3af;
-  position: absolute;
-  top: 14px;
-  right: 14px;
+  margin-left: 12px; /* espace avec le prix */
+  flex-shrink: 0;    /* ne se fait pas écraser */
 }
 
 .modal .header .close:hover {
@@ -941,18 +935,4 @@ body:not(.heavy-selection) .cell.sel::before {
   color: #6b7280;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .modal .header {
-    padding-right: 48px;
-  }
-  
-  .modal .header .pixels {
-    font-size: 14px;
-  }
-  
-  .modal .header .amount {
-    font-size: 18px;
-  }
-}
 /*new haut modal*/
