@@ -937,7 +937,49 @@ body:not(.heavy-selection) .cell.sel::before {
 
 /*new haut modal*/
 
-#paypal-button-container iframe {
-  max-height: 80vh !important;
-  min-height: 400px;
+/*modal scrol*/
+/* === Modal container === */
+.modal .panel {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;       /* jamais plus grand que la fenêtre */
+  width: 95%;
+  max-width: 520px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;       /* évite que le contenu déborde */
 }
+
+/* Header reste fixe en haut */
+.modal .header {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 2;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+/* Corps scrollable (le form) */
+.modal .body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+/* Footer reste fixe en bas */
+.modal .footer {
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  z-index: 2;
+  padding: 12px 20px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/*modal scrol*/

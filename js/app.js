@@ -399,7 +399,7 @@
     stopModalMonitor();
 
     confirmBtn.disabled = false;
-    confirmBtn.textContent = 'Confirm';
+    confirmBtn.textContent = '✨ Confirm Purchase';
     setPayPalEnabled(true);
     setPayPalHeaderState('active');
     
@@ -487,7 +487,7 @@
     window.LockManager.heartbeat.stop();
     stopModalMonitor();
     confirmBtn.disabled = false;
-    confirmBtn.textContent = 'Confirm';
+    confirmBtn.textContent = '✨ Confirm Purchase';
     reservedPrice = null;
     reservedTotalAmount = null; 
     reservedTotal = null;
