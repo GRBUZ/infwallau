@@ -598,7 +598,7 @@ function showPaypalPlaceholder() {
         }
       },
 
-      onCancel: async () => {
+      /*onCancel: async () => {
         try { window.LockManager?.heartbeat?.stop?.(); } catch {}
         setPayPalHeaderState('cancelled');
         try { await unlockSelection(); } catch {}
@@ -611,7 +611,54 @@ function showPaypalPlaceholder() {
         try { window.LockManager?.heartbeat?.stop?.(); } catch {}
         try { await unlockSelection(); } catch {}
         btnBusy(false);
-      }
+      }*/
+     //new oncancel et onerror
+     onCancel: async () => {
+  // Arrêter le monitoring des locks
+  if (window.stopModalMonitor) {
+    window.stopModalMonitor();
+  }
+  try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+  setPayPalHeaderState('cancelled');
+  
+  // Désactiver les boutons PayPal
+  const container = document.getElementById('paypal-button-container');
+  if (container) {
+    const wrapper = container.querySelector('.paypal-buttons-wrapper');
+    if (wrapper) {
+      wrapper.style.pointerEvents = 'none';
+      wrapper.style.opacity = '0.5';
+    }
+  }
+  
+  try { await unlockSelection(); } catch {}
+  btnBusy(false);
+},
+
+onError: async (err) => {
+  // Arrêter le monitoring des locks
+  if (window.stopModalMonitor) {
+    window.stopModalMonitor();
+  }
+  uiError(err, 'PayPal');
+  setPayPalHeaderState('error');
+  
+  // Désactiver les boutons PayPal
+  const container = document.getElementById('paypal-button-container');
+  if (container) {
+    const wrapper = container.querySelector('.paypal-buttons-wrapper');
+    if (wrapper) {
+      wrapper.style.pointerEvents = 'none';
+      wrapper.style.opacity = '0.5';
+    }
+  }
+  
+  try { window.LockManager?.heartbeat?.stop?.(); } catch {}
+  try { await unlockSelection(); } catch {}
+  btnBusy(false);
+}
+     //new oncancel et onerror
+
     });
     //new
     // 🔧 CORRECTION: Redémarrer le monitoring des locks après render PayPal

@@ -749,6 +749,8 @@
   //new
   // Exposer globalement pour finalize-addon
 window.startModalMonitor = startModalMonitor;
+// Exposer globalement
+window.stopModalMonitor = stopModalMonitor;
   //new
   window.__debugGetLocks = () => ({ fromManager: window.LockManager.getLocalLocks(), localVar: locks, uid });
 })();
