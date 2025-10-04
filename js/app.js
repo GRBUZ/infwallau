@@ -373,35 +373,15 @@
     }
   }
  
-  /*function setPayPalEnabled(enabled){
+  function setPayPalEnabled(enabled){
     const c = document.getElementById('paypal-button-container');
     if (!c) return;
     c.style.pointerEvents = enabled ? '' : 'none';
     c.style.opacity = enabled ? '' : '0.45';
     c.setAttribute('aria-disabled', enabled ? 'false' : 'true');
     setPayPalHeaderState(enabled ? 'active' : 'expired');
-  }*/
+  }
  //new
- function setPayPalEnabled(enabled){
-  // On garde l’état désiré
-  const ok = !!enabled;
-  setPayPalHeaderState(ok ? 'active' : 'expired');
-
-  // Cibler le wrapper fixe (footer du modal)
-  const footer = modal.querySelector('.footer');
-  if (footer) {
-    footer.style.pointerEvents = ok ? '' : 'none';
-    footer.style.opacity = ok ? '' : '0.45';
-  }
-
-  // Fallback : si jamais un conteneur PayPal existe, on le grise aussi
-  const c = document.getElementById('paypal-button-container');
-  if (c) {
-    c.style.pointerEvents = ok ? '' : 'none';
-    c.style.opacity = ok ? '' : '0.45';
-    c.setAttribute('aria-disabled', ok ? 'false' : 'true');
-  }
-}
 
  //new
 
