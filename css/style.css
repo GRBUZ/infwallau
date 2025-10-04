@@ -863,8 +863,8 @@ body:not(.heavy-selection) .cell.sel::before {
 /*new haut modal*/
 /* ====== MODAL HEADER AMÉLIORÉ ====== */
 .modal .header {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 16px;
   padding: 16px 20px;
@@ -872,14 +872,10 @@ body:not(.heavy-selection) .cell.sel::before {
   background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
 }
 
-/* Icône + Titre à gauche */
+/* Titre à gauche */
+.modal .header h2,
+.modal .header > span,
 .modal .header > div:first-child {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.modal .header h2 {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
@@ -887,67 +883,76 @@ body:not(.heavy-selection) .cell.sel::before {
   font-family: "Inter", sans-serif;
 }
 
-/* Infos prix au centre-droit */
-.modal .header .price-info {
+/* Infos prix à droite - stylisées */
+.modal .header .price-info,
+.modal .header > div:last-child:not(.close) {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 2px;
-  justify-self: end;
+  gap: 4px;
 }
 
-.modal .header .price-info .pixels {
-  font-size: 15px;
+/* Nombre de pixels - violet et gras */
+.modal .header .pixels,
+.modal .header > div:last-child > span:first-child {
+  font-size: 16px;
   font-weight: 700;
   color: #8b5cf6;
   font-family: "Inter", sans-serif;
+  letter-spacing: -0.3px;
 }
 
-.modal .header .price-info .amount {
-  font-size: 20px;
-  font-weight: 800;
+/* Montant $ - gros et très gras */
+.modal .header .amount,
+.modal .header > div:last-child > span:last-child {
+  font-size: 22px;
+  font-weight: 900;
   color: #111827;
   font-family: "Inter", sans-serif;
   letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* Bouton close */
-.modal .header .close {
-  width: 32px;
-  height: 32px;
+/* Bouton close si présent */
+.modal .header .close,
+.modal .header button[data-close] {
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 20px;
-  color: #6b7280;
+  font-size: 18px;
+  color: #9ca3af;
+  position: absolute;
+  top: 14px;
+  right: 14px;
 }
 
 .modal .header .close:hover {
   background: #f3f4f6;
-  border-color: #d1d5db;
+  color: #6b7280;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .modal .header {
-    grid-template-columns: 1fr;
-    gap: 12px;
+    padding-right: 48px;
   }
   
-  .modal .header .price-info {
-    justify-self: start;
-    align-items: flex-start;
+  .modal .header .pixels {
+    font-size: 14px;
   }
   
-  .modal .header .close {
-    position: absolute;
-    top: 12px;
-    right: 12px;
+  .modal .header .amount {
+    font-size: 18px;
   }
 }
 /*new haut modal*/

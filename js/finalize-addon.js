@@ -527,6 +527,8 @@ function showPaypalPlaceholder() {
   container.innerHTML = '';
   // NE PAS supprimer toutes les classes, juste 'loading'
   container.classList.remove('loading');
+  // CORRECTION : Ajouter la classe 'active' par défaut
+  container.className = 'active';
 
     if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
       uiWarn('Payment: missing PayPal configuration');
