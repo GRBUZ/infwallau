@@ -613,6 +613,12 @@ function showPaypalPlaceholder() {
         btnBusy(false);
       }
     });
+    //new
+    // 🔧 CORRECTION: Redémarrer le monitoring des locks après render PayPal
+  if (typeof window.startModalMonitor === 'function') {
+    window.startModalMonitor(0); // Démarrer immédiatement (pas de warmup)
+  }
+    //new
   }
 
   // ========================================

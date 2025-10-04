@@ -746,6 +746,9 @@
   }
 
   window.renderRegions = renderRegions;
-
+  //new
+  // Exposer globalement pour finalize-addon
+window.startModalMonitor = startModalMonitor;
+  //new
   window.__debugGetLocks = () => ({ fromManager: window.LockManager.getLocalLocks(), localVar: locks, uid });
 })();
