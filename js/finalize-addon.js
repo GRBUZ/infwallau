@@ -694,5 +694,8 @@ function showPaypalPlaceholder() {
     resetModalState();
   });
 
+  //new
+  
+  //new
   console.log('[Finalize] Parallel optimization loaded - PayPal SDK + start-order in parallel');
 })();
