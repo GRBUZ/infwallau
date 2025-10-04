@@ -859,3 +859,95 @@ body:not(.heavy-selection) .cell.sel::before {
   height: 36px !important;
   min-height: 36px !important;
 }
+
+/*new haut modal*/
+/* ====== MODAL HEADER AMÉLIORÉ ====== */
+.modal .header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
+}
+
+/* Icône + Titre à gauche */
+.modal .header > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal .header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  font-family: "Inter", sans-serif;
+}
+
+/* Infos prix au centre-droit */
+.modal .header .price-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  justify-self: end;
+}
+
+.modal .header .price-info .pixels {
+  font-size: 15px;
+  font-weight: 700;
+  color: #8b5cf6;
+  font-family: "Inter", sans-serif;
+}
+
+.modal .header .price-info .amount {
+  font-size: 20px;
+  font-weight: 800;
+  color: #111827;
+  font-family: "Inter", sans-serif;
+  letter-spacing: -0.5px;
+}
+
+/* Bouton close */
+.modal .header .close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 20px;
+  color: #6b7280;
+}
+
+.modal .header .close:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .modal .header {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .modal .header .price-info {
+    justify-self: start;
+    align-items: flex-start;
+  }
+  
+  .modal .header .close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+  }
+}
+/*new haut modal*/

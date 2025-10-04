@@ -520,8 +520,13 @@ function showPaypalPlaceholder() {
     }
 
     // Vider le spinner
-    container.innerHTML = '';
-    container.className = '';
+    //container.innerHTML = '';
+    //container.className = '';
+
+    // Vider le spinner MAIS garder la structure pour le ::before
+  container.innerHTML = '';
+  // NE PAS supprimer toutes les classes, juste 'loading'
+  container.classList.remove('loading');
 
     if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
       uiWarn('Payment: missing PayPal configuration');
