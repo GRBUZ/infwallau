@@ -328,8 +328,9 @@
       console.log('[Finalize] Rendering PayPal buttons (SDK + order ready)');
       // 🆕 TRANSFORMER LE MODAL EN MODE PAIEMENT
       
-      renderPaypalButtons(paypalContainer, orderId, currency);
+      
       switchToPaymentView();
+      renderPaypalButtons(paypalContainer, orderId, currency);
 
     } catch (e) {
       console.error('[doConfirm] Error:', e);
@@ -433,43 +434,6 @@
   // ========================================
   // 🆕 Afficher placeholder PayPal (spinner)
   // ========================================
-  /*function showPaypalPlaceholder() {
-    if (confirmBtn) confirmBtn.style.display = 'none';
-    
-    const existing = document.getElementById('paypal-button-container');
-    if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
-
-    const container = document.createElement('div');
-    container.id = 'paypal-button-container';
-    container.className = 'loading';
-    
-    // Ne pas forcer de styles inline - laisser le CSS existant gérer l'apparence
-    // Juste assurer une hauteur minimale pour éviter le jump visuel
-    container.style.minHeight = '150px';
-    container.style.display = 'flex';
-    container.style.alignItems = 'center';
-    container.style.justifyContent = 'center';
-    
-    container.innerHTML = `
-      <div style="text-align:center;">
-        <div style="width:40px;height:40px;border:4px solid #f3f3f3;border-top:4px solid #0070ba;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px;"></div>
-        <p style="color:#666;font-size:14px;margin:0;">Preparing payment...</p>
-      </div>
-    `;
-
-    // Ajouter animation spinner si pas déjà présent
-    if (!document.getElementById('paypal-spinner-style')) {
-      const style = document.createElement('style');
-      style.id = 'paypal-spinner-style';
-      style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
-      document.head.appendChild(style);
-    }
-
-    const target = form || modal;
-    if (target) target.appendChild(container);
-    
-    return container;
-  }*/
 function showPaypalPlaceholder() {
   if (confirmBtn) confirmBtn.style.display = 'none';
   
@@ -479,6 +443,9 @@ function showPaypalPlaceholder() {
   const container = document.createElement('div');
   container.id = 'paypal-button-container';
   container.className = 'loading';
+  container.style.width = '100%';
+container.style.marginTop = '16px';
+
   
   // Spinner réduit
   container.style.minHeight = '120px';
@@ -501,14 +468,21 @@ function showPaypalPlaceholder() {
   }
 
   // CORRECTION : Insérer dans le footer au lieu du form/modal
-  const footer = modal?.querySelector('.footer') || document.querySelector('.modal .footer');
+  /*const footer = modal?.querySelector('.footer') || document.querySelector('.modal .footer');
   if (footer) {
     footer.appendChild(container);
   } else {
-    // Fallback si pas de footer trouvé
     const target = form || modal;
     if (target) target.appendChild(container);
-  }
+  }*/
+
+  const body = modal?.querySelector('.body') || document.querySelector('.modal .body');
+if (body) {
+  body.appendChild(container);
+} else {
+  modal.appendChild(container);
+}
+
   
   return container;
 }
