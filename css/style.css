@@ -997,61 +997,17 @@ body:not(.heavy-selection) .cell.sel::before {
   order: 2;
 }
 
-/*modal scroll*/
-/* === Modal container === */
-.modal .panel {
-  display: flex;
-  flex-direction: column;
-  max-height: 90vh;
-  width: 95%;
-  max-width: 520px;
-  background: #fff;
-  border-radius: 12px;
-  overflow-y: auto;  /* 🔥 Changement : permettre le scroll sur tout le panel */
+/*new*/
+/* minimal, local, sûr */
+.modal.payment-active .footer {
+  max-height: calc(80vh - 64px); /* 64 = header + marge — ajuste */
+  overflow-y: auto;
+}
+.modal.payment-active #paypal-button-container {
+  max-height: calc(80vh - 140px); /* réduit la hauteur du container */
+  overflow-y: auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* Header reste fixe en haut */
-.modal .header {
-  flex-shrink: 0;
-  position: sticky;
-  top: 0;
-  background: #fff;
-  z-index: 2;
-  padding: 16px 20px;
-  border-bottom: 1px solid #eee;
-}
-
-/* Corps scrollable */
-.modal .body {
-  flex: 1 1 auto;
-  padding: 16px 20px;
-  /* Retirer overflow-y: auto d'ici */
-}
-
-/* Footer colle en bas mais scroll avec le contenu */
-.modal .footer {
-  flex-shrink: 0;
-  background: #fff;
-  padding: 12px 20px;
-  border-top: 1px solid #eee;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-/* Order summary et PayPal scrollent naturellement */
-#order-summary {
-  padding: 16px 20px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  margin: 16px 20px 0;
-  font-size: 13px;
-  font-family: "Inter", sans-serif;
-}
-
-#paypal-button-container {
-  margin: 16px 0;
-}
-/*modal scroll*/
+/*new*/

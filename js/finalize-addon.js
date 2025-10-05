@@ -332,6 +332,7 @@
       
       
       switchToPaymentView();
+      modal.classList.add('payment-active');
       renderPaypalButtons(paypalContainer, orderId, currency);
 
     } catch (e) {
@@ -742,6 +743,7 @@ function switchToPaymentView() {
       currency: currency || 'USD',
 
       onApproved: async (data, actions) => {
+        modal.classList.remove('payment-active');
         try {
           btnBusy(true);
           setPayPalHeaderState('processing');
@@ -817,6 +819,8 @@ function switchToPaymentView() {
      //new oncancel et onerror
     onCancel: async () => {
   console.warn('[PayPal] Payment cancelled by user');
+  modal.classList.remove('payment-active');
+
 
   // ⚠️ On ne stoppe pas les locks ni le monitoring
   // On laisse le container actif et éditable
@@ -842,6 +846,8 @@ function switchToPaymentView() {
 
 onError: async (err) => {
   console.error('[PayPal] Error:', err);
+  modal.classList.remove('payment-active');
+
   uiError(err, 'PayPal');
   setPayPalHeaderState('error');
   btnBusy(false);
