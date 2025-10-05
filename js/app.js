@@ -452,21 +452,16 @@
     } else if (Number.isFinite(reservedPrice)) {
       total = selectedPixels * reservedPrice;
     }
-
-    /*if (Number.isFinite(total)) {
-      modalStats.textContent = `${formatInt(selectedPixels)} px — ${formatMoney(total)}`;
-      confirmBtn.disabled = false;
-    } else {
-      modalStats.textContent = `${formatInt(selectedPixels)} px — price pending…`;
-      confirmBtn.disabled = true;
-    }*/
-   if (Number.isFinite(total)) {
+  
+   /*if (Number.isFinite(total)) {
   modalStats.innerHTML = `<span class="pixels">${formatInt(selectedPixels)} px - </span><span class="amount">${formatMoney(total)}</span>`;
   confirmBtn.disabled = false;
 } else {
   modalStats.innerHTML = `<span class="pixels">${formatInt(selectedPixels)} px</span><span class="amount">price pending…</span>`;
   confirmBtn.disabled = true;
-}
+}*/
+// Les stats seront affichées dans le summary après confirm
+confirmBtn.disabled = !Number.isFinite(total);
 
     if (currentLock.length) {
       window.LockManager.heartbeat.start(currentLock, 30000, 180000, {

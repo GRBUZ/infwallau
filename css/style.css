@@ -936,13 +936,20 @@ body:not(.heavy-selection) .cell.sel::before {
 .modal .panel {
   display: flex;
   flex-direction: column;
-  max-height: 90vh;       /* jamais plus grand que la fenêtre */
+  max-height: 90vh;
   width: 95%;
   max-width: 520px;
   background: #fff;
   border-radius: 12px;
-  overflow: hidden;       /* évite que le contenu déborde */
+  overflow: visible;       /* ✅ autorise le scroll interne */
 }
+.modal .body {
+  flex: 1 1 auto;
+  overflow-y: auto;        /* ✅ active le scroll vertical */
+  max-height: calc(90vh - 130px); /* espace pour header+footer */
+  padding: 16px 20px;
+}
+
 
 /* Header reste fixe en haut */
 .modal .header {

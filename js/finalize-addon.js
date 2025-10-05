@@ -650,6 +650,14 @@ function switchToPaymentView() {
   const linkUrl = (linkInput?.value || '').trim();
   const blocks = getSelectedIndices();
   const selectedPixels = blocks.length * 100;
+  // 🆕 Récupérer le total depuis app.js
+  const total = window.reservedTotal || (blocks.length * 100 * (window.globalPrice || 1));
+  /*let total = null;
+    if (Number.isFinite(reservedTotal)) {
+      total = reservedTotal;
+    } else if (Number.isFinite(reservedPrice)) {
+      total = selectedPixels * reservedPrice;
+    }*/
 
   const oldSummary = document.getElementById('order-summary');
   if (oldSummary) oldSummary.remove();
@@ -669,8 +677,12 @@ function switchToPaymentView() {
       <span style="font-weight:600;color:#111827;text-align:right;overflow:hidden;text-overflow:ellipsis;" title="${linkUrl}">${linkUrl}</span>
       
       <span style="color:#6b7280;">Pixels:</span>
-      <span style="font-weight:700;color:#8b5cf6;text-align:right;">${selectedPixels} px</span>
-    </div>
+      <span style="font-weight:700;color:#8b5cf6;text-align:right;">${formatInt(selectedPixels)} px</span>
+    
+    <span style="color:#6b7280;">Total:</span>
+      <span style="font-weight:700;color:#111827;text-align:right;font-size:15px;">${formatMoney(total)}</span>
+    
+      </div>
   `;
 
   const target = paypalContainer?.parentNode || panel;
