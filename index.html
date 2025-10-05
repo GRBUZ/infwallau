@@ -1,201 +1,81 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Influencers Wall - Buy Pixels on Influencers Wall, a Digital Advertising Space for Content Creators</title>
-<meta name="description" content="Purchase pixel advertising space on Influencers Wall. Join top content creators and influencers. Own your digital real estate and grow your brand visibility.">
-<meta name="keywords" content="pixel advertising, influencer marketing, digital advertising, content creators, brand visibility">
-
-<!-- Open Graph -->
-<meta property="og:title" content="Influencers Wall - Digital Advertising for Content Creators">
-<meta property="og:description" content="Own your space. Own your fame. Where influence meets immortality.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://influencersWall.com">
-
-<!-- Schema.org -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "name": "Influencers Wall",
-  "description": "Digital pixel advertising platform for influencers and content creators",
-  "url": "https://influencersWall.com"
-}
-</script>
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="icon" href="data:,">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pixel Claim – Finalize</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div style="position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden;">
-  <h2>Digital Advertising Space for Influencers and Content Creators</h2>
-  <p>Influencers Wall offers premium pixel advertising space where content creators, influencers, and brands can showcase their digital presence. Purchase your pixels and join a community of successful creators who have claimed their spot in digital history.</p>
-  <h3>Why Choose Influencers Wall?</h3>
-  <ul>
-    <li>Permanent digital real estate for your brand</li>
-    <li>Join successful influencers and content creators</li>
-    <li>Increase your online visibility and reach</li>
-    <li>Secure your space in digital advertising history</li>
-  </ul>
-</div>
-  <header class="masthead">
-    <!-- 1) Titre tout en haut -->
-    <h1 class="masthead-title">Influencers Wall</h1>
-
-    <!-- 2) Bande violette -->
-    <div class="masthead-strip">
-      <div class="masthead-inner">
-        <!-- Accroche à gauche -->
-        <p class="masthead-tagline">
-          Own your space. Own your fame.<br>
-          Where influence meets immortality.<br>
-          Your story deserves the spotlight.
-        </p>
-
-        <!-- Stats à droite -->
-        <div class="masthead-meta">
-          <div class="pixels-left" id="pixelsLeft">1,000,000 pixels</div>
-          <div class="price-line" id="priceLine">1 pixel = $1.22</div>
-          <div class="note">Every 1,000 pixels sold, price +$0.01</div>
-        </div>
-      </div>
-
-      <!-- 3) Boutons au bas de la bande -->
-      <div class="masthead-actions">
-        <button id="buyBtn" class="pill pill-primary">💎 Claim your spot</button>
-        <a id="contactBtn" href="#contact" class="pill pill-secondary">💬 Contact</a>
-      </div>
-    </div>
+  <header class="site-header">
+    <h1>🟪 Pixel Claim</h1>
   </header>
 
   <main>
-    <div id="grid" class="grid" aria-label="pixel grid"></div>
-    <!-- Instructions de sélection -->
-<div id="selectionGuide" class="selection-guide">
-  <div class="guide-content">
-    <div class="guide-text">🖱️ Click and drag to select pixels</div>
-  </div>
-</div>
+    <section class="grid-section">
+      <h2>Select your pixels</h2>
+      <div id="pixelGrid" class="pixel-grid"></div>
+      <div class="cta">
+        <button id="buyBtn" class="btn primary">💎 Claim your spot</button>
+      </div>
+    </section>
   </main>
 
-  <!-- Info de sélection -->
-<div id="selectionInfo" class="selection-info">
-  <span class="count">0</span> pixels selected • $0.00
-</div>
-<!-- Message d'avertissement -->
-<div id="warningMessage" class="warning-message">
-  Please select pixels first !
-</div>
-
-  <!-- Modal amélioré -->
+  <!-- ========================= -->
+  <!-- Modal (2 états) -->
+  <!-- ========================= -->
   <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="backdrop" data-close></div>
     <div class="panel">
       <div class="header">
-  <h2>🎯 Finalize order</h2>
-  <button class="close" title="Close" data-close>&times;</button>
-</div>
-      <form id="form" class="body">
-        <label>🏷️ Pseudo (Display name)
-          <input id="name" name="name" placeholder="@yourname" maxlength="40" required />
-        </label>
-        <label>🔗 Profile URL
-          <input id="link" name="linkUrl" placeholder="https://instagram.com/your-handle" required />
-        </label>
-
-        <hr style="border: none; height: 1px; background: #e5e7eb; margin: 8px 0;">
-
-        <label>📸 Profile Photo
-          <input id="image" type="file" accept="image/*" />
-          <small style="color: #6b7280; font-size: 12px;">Max ~1.5 MB. JPG, PNG, GIF accepted.</small>
-        </label>
-
-        <div class="footer">
-          <button type="button" class="btn" data-close>Cancel</button>
-          <button type="submit" id="confirm" class="btn primary">✨ Confirm Purchase</button>
-        </div>
-
-      </form>
-    </div>
-  </div>
-
-  <footer class="site-footer">
-    <div class="footer-inner">
-      <nav class="footer-links">
-        <a href="/terms.html" target="_blank" rel="noopener noreferrer">📋 Terms of Use</a>
-        <a href="/privacy.html" target="_blank" rel="noopener noreferrer">🔒 Privacy Policy</a>
-        <a href="/faq.html" target="_blank" rel="noopener noreferrer">❓ FAQ</a>
-      </nav>
-      <div class="footer-copy">© 2025 Influencers Wall. All rights reserved.</div>
-    </div>
-  </footer>
-
-  <!-- Contact Modal -->
-  <div id="contactModal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="backdrop" data-close></div>
-    <div class="panel">
-      <div class="header">
-        <h2 style="margin:0; font-weight: 700;">💬 Contact me</h2>
-        <button class="close" style="border:none;background:none;font-size:24px;cursor:pointer;color:#9ca3af;" title="Close" data-close>&times;</button>
+        <h2>🎯 Finalize order</h2>
+        <div id="modalStats" class="price-info"></div>
+        <button class="close" title="Close" data-close>&times;</button>
       </div>
 
-      <form name="contact" method="POST" action="/contact-success.html" data-netlify="true" netlify-honeypot="bot-field" class="body">
-        <input type="hidden" name="form-name" value="contact" />
-        <p hidden><label>Don't fill this out: <input name="bot-field" /></label></p>
+      <!-- Formulaire principal -->
+      <div class="body">
+        <form id="form">
+          <label>🏷️ Pseudo (Display name)
+            <input id="name" name="name" placeholder="@yourname" maxlength="40" required />
+          </label>
 
-        <label>👤 Your name
-          <input name="name" placeholder="Your name" required />
-        </label>
-        <label>📧 Your email
-          <input name="email" type="email" placeholder="you@example.com" required />
-        </label>
-        <label>💭 Message
-          <textarea name="message" placeholder="How can we help?" rows="5" required></textarea>
-        </label>
+          <label>🔗 Profile URL
+            <input id="link" name="linkUrl" placeholder="https://instagram.com/your-handle" required />
+          </label>
 
-        <div class="footer">
-          <button type="button" class="btn" data-close>Cancel</button>
-          <button type="submit" class="btn primary">📨 Send Message</button>
-        </div>
-      </form>
+          <hr />
+
+          <label>📸 Profile Photo
+            <input id="image" type="file" accept="image/*" />
+            <small>Max ~1.5 MB. JPG, PNG, GIF accepted.</small>
+          </label>
+        </form>
+      </div>
+
+      <!-- Pied du modal -->
+      <div class="footer">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" id="confirm" form="form" class="btn primary">✨ Confirm Purchase</button>
+      </div>
     </div>
   </div>
 
-  <script src="js/errors.js"></script> 
-  <script src="js/core-manager.js"></script>
-  <script src="js/auth-utils.js"></script>
-  <script src="js/locks.js"></script> <!-- NOUVEAU -->
-  <script src="js/upload-manager.js"></script>
-  <script src="js/upload-addon.js"></script>
-  <script>
-  window.PAYPAL_CLIENT_ID = "Ae_mhLuL6FbRVTkQNt4XZZfnFII_WVgtsyqitpvyyzJkQkyvOXrkDMMBvY9PxlYlkqvAEq4pIspOwbPa";
-  window.PAYPAL_CURRENCY = "USD";
-  </script>
-  <script src="/js/paypal-integration.js"></script>
-  <script src="js/finalize-addon.js"></script>
-  <script src="js/app.js"></script>
-  <script src="js/contact-modal.js"></script>
-  <script>
-  // Initialisation de l'authentification au chargement de la page
-  document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    console.log('[AUTH] Initialisation du token...');
-    await AuthUtils.getOrCreateToken();
-    console.log('[AUTH] Token prêt');
-  } catch (e) {
-    console.error('[AUTH] Échec initialisation token:', e);
-  }
-  });
-  </script>
-  <script>
-  const yearEl = document.getElementById('year');
-  if (yearEl) {
-    yearEl.textContent = new Date().getFullYear();
-  }
-  </script>
+  <!-- Scripts regroupés -->
+  <script src="js/core/core-manager.js"></script>
+  <script src="js/core/auth-utils.js"></script>
+  <script src="js/core/errors.js"></script>
+  <script src="js/core/locks.js"></script>
+
+  <script src="js/ui/modal.js"></script>
+  <script src="js/ui/form.js"></script>
+  <script src="js/ui/orderSummary.js"></script>
+  <script src="js/ui/paypalWidget.js"></script>
+
+  <script src="js/services/upload.js"></script>
+  <script src="js/services/paypalService.js"></script>
+
+  <script src="js/finalize.js"></script>
+  <script src="js/index.js"></script>
 </body>
 </html>
