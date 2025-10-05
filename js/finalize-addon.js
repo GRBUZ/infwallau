@@ -686,7 +686,7 @@ function switchToPaymentView() {
       <span style="font-weight:600;color:#111827;text-align:right;">${formattedPixels} px</span>
     
     <span style="color:#6b7280;">Total:</span>
-      <span style="font-weight:600;color:#111827;text-align:right;font-size:15px;">${formattedTotal}</span>
+      <span style="font-weight:600;color:#111827;text-align:right;">${formattedTotal}</span>
     
       </div>
   `;
