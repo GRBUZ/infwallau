@@ -558,7 +558,7 @@ if (body) {
   console.log('[switchToPaymentView] Payment view active');
 }*/
 
-function switchToPaymentView() {
+/*function switchToPaymentView() {
   const panel = modal?.querySelector('.panel');
   const paypalContainer = document.getElementById('paypal-button-container');
 
@@ -634,8 +634,67 @@ function switchToPaymentView() {
   }
 
   console.log('[switchToPaymentView] Summary added above PayPal container');
-}
+}*/
 
+function switchToPaymentView() {
+  const panel = modal?.querySelector('.panel');
+  const paypalContainer = document.getElementById('paypal-button-container');
+
+  if (paypalContainer && form && form.contains(paypalContainer)) {
+    form.parentNode.appendChild(paypalContainer);
+  }
+
+  if (form) form.style.display = 'none';
+
+  const name = (nameInput?.value || '').trim();
+  const linkUrl = (linkInput?.value || '').trim();
+  const blocks = getSelectedIndices();
+  const selectedPixels = blocks.length * 100;
+
+  const oldSummary = document.getElementById('order-summary');
+  if (oldSummary) oldSummary.remove();
+
+  const summary = document.createElement('div');
+  summary.id = 'order-summary';
+  summary.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span style="font-weight:600;color:#111827;font-size:15px;">Order summary</span>
+      <button id="editOrder" style="background:none;border:none;color:#8b5cf6;font-size:13px;font-weight:600;cursor:pointer;padding:4px 8px;border-radius:6px;">Edit</button>
+    </div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:13px;">
+      <span style="color:#6b7280;">Pseudo:</span>
+      <span style="font-weight:600;color:#111827;text-align:right;">${name}</span>
+      
+      <span style="color:#6b7280;">Profile:</span>
+      <span style="font-weight:600;color:#111827;text-align:right;overflow:hidden;text-overflow:ellipsis;" title="${linkUrl}">${linkUrl}</span>
+      
+      <span style="color:#6b7280;">Pixels:</span>
+      <span style="font-weight:700;color:#8b5cf6;text-align:right;">${selectedPixels} px</span>
+    </div>
+  `;
+
+  const target = paypalContainer?.parentNode || panel;
+  target.insertBefore(summary, paypalContainer);
+
+  const editBtn = summary.querySelector('#editOrder');
+  if (editBtn) {
+    editBtn.addEventListener('click', () => {
+      const state = document.getElementById('paypal-button-container')?.className || '';
+      if (state.includes('error') || state.includes('cancelled')) {
+        uiWarn('You cannot edit after a cancelled or failed payment.');
+        return;
+      }
+      summary.remove();
+      if (form) form.style.display = '';
+      removePaypalContainer();
+      btnBusy(false);
+      if (confirmBtn) confirmBtn.style.display = '';
+    });
+    
+    editBtn.addEventListener('mouseenter', () => editBtn.style.background = '#f3f4f6');
+    editBtn.addEventListener('mouseleave', () => editBtn.style.background = 'none');
+  }
+}
 
 //new fonction resume
   // ========================================

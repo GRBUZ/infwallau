@@ -296,12 +296,6 @@ main{
   background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
 }
 
-.modal .body{
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
 
 .modal label{
   display: flex;
@@ -967,6 +961,12 @@ body:not(.heavy-selection) .cell.sel::before {
   overflow-y: auto;
   padding: 16px 20px;
 }
+/*.modal .body{
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}*/
 
 /* Footer reste fixe en bas */
 .modal .footer {
@@ -983,3 +983,18 @@ body:not(.heavy-selection) .cell.sel::before {
 }
 
 /*modal scrol*/
+
+/* ====== ORDER SUMMARY HARMONISÉ ====== */
+#order-summary {
+  padding: 16px 20px;
+  background: #ffffff;           /* 🔥 Fond blanc au lieu de gris */
+  border: 1px solid #e5e7eb;     /* 🔥 Bordure subtile */
+  border-radius: 12px;
+  margin: 16px 20px;
+  font-size: 13px;
+  font-family: "Inter", sans-serif;
+}
+
+#editOrder:hover {
+  background: #f3f4f6 !important;
+}
