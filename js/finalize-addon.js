@@ -661,10 +661,7 @@ function switchToPaymentView() {
       total = selectedPixels * reservedPrice;
     }*/
    const formattedPixels = selectedPixels.toLocaleString(locale);
-  const formattedTotal = total.toLocaleString(locale, {
-  style: 'currency',
-  currency: 'USD', // ou 'EUR' selon ton besoin
-});
+  const formattedTotal = total.toLocaleString(locale);
   const oldSummary = document.getElementById('order-summary');
   if (oldSummary) oldSummary.remove();
 
@@ -686,7 +683,7 @@ function switchToPaymentView() {
       <span style="font-weight:600;color:#111827;text-align:right;">${formattedPixels} px</span>
     
     <span style="color:#6b7280;">Total:</span>
-      <span style="font-weight:600;color:#111827;text-align:right;">${formattedTotal}</span>
+      <span style="font-weight:600;color:#111827;text-align:right;">$${formattedTotal}</span>
     
       </div>
   `;

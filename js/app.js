@@ -49,9 +49,6 @@
   let lastStatusTs = 0;
 
   window.getSelectedIndices = () => Array.from(selected);
-
-  //function formatInt(n){ return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
-  //function formatMoney(n){ const [i,d]=Number(n).toFixed(2).split('.'); return '$'+i.replace(/\B(?=(\d{3})+(?!\d))/g,' ') + '.' + d; }
   function idxToRowCol(idx){ return [Math.floor(idx/N), idx%N]; }
   function rowColToIdx(r,c){ return r*N + c; }
 
@@ -176,17 +173,14 @@
     const totalRounded = Math.round(total * 100) / 100;
 
     selectionInfo.innerHTML =
-      `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~$${totalRounded.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      `<span class="count">${selectedPixels.toLocaleString(locale)}</span> pixels selected • ~$${totalRounded.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     selectionInfo.classList.add('show');
   }
 
   function refreshTopbar(){
     const currentPrice = Number.isFinite(globalPrice) ? globalPrice : 1;
-  const formattedCurrentPrice = currentPrice.toLocaleString(locale, {
-  style: 'currency',
-  currency: 'USD', // ou 'EUR' selon ton besoin
-});
-    priceLine.textContent = `1 pixel = ${formattedCurrentPrice}`;
+  const formattedCurrentPrice = currentPrice.toLocaleString(locale);
+    priceLine.textContent = `1 pixel = $${formattedCurrentPrice}`;
     pixelsLeftEl.textContent = `${TOTAL_PIXELS.toLocaleString(locale)} pixels`;
 
     buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = false;
