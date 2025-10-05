@@ -20,6 +20,8 @@
   const linkInput = document.getElementById('link') || document.querySelector('input[name="link"]');
   const fileInput = document.getElementById('avatar') || document.getElementById('file') || document.querySelector('input[type="file"]');
 
+  const locale = navigator.language || 'en-US'; // détecte la langue du navigateur
+
   let __processing = false;
   let uploadedImageCache = null;
 
@@ -658,7 +660,11 @@ function switchToPaymentView() {
     } else if (Number.isFinite(reservedPrice)) {
       total = selectedPixels * reservedPrice;
     }*/
-
+   const formattedPixels = selectedPixels.toLocaleString(locale);
+  const formattedTotal = total.toLocaleString(locale, {
+  style: 'currency',
+  currency: 'USD', // ou 'EUR' selon ton besoin
+});
   const oldSummary = document.getElementById('order-summary');
   if (oldSummary) oldSummary.remove();
 
@@ -677,10 +683,10 @@ function switchToPaymentView() {
       <span style="font-weight:600;color:#111827;text-align:right;overflow:hidden;text-overflow:ellipsis;" title="${linkUrl}">${linkUrl}</span>
       
       <span style="color:#6b7280;">Pixels:</span>
-      <span style="font-weight:700;color:#8b5cf6;text-align:right;">${formatInt(selectedPixels)} px</span>
+      <span style="font-weight:700;color:#8b5cf6;text-align:right;">${formattedPixels} px</span>
     
     <span style="color:#6b7280;">Total:</span>
-      <span style="font-weight:700;color:#111827;text-align:right;font-size:15px;">${formatMoney(total)}</span>
+      <span style="font-weight:700;color:#111827;text-align:right;font-size:15px;">${formattedTotal}</span>
     
       </div>
   `;
