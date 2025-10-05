@@ -619,6 +619,12 @@ function switchToPaymentView() {
   const editBtn = summary.querySelector('#editOrder');
   if (editBtn) {
     editBtn.addEventListener('click', () => {
+      // Bloquer si on est en état erreur ou cancelled
+    const state = document.getElementById('paypal-button-container')?.className || '';
+    if (state.includes('error') || state.includes('cancelled')) {
+      uiWarn('You cannot edit after a cancelled or failed payment.');
+      return;
+    }
       summary.remove();
       if (form) form.style.display = '';
       removePaypalContainer();
@@ -736,40 +742,42 @@ function switchToPaymentView() {
       }*/
      //new oncancel et onerror
     onCancel: async () => {
-  if (window.stopModalMonitor) {
-    window.stopModalMonitor();
-  }
-  
-  // NE PAS désactiver les boutons
-  // NE PAS arrêter le heartbeat (les locks sont encore valides)
-  
-  setPayPalHeaderState('cancelled'); // Message "Payment cancelled"
+  console.warn('[PayPal] Payment cancelled by user');
+
+  // ⚠️ On ne stoppe pas les locks ni le monitoring
+  // On laisse le container actif et éditable
+  setPayPalHeaderState('cancelled');
+
   btnBusy(false);
-  
-  // Redémarrer le monitoring pour vérifier l'expiration naturelle des locks
-  if (window.startModalMonitor) {
+
+  // Réactiver le bouton "Edit" (au cas où il était désactivé)
+  const editBtn = document.getElementById('editOrder');
+  if (editBtn) {
+    editBtn.disabled = false;
+    editBtn.style.opacity = '1';
+    editBtn.style.cursor = 'pointer';
+  }
+
+  // Relancer le monitoring si jamais il avait été suspendu
+  if (typeof window.startModalMonitor === 'function') {
     window.startModalMonitor(0);
   }
+
+  uiWarn('Payment cancelled. You can retry or edit your info.');
 },
 
 onError: async (err) => {
-  // Arrêter le monitoring des locks
-  if (window.stopModalMonitor) {
-    window.stopModalMonitor();
-  }
+  console.error('[PayPal] Error:', err);
   uiError(err, 'PayPal');
-  
-  // Désactiver TOUT le container PayPal
-  const container = document.getElementById('paypal-button-container');
-  if (container) {
-    container.style.pointerEvents = 'none';
-    container.style.opacity = '0.5';
-  }
-  
   setPayPalHeaderState('error');
+  btnBusy(false);
+
+  // Désactive le bouton "Edit"
+  const editBtn = document.getElementById('editOrder');
+  if (editBtn) editBtn.disabled = true;
+
   try { window.LockManager?.heartbeat?.stop?.(); } catch {}
   try { await unlockSelection(); } catch {}
-  btnBusy(false);
 }
      //new oncancel et onerror
 
@@ -804,11 +812,42 @@ onError: async (err) => {
     return true;
   }
 
-  function setPayPalHeaderState(state){
+  /*function setPayPalHeaderState(state){
     const el = document.getElementById('paypal-button-container');
     if (!el) return;
     el.className = String(state || '').trim();
+  }*/
+
+  //new
+  function setPayPalHeaderState(state) {
+  const el = document.getElementById('paypal-button-container');
+  if (!el) return;
+  el.className = 'paypal-state-' + state;
+
+  switch (state) {
+    case 'processing':
+      el.style.opacity = '0.6';
+      el.style.pointerEvents = 'none';
+      break;
+    case 'error':
+      el.style.opacity = '0.5';
+      el.style.pointerEvents = 'none';
+      el.style.filter = 'grayscale(0.8)';
+      break;
+    case 'cancelled':
+      // 👇 CANCEL → tout reste actif
+      el.style.opacity = '1';
+      el.style.pointerEvents = '';
+      el.style.filter = '';
+      break;
+    default:
+      el.style.opacity = '1';
+      el.style.pointerEvents = '';
+      el.style.filter = '';
   }
+}
+
+  //new
 
   async function waitForCompleted(orderId, maxSeconds = 120) {
     const maxAttempts = 12;
