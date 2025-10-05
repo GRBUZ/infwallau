@@ -683,10 +683,10 @@ function switchToPaymentView() {
       <span style="font-weight:600;color:#111827;text-align:right;overflow:hidden;text-overflow:ellipsis;" title="${linkUrl}">${linkUrl}</span>
       
       <span style="color:#6b7280;">Pixels:</span>
-      <span style="font-weight:700;color:#8b5cf6;text-align:right;">${formattedPixels} px</span>
+      <span style="font-weight:600;color:#111827;text-align:right;">${formattedPixels} px</span>
     
     <span style="color:#6b7280;">Total:</span>
-      <span style="font-weight:700;color:#111827;text-align:right;font-size:15px;">${formattedTotal}</span>
+      <span style="font-weight:600;color:#111827;text-align:right;font-size:15px;">${formattedTotal}</span>
     
       </div>
   `;

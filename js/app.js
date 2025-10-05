@@ -30,6 +30,7 @@
   const confirmBtn = document.getElementById('confirm');
   const modalStats = document.getElementById('modalStats');
   const selectionGuide = document.getElementById('selectionGuide');
+  const locale = navigator.language || 'en-US'; // détecte la langue du navigateur
 
   let sold = {};
   let locks = {};
@@ -49,8 +50,8 @@
 
   window.getSelectedIndices = () => Array.from(selected);
 
-  function formatInt(n){ return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
-  function formatMoney(n){ const [i,d]=Number(n).toFixed(2).split('.'); return '$'+i.replace(/\B(?=(\d{3})+(?!\d))/g,' ') + '.' + d; }
+  //function formatInt(n){ return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+  //function formatMoney(n){ const [i,d]=Number(n).toFixed(2).split('.'); return '$'+i.replace(/\B(?=(\d{3})+(?!\d))/g,' ') + '.' + d; }
   function idxToRowCol(idx){ return [Math.floor(idx/N), idx%N]; }
   function rowColToIdx(r,c){ return r*N + c; }
 
@@ -181,8 +182,12 @@
 
   function refreshTopbar(){
     const currentPrice = Number.isFinite(globalPrice) ? globalPrice : 1;
-    priceLine.textContent = `1 pixel = ${formatMoney(currentPrice)}`;
-    pixelsLeftEl.textContent = `${TOTAL_PIXELS.toLocaleString('en-US')} pixels`;
+  const formattedCurrentPrice = currentPrice.toLocaleString(locale, {
+  style: 'currency',
+  currency: 'USD', // ou 'EUR' selon ton besoin
+});
+    priceLine.textContent = `1 pixel = ${formattedCurrentPrice}`;
+    pixelsLeftEl.textContent = `${TOTAL_PIXELS.toLocaleString(locale)} pixels`;
 
     buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = false;
 
