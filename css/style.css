@@ -1,0 +1,998 @@
+/* Reset et base */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:"Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;color:#111;background:#fff;overflow-x:hidden}
+
+/* ====== Header amélioré ====== */
+.masthead{
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+.masthead-title{
+  font-family:"Clash Display", "Inter", sans-serif;
+  font-weight: 700;
+  font-size: clamp(18px, 2.2vw, 22px);
+  line-height: 1.05;
+  letter-spacing: -0.5px;
+  margin: 0;
+  padding: 10px 0 6px;
+  text-align: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  color: transparent;
+  background-clip: text;
+  -webkit-background-clip: text;
+  background-image: linear-gradient(135deg, #d946ef 0%, #c026d3 50%, #a21caf 100%);
+  border-bottom: 1px solid rgba(203, 213, 225, 0.5);
+  position: relative;
+}
+
+/* Effet de brillance subtile */
+.masthead-title::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: titleShine 4s ease-in-out infinite;
+}
+
+@keyframes titleShine {
+  0% { left: -100%; }
+  50% { left: 100%; }
+  100% { left: 100%; }
+}
+
+/* Bande violette avec gradient moderne */
+.masthead-strip{
+  background: linear-gradient(135deg, #d946ef 0%, #c026d3 25%, #a21caf 75%, #86198f 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Effet de brillance subtile */
+.masthead-strip::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  animation: shine 3s ease-in-out infinite;
+}
+
+@keyframes shine {
+  0% { left: -100%; }
+  50% { left: 100%; }
+  100% { left: 100%; }
+}
+
+.masthead-inner{
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 18px 20px; /* Réduit de 24px à 20px */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+  z-index: 2;
+}
+
+.masthead-tagline{
+  font-family:"Inter", sans-serif;
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.3;
+  font-size: clamp(14px, 2vw, 17px);
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0,0,0,.2);
+  letter-spacing: -0.2px;
+}
+
+.masthead-meta{
+  text-align: right;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: "Inter", sans-serif;
+}
+
+.masthead-meta .pixels-left{ 
+  font-size: clamp(14px, 2vw, 17px); /* Même taille que tagline */
+  margin-bottom: 3px;
+  text-shadow: 0 2px 4px rgba(0,0,0,.2);
+  font-weight: 600; /* Même poids que tagline */
+  letter-spacing: -0.2px;
+}
+
+.masthead-meta .price-line{ 
+  font-size: clamp(14px, 2vw, 17px); /* Même taille que tagline */
+  margin-bottom: 3px;
+  opacity: 0.95;
+  font-weight: 600; /* Même poids que tagline */
+  letter-spacing: -0.2px;
+}
+
+.masthead-meta .note{ 
+  font-size: clamp(12px, 1.6vw, 14px); /* Légèrement augmenté mais reste plus petit */
+  opacity: 0.85;
+  font-weight: 500;
+  letter-spacing: -0.1px;
+}
+
+/* ====== Boutons repositionnés ====== */
+.masthead-actions{
+  position: absolute;
+  bottom: -2px; /* Remontés de 2px par rapport au bas */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  z-index: 3;
+}
+
+/* Pills modernes avec micro-interactions */
+.pill{
+  font-family: "Inter", sans-serif;
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 20px;
+  border-radius: 50px;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.2;
+  letter-spacing: -0.1px;
+  border: 2px solid rgba(255,255,255,0.9);
+  box-shadow: 
+    0 4px 14px rgba(0,0,0,.15),
+    0 0 0 0 rgba(255,255,255,0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.pill::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left 0.5s ease;
+}
+
+.pill:hover::before {
+  left: 100%;
+}
+
+.pill:hover{ 
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 
+    0 8px 25px rgba(0,0,0,.2),
+    0 0 0 3px rgba(255,255,255,0.2);
+}
+
+.pill:active {
+  transform: translateY(-1px) scale(0.98);
+}
+
+.pill-primary{
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 50%, #ea580c 100%);
+  border-color: rgba(255,255,255,0.95);
+}
+
+.pill-secondary{
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
+  border-color: rgba(255,255,255,0.85);
+}
+
+/* ====== Main content avec espacement réduit ====== */
+body {
+  padding-top: 125px; /* Encore réduit car header plus compact */
+}
+
+main{
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px; /* Réduit encore */
+}
+
+.grid{
+  position: relative;
+  width: 1000px;
+  height: 1000px;
+  display: grid;
+  grid-template-columns: repeat(100,10px);
+  grid-template-rows: repeat(100,10px);
+  gap: 0;
+  background: #fafafa;
+  border: 1px solid #eee;
+  user-select: none;
+}
+
+.cell{
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+}
+
+.cell.sold{
+  background: #ddd;
+  border-color: #ddd;
+}
+
+.cell.pending{
+  background: #fff6cc;
+  border-color: #ffd66b;
+}
+
+.cell.sel{
+  outline: 1px solid #8b5cf6;
+  background: #f5f3ff;
+}
+
+/* ====== Modal amélioré ====== */
+.modal.hidden{display:none}
+.modal{
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(8px);
+}
+
+.modal .backdrop{
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal .header{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
+}
+
+
+.modal label{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  font-family: "Inter", sans-serif;
+}
+
+.modal input, .modal textarea {
+  padding: 12px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 14px;
+  font-family: "Inter", sans-serif;
+  transition: all 0.2s ease;
+  background: #ffffff;
+}
+
+.modal input:focus, .modal textarea:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.modal .footer{
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid #f1f5f9;
+  background: #fafafa;
+}
+
+.btn{
+  background: #ffffff;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  font-family: "Inter", sans-serif;
+  transition: all 0.2s ease;
+}
+
+.btn:hover{
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.btn.primary{
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: #fff;
+  border-color: #8b5cf6;
+}
+
+.btn.primary:hover{
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+/* ====== Footer violet subtil mais visible ====== */
+.site-footer{
+  margin-top: 40px;
+  background: linear-gradient(135deg, #a855f7 0%, #9333ea 50%, #7c3aed 100%);
+  color: #ffffff;
+  border-top: 1px solid rgba(255,255,255,0.2);
+  position: relative;
+  opacity: 0.7; /* Plus subtil que le header mais clairement violet */
+}
+
+.footer-inner{
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 18px 20px;
+  text-align: center;
+}
+
+.footer-links{
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.footer-links a{
+  color: #f3f4f6;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: "Inter", sans-serif;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.footer-links a:hover{
+  background: rgba(255,255,255,0.15);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.footer-copy{
+  font-size: 13px;
+  opacity: 0.8;
+  font-weight: 500;
+  font-family: "Inter", sans-serif;
+}
+
+/* ====== Responsive amélioré ====== */
+@media (max-width: 768px) {
+  /* Header compact */
+  body { padding-top: 90px; }
+  
+  .masthead-title { font-size: 16px; padding: 8px 0 4px; }
+  
+  .masthead-inner { 
+    padding: 10px 12px 16px;
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  
+  .masthead-meta { text-align: center; }
+  
+  .masthead-tagline { font-size: 11px; }
+  .masthead-meta .pixels-left,
+  .masthead-meta .price-line { font-size: 11px; }
+  .masthead-meta .note { font-size: 9px; }
+  
+  /* Boutons petits */
+  .pill { padding: 5px 10px; font-size: 10px; }
+  
+  /* Grille qui prend TOUTE la largeur */
+  main { padding: 10px 5px; }
+  
+  .grid {
+    width: calc(100vw - 10px);
+    height: calc(100vw - 10px);
+    max-width: 390px;
+    max-height: 390px;
+  }
+  
+  .cell { border-width: 0.5px; }
+}
+/* ====== GLOW EFFECTS SUR SÉLECTION ====== */
+/* ====== GLOW EFFECTS CONDITIONNELS ====== */
+/*.cell.sel{
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
+  border: 2px solid #6d28d9 !important;
+  position: relative;
+  z-index: 2;
+}*/
+
+/* Glow seulement si moins de 200 pixels sélectionnés */
+body:not(.heavy-selection) .cell.sel {
+  animation: selectedGlow 1.5s infinite;
+}
+
+body:not(.heavy-selection) .cell.sel::before {
+  content: '';
+  position: absolute;
+  top: -2px; left: -2px; right: -2px; bottom: -2px;
+  background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shine 2s infinite;
+  z-index: 1;
+  pointer-events: none;
+}
+/*
+@keyframes selectedGlow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.6), 0 0 16px rgba(139, 92, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.8), 0 0 24px rgba(139, 92, 246, 0.6);
+  }
+}*/
+
+@keyframes shine {
+  0% { transform: translateX(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) rotate(45deg); }
+}
+/*glow*/
+/* ====== INFO DE SÉLECTION EN BAS ====== */
+.selection-info {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(139, 92, 246, 0.95);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 14px;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) translateY(20px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4);
+  font-family: "Inter", sans-serif;
+}
+
+.selection-info.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.selection-info .count {
+  font-size: 16px;
+  margin-right: 8px;
+}
+
+/* Performance optimizations */
+.cell.sel {
+  will-change: transform, box-shadow;
+}
+
+/* ====== RÉORGANISATION COMPLÈTE DE L'INTERFACE PAYPAL ====== */
+/* paypal claude new */
+/* ====== CLEAN PAYPAL MODAL LAYOUT ====== */
+/* ====== PAYPAL MODAL - VERSION SIMPLE ET ÉLÉGANTE ====== */
+/* ====== PAYPAL MODAL - VERSION SIMPLE ET ÉLÉGANTE ====== */
+/* ====== OPTION 1: DESIGN MODERNE AVEC HEADER INTÉGRÉ ====== */
+
+/* Footer modal sans le message à droite */
+.modal .footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 20px;
+  border-top: 1px solid #f1f5f9;
+  background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
+}
+
+/* Cancel button */
+.modal .footer .btn:not(.primary) {
+  padding: 10px 20px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #374151;
+  font-weight: 600;
+  font-size: 14px;
+  font-family: "Inter", sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal .footer .btn:not(.primary):hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+}
+
+/* Container PayPal avec header intégré */
+#paypal-button-container {
+  flex: 1;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  max-width: 350px;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  background: none !important;
+  border: none !important;
+  position: relative;
+}
+
+/* Header au-dessus des boutons PayPal */
+#paypal-button-container::before {
+  content: "💳 Choose your payment method";
+  display: block;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px 8px 0 0;
+  padding: 12px 16px;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  text-align: center;
+  margin-bottom: -1px;
+  transition: all 0.3s ease;
+}
+
+/* États du header */
+#paypal-button-container.active::before {
+  content: "💳 Choose your payment method";
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+#paypal-button-container.expired::before {
+  content: "⏰ Reservation expired — reselect";
+  background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+/* Wrapper pour les boutons */
+.paypal-buttons-wrapper {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0 0 8px 8px;
+  padding: 12px;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+/* Boutons PayPal */
+#paypal-button-container .paypal-buttons-wrapper > div[data-funding-source] {
+  border-radius: 6px !important;
+  overflow: hidden !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.2s ease !important;
+  height: 44px !important;
+}
+
+#paypal-button-container .paypal-buttons-wrapper > div[data-funding-source]:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Version mobile */
+@media (max-width: 768px) {
+  .modal .footer {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+  
+  .modal .footer .btn:not(.primary) {
+    order: 2;
+    align-self: center;
+    margin-top: 8px;
+  }
+  
+  #paypal-button-container {
+    order: 1;
+    max-width: none;
+  }
+}
+
+/* ====== ALTERNATIVE: DESIGN AVEC BADGE FLOTTANT ====== */
+
+.paypal-status-badge {
+  position: absolute;
+  top: -8px;
+  right: 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.paypal-status-badge.active {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.paypal-status-badge.expired {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+/* paypal claude new */
+
+
+/*warning message*/
+/* ====== MESSAGE D'AVERTISSEMENT SÉLECTION ====== */
+.warning-message {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 14px;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) translateY(20px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.4);
+  font-family: "Inter", sans-serif;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.warning-message.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+.warning-message::before {
+  content: '⚠️';
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+/* Animation de shake */
+.warning-message.shake {
+  animation: warningShake 0.5s ease-in-out;
+}
+
+@keyframes warningShake {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  25% { transform: translateX(-52%) translateY(0); }
+  75% { transform: translateX(-48%) translateY(0); }
+}
+/*warning message*/
+
+#paypal-button-container.cancelled::before {
+  content: "❌ Payment cancelled";
+  background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
+  border-color: #fecaca;
+  color: #dc2626;
+}
+#paypal-button-container.error::before {
+  content: "⚠️ Payment failed — try again";
+  background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+/* New states (match JS setPayPalHeaderState) */
+#paypal-button-container.processing::before {
+  content: "⏳ Processing payment…";
+  background: linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%);
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+
+#paypal-button-container.pending::before {
+  content: "⌛ Payment recorded — finalizing…";
+  background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%);
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+#paypal-button-container.completed::before {
+  content: "✅ Payment completed";
+  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+/* Optional: visu disabled quand pas cliquable (expired/cancelled/error) */
+#paypal-button-container.expired .paypal-buttons-wrapper,
+#paypal-button-container.cancelled .paypal-buttons-wrapper,
+#paypal-button-container.error .paypal-buttons-wrapper {
+  pointer-events: none;
+  opacity: 0.6;
+  filter: grayscale(0.1);
+}
+
+/* instruction selection */
+/* ====== INSTRUCTION SÉLECTION ====== */
+/* Guide qui suit le curseur */
+.selection-guide {
+  position: fixed; /* Fixed pour suivre globalement */
+  background: rgba(139, 92, 246, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transform: translate(-50%, -120%); /* Centré au-dessus du curseur */
+  white-space: nowrap;
+}
+
+/* Flèche pointant vers le curseur */
+.selection-guide::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -4px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid rgba(139, 92, 246, 0.9);
+}
+
+.selection-guide.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.selection-guide.dismissed {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .selection-guide {
+    font-size: 11px;
+    padding: 6px 10px;
+    transform: translate(-50%, -130%); /* Un peu plus haut sur mobile */
+  }
+}
+/* instruction selection */
+
+.modal .footer {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 16px !important;
+}
+
+/* PayPal EN HAUT (order: 1) */
+#paypal-button-container {
+  order: 1 !important;
+  max-width: 300px !important;
+}
+
+/* Cancel EN BAS (order: 2) */
+.modal .footer .btn:not(.primary) {
+  order: 2 !important;
+}
+
+/* Réduire les boutons PayPal */
+#paypal-button-container .paypal-buttons-wrapper > div[data-funding-source] {
+  height: 36px !important;
+  min-height: 36px !important;
+}
+
+/*new haut modal*/
+/* ====== MODAL HEADER AMÉLIORÉ ====== */
+.modal .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
+  position: relative; /* pour éviter les chevauchements */
+}
+
+/* Titre à gauche */
+.modal .header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  font-family: "Inter", sans-serif;
+  flex: 1; /* prend l’espace dispo */
+}
+
+/* Infos prix à droite sur une ligne */
+.modal .header .price-info {
+  display: flex;
+  flex-direction: row;   /* 🔥 une seule ligne */
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;   /* évite le retour à la ligne */
+}
+
+/* Nombre de pixels - même style que titre */
+.modal .header .pixels {
+  font-size: 16px;       /* 🔥 harmonisé */
+  font-weight: 700;
+  color: #8b5cf6;
+  font-family: "Inter", sans-serif;
+}
+
+/* Montant $ - même taille mais gras + gradient */
+.modal .header .amount {
+  font-size: 16px;       /* 🔥 harmonisé */
+  font-weight: 700;
+  color: #111827;
+  font-family: "Inter", sans-serif;
+  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Bouton close */
+.modal .header .close,
+.modal .header button[data-close] {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 18px;
+  color: #9ca3af;
+  margin-left: 12px; /* espace avec le prix */
+  flex-shrink: 0;    /* ne se fait pas écraser */
+}
+
+.modal .header .close:hover {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/*new haut modal*/
+
+
+/* ====== ORDER SUMMARY HARMONISÉ ====== */
+#order-summary {
+  padding: 16px 20px;
+  background: #ffffff;           /* 🔥 Fond blanc au lieu de gris */
+  border: 1px solid #e5e7eb;     /* 🔥 Bordure subtile */
+  border-radius: 12px;
+  margin: 16px 20px;
+  font-size: 13px;
+  font-family: "Inter", sans-serif;
+}
+
+#editOrder:hover {
+  background: #f3f4f6 !important;
+}
+
+/* === FIX SCROLL PAYPAL MODAL === */
+.modal .panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  box-shadow:
+    0 25px 50px rgba(0,0,0,.15),
+    0 0 0 1px rgba(255,255,255,0.8);
+  width: min(520px, 95vw);
+  max-height: 90vh;
+  overflow-y: auto; /* ✅ scroll autorisé */
+  -webkit-overflow-scrolling: touch;
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal .header {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 2;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.modal .body {
+  flex: 1 1 auto;
+  min-height: 0; /* ✅ essentiel pour autoriser le scroll */
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Footer scroll-safe + layout PayPal */
+.modal .footer {
+  flex-shrink: 0;           /* ✅ ne pousse pas le contenu */
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  z-index: 3;
+  padding: 16px 20px;
+  border-top: 1px solid #eee;
+  display: flex;
+  flex-direction: column;   /* ✅ garde le layout PayPal vertical */
+  align-items: center;
+  gap: 16px;
+}
+
+/* PayPal container */
+#paypal-button-container {
+  order: 1;
+  max-width: 350px;
+}
+
+.modal .footer .btn:not(.primary) {
+  order: 2;
+}
