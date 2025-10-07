@@ -30,7 +30,6 @@
   const confirmBtn = document.getElementById('confirm');
   const modalStats = document.getElementById('modalStats');
   const selectionGuide = document.getElementById('selectionGuide');
-  const locale = navigator.language || 'en-US'; // détecte la langue du navigateur
 
   let sold = {};
   let locks = {};
@@ -49,6 +48,9 @@
   let lastStatusTs = 0;
 
   window.getSelectedIndices = () => Array.from(selected);
+
+  function formatInt(n){ return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+  function formatMoney(n){ const [i,d]=Number(n).toFixed(2).split('.'); return '$'+i.replace(/\B(?=(\d{3})+(?!\d))/g,' ') + '.' + d; }
   function idxToRowCol(idx){ return [Math.floor(idx/N), idx%N]; }
   function rowColToIdx(r,c){ return r*N + c; }
 
@@ -173,15 +175,14 @@
     const totalRounded = Math.round(total * 100) / 100;
 
     selectionInfo.innerHTML =
-      `<span class="count">${selectedPixels.toLocaleString(locale)}</span> pixels selected • ~$${totalRounded.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      `<span class="count">${selectedPixels.toLocaleString()}</span> pixels selected • ~$${totalRounded.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     selectionInfo.classList.add('show');
   }
 
   function refreshTopbar(){
     const currentPrice = Number.isFinite(globalPrice) ? globalPrice : 1;
-  const formattedCurrentPrice = currentPrice.toLocaleString(locale);
-    priceLine.textContent = `1 pixel = $${formattedCurrentPrice}`;
-    pixelsLeftEl.textContent = `${TOTAL_PIXELS.toLocaleString(locale)} pixels`;
+    priceLine.textContent = `1 pixel = ${formatMoney(currentPrice)}`;
+    pixelsLeftEl.textContent = `${TOTAL_PIXELS.toLocaleString('en-US')} pixels`;
 
     buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = false;
 
@@ -451,16 +452,21 @@
     } else if (Number.isFinite(reservedPrice)) {
       total = selectedPixels * reservedPrice;
     }
-  
-   /*if (Number.isFinite(total)) {
+
+    /*if (Number.isFinite(total)) {
+      modalStats.textContent = `${formatInt(selectedPixels)} px — ${formatMoney(total)}`;
+      confirmBtn.disabled = false;
+    } else {
+      modalStats.textContent = `${formatInt(selectedPixels)} px — price pending…`;
+      confirmBtn.disabled = true;
+    }*/
+   if (Number.isFinite(total)) {
   modalStats.innerHTML = `<span class="pixels">${formatInt(selectedPixels)} px - </span><span class="amount">${formatMoney(total)}</span>`;
   confirmBtn.disabled = false;
 } else {
   modalStats.innerHTML = `<span class="pixels">${formatInt(selectedPixels)} px</span><span class="amount">price pending…</span>`;
   confirmBtn.disabled = true;
-}*/
-// Les stats seront affichées dans le summary après confirm
-confirmBtn.disabled = !Number.isFinite(total);
+}
 
     if (currentLock.length) {
       window.LockManager.heartbeat.start(currentLock, 30000, 180000, {

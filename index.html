@@ -97,6 +97,7 @@
     <div class="panel">
       <div class="header">
   <h2>🎯 Finalize order</h2>
+  <div id="modalStats" class="price-info"></div>
   <button class="close" title="Close" data-close>&times;</button>
 </div>
       <form id="form" class="body">
@@ -165,26 +166,20 @@
     </div>
   </div>
 
-  
+  <script src="js/errors.js"></script> 
+  <script src="js/core-manager.js"></script>
+  <script src="js/auth-utils.js"></script>
+  <script src="js/locks.js"></script> <!-- NOUVEAU -->
+  <script src="js/upload-manager.js"></script>
+  <script src="js/upload-addon.js"></script>
   <script>
   window.PAYPAL_CLIENT_ID = "Ae_mhLuL6FbRVTkQNt4XZZfnFII_WVgtsyqitpvyyzJkQkyvOXrkDMMBvY9PxlYlkqvAEq4pIspOwbPa";
   window.PAYPAL_CURRENCY = "USD";
   </script>
-  <script src="js/core/CoreManager.js"></script>
-<script src="js/core/AuthUtils.js"></script>
-<script src="js/core/Errors.js"></script>
-<script src="js/core/Locks.js"></script>
-
-<script src="js/services/upload.js"></script>
-<script src="js/services/paypalIntegration.js"></script>
-
-<script src="js/ui/modal.js"></script>
-<script src="js/ui/form.js"></script>
-<script src="js/ui/orderSummary.js"></script>
-<script src="js/ui/paypalWidget.js"></script>
-
-<script src="js/finalize.js"></script>
-
+  <script src="/js/paypal-integration.js"></script>
+  <script src="js/finalize-addon.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/contact-modal.js"></script>
   <script>
   // Initialisation de l'authentification au chargement de la page
   document.addEventListener('DOMContentLoaded', async () => {
