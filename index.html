@@ -92,14 +92,18 @@
 </div>
 
   <!-- Modal amélioré -->
-  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="backdrop" data-close></div>
-    <div class="panel">
-      <div class="header">
-  <h2>🎯 Finalize order</h2>
-  <button class="close" title="Close" data-close>&times;</button>
-</div>
-      <form id="form" class="body">
+  <!-- Modal amélioré -->
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="backdrop" data-close></div>
+  <div class="panel">
+    <div class="header">
+      <h2>🎯 Finalize order</h2>
+      <button class="close" title="Close" data-close>&times;</button>
+    </div>
+    
+    <!-- 🎯 CORRECTION: Wrapper body séparé du form -->
+    <div class="body">
+      <form id="form">
         <label>🏷️ Pseudo (Display name)
           <input id="name" name="name" placeholder="@yourname" maxlength="40" required />
         </label>
@@ -113,15 +117,15 @@
           <input id="image" type="file" accept="image/*" />
           <small style="color: #6b7280; font-size: 12px;">Max ~1.5 MB. JPG, PNG, GIF accepted.</small>
         </label>
-
-        <div class="footer">
-          <button type="button" class="btn" data-close>Cancel</button>
-          <button type="submit" id="confirm" class="btn primary">✨ Confirm Purchase</button>
-        </div>
-
       </form>
     </div>
+
+    <div class="footer">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" id="confirm" class="btn primary">✨ Confirm Purchase</button>
+    </div>
   </div>
+</div>
 
   <footer class="site-footer">
     <div class="footer-inner">

@@ -495,6 +495,8 @@ function showPaypalPlaceholder() {
 // 🔧 CORRECTION : switchToPaymentView simplifié
 function switchToPaymentView() {
   const modalBody = modal?.querySelector('.body');
+  const formEl = document.getElementById('form');
+  
   if (!modalBody) {
     console.error('[switchToPaymentView] Modal body not found');
     return;
@@ -509,7 +511,7 @@ function switchToPaymentView() {
   const formattedPixels = selectedPixels.toLocaleString(locale);
   const formattedTotal = total.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // Supprimer ancien résumé s'il existe
+  // Supprimer ancien résumé
   const oldSummary = document.getElementById('order-summary');
   if (oldSummary) oldSummary.remove();
 
@@ -536,17 +538,11 @@ function switchToPaymentView() {
     </div>
   `;
 
-  // 🎯 CORRECTION: Insérer le résumé DANS le modalBody (pas avant le form)
-  // Si le form est déjà dans le body, on insère avant
-  if (form && form.parentNode === modalBody) {
-    modalBody.insertBefore(summary, form);
-  } else {
-    // Sinon on insère au début
-    modalBody.insertBefore(summary, modalBody.firstChild);
-  }
+  // Insérer le résumé au début du body
+  modalBody.insertBefore(summary, modalBody.firstChild);
 
-  // 🎯 MAINTENANT on peut cacher le formulaire
-  if (form) form.style.display = 'none';
+  // 🎯 Cacher le form via CSS class (pas style.display)
+  modal.classList.add('payment-active');
 
   // Bouton Edit
   const editBtn = summary.querySelector('#editOrder');
@@ -559,15 +555,12 @@ function switchToPaymentView() {
       }
       
       // Réafficher le form
-      if (form) form.style.display = '';
+      modal.classList.remove('payment-active');
       
       // Supprimer résumé et section paiement
       summary.remove();
       const paymentSection = document.getElementById('payment-section');
       if (paymentSection) paymentSection.remove();
-      
-      // Retirer l'état payment
-      modal.classList.remove('payment-active');
       
       // Réactiver le bouton confirm
       btnBusy(false);

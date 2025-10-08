@@ -452,13 +452,10 @@ function openModal(){
 
   document.dispatchEvent(new CustomEvent('modal:opening'));
   
-  // 🎯 CORRECTION: S'assurer que payment-active est RETIRÉ à l'ouverture
   modal.classList.remove('hidden');
-  modal.classList.remove('payment-active'); // ✅ AJOUT CRITIQUE
+  modal.classList.remove('payment-active'); // ✅ Retirer payment-active
 
   modalOpened = true;
-  
-  // Cacher la selection info
   const selectionInfo = document.getElementById('selectionInfo');
   if (selectionInfo) selectionInfo.classList.remove('show');
 
@@ -470,19 +467,6 @@ function openModal(){
   } else if (Number.isFinite(reservedPrice)) {
     total = selectedPixels * reservedPrice;
   }
-
-  // 🎯 CORRECTION: S'assurer que le form est VISIBLE
-  if (form) form.style.display = ''; // ✅ AJOUT CRITIQUE
-  
-  // 🎯 CORRECTION: S'assurer qu'il n'y a pas de résumé/paypal au démarrage
-  const oldSummary = document.getElementById('order-summary');
-  if (oldSummary) oldSummary.remove();
-  
-  const oldPaymentSection = document.getElementById('payment-section');
-  if (oldPaymentSection) oldPaymentSection.remove();
-  
-  const oldPaypalContainer = document.getElementById('paypal-button-container');
-  if (oldPaypalContainer) oldPaypalContainer.remove();
 
   confirmBtn.disabled = !Number.isFinite(total);
 
