@@ -296,9 +296,17 @@
         return;
       }
 
-      // 🎯 CHANGEMENT CRITIQUE 1: Afficher conteneur PayPal IMMÉDIATEMENT
-      console.log('[Finalize] Showing PayPal placeholder immediately');
-      const paypalContainer = showPaypalPlaceholder();
+      // 🎯 CORRECTION 1: Créer le placeholder AVANT de cacher le form
+    console.log('[Finalize] Creating PayPal placeholder');
+    const paypalContainer = showPaypalPlaceholder();
+
+    // 🎯 CORRECTION 2: Transformer le modal APRÈS avoir créé le container
+    console.log('[Finalize] Switching to payment view');
+    switchToPaymentView();
+
+    // 🎯 CORRECTION 3: Maintenant on peut marquer le modal comme payment-active
+    modal.classList.add('payment-active');
+
 
       // 🎯 CHANGEMENT CRITIQUE 2: Lancer SDK + start-order EN PARALLÈLE
       console.log('[Finalize] Starting parallel: PayPal SDK + start-order');
@@ -487,7 +495,10 @@ function showPaypalPlaceholder() {
 // 🔧 CORRECTION : switchToPaymentView simplifié
 function switchToPaymentView() {
   const modalBody = modal?.querySelector('.body');
-  if (!modalBody) return;
+  if (!modalBody) {
+    console.error('[switchToPaymentView] Modal body not found');
+    return;
+  }
 
   const name = (nameInput?.value || '').trim();
   const linkUrl = (linkInput?.value || '').trim();
@@ -498,10 +509,7 @@ function switchToPaymentView() {
   const formattedPixels = selectedPixels.toLocaleString(locale);
   const formattedTotal = total.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  // Cacher le formulaire
-  if (form) form.style.display = 'none';
-
-  // Supprimer ancien résumé
+  // Supprimer ancien résumé s'il existe
   const oldSummary = document.getElementById('order-summary');
   if (oldSummary) oldSummary.remove();
 
@@ -528,9 +536,19 @@ function switchToPaymentView() {
     </div>
   `;
 
-  // 🎯 Insérer le résumé au début du modalBody
-  modalBody.insertBefore(summary, modalBody.firstChild);
+  // 🎯 CORRECTION: Insérer le résumé DANS le modalBody (pas avant le form)
+  // Si le form est déjà dans le body, on insère avant
+  if (form && form.parentNode === modalBody) {
+    modalBody.insertBefore(summary, form);
+  } else {
+    // Sinon on insère au début
+    modalBody.insertBefore(summary, modalBody.firstChild);
+  }
 
+  // 🎯 MAINTENANT on peut cacher le formulaire
+  if (form) form.style.display = 'none';
+
+  // Bouton Edit
   const editBtn = summary.querySelector('#editOrder');
   if (editBtn) {
     editBtn.addEventListener('click', () => {
@@ -539,10 +557,19 @@ function switchToPaymentView() {
         uiWarn('You cannot edit after a cancelled or failed payment.');
         return;
       }
+      
+      // Réafficher le form
+      if (form) form.style.display = '';
+      
+      // Supprimer résumé et section paiement
       summary.remove();
       const paymentSection = document.getElementById('payment-section');
       if (paymentSection) paymentSection.remove();
-      if (form) form.style.display = '';
+      
+      // Retirer l'état payment
+      modal.classList.remove('payment-active');
+      
+      // Réactiver le bouton confirm
       btnBusy(false);
       if (confirmBtn) confirmBtn.style.display = '';
     });
@@ -550,6 +577,8 @@ function switchToPaymentView() {
     editBtn.addEventListener('mouseenter', () => editBtn.style.background = '#f3f4f6');
     editBtn.addEventListener('mouseleave', () => editBtn.style.background = 'none');
   }
+
+  console.log('[switchToPaymentView] Payment view activated');
 }
 
 //new fonction resume
@@ -725,6 +754,9 @@ onError: async (err) => {
   if (paymentSection && paymentSection.parentNode) {
     paymentSection.parentNode.removeChild(paymentSection);
   }
+  
+  // 🎯 CORRECTION: Retirer l'état payment-active
+  modal.classList.remove('payment-active');
   
   if (confirmBtn) confirmBtn.style.display = '';
 }
