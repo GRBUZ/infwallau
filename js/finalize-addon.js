@@ -757,7 +757,7 @@ onError: async (err) => {
   
   // 🎯 CORRECTION: Retirer l'état payment-active
   modal.classList.remove('payment-active');
-  
+
   if (confirmBtn) confirmBtn.style.display = '';
 }
 
@@ -837,19 +837,26 @@ onError: async (err) => {
   });
 
   // Reset complet
-  function resetModalState() {
-    uploadedImageCache = null;
-    
-    if (fileInput) {
-      fileInput.value = '';
-      delete fileInput._cachedFile;
-    }
-    
-    const progressIndicator = document.querySelector('.upload-progress-mini');
-    if (progressIndicator) progressIndicator.remove();
-
-    removePaypalContainer();
+ function resetModalState() {
+  uploadedImageCache = null;
+  
+  if (fileInput) {
+    fileInput.value = '';
+    delete fileInput._cachedFile;
   }
+  
+  const progressIndicator = document.querySelector('.upload-progress-mini');
+  if (progressIndicator) progressIndicator.remove();
+
+  removePaypalContainer();
+  
+  // 🎯 AJOUT: Remettre le formulaire visible
+  modal.classList.remove('payment-active');
+  if (form) form.style.display = '';
+  
+  const oldSummary = document.getElementById('order-summary');
+  if (oldSummary) oldSummary.remove();
+}
 
   // Événements d'ouverture/fermeture du modal
   document.addEventListener('modal:opening', () => {
