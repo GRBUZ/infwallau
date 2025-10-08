@@ -117,12 +117,19 @@
           <input id="image" type="file" accept="image/*" />
           <small style="color: #6b7280; font-size: 12px;">Max ~1.5 MB. JPG, PNG, GIF accepted.</small>
         </label>
+
+        <!-- 🎯 CORRECTION: Boutons à l'intérieur du form -->
+        <div class="form-actions">
+          <button type="button" class="btn" data-close>Cancel</button>
+          <button type="submit" id="confirm" class="btn primary">✨ Confirm Purchase</button>
+        </div>
+
       </form>
     </div>
 
-    <div class="footer">
+    <!-- Footer vide pour le mode paiement -->
+    <div class="footer" style="display: none;">
       <button type="button" class="btn" data-close>Cancel</button>
-      <button type="submit" id="confirm" class="btn primary">✨ Confirm Purchase</button>
     </div>
   </div>
 </div>

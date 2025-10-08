@@ -1418,3 +1418,25 @@ body:not(.heavy-selection) .cell.sel::before {
   padding: 0;
   width: 100%;
 }
+
+/*new*/
+/* Actions du formulaire (boutons intégrés) */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+  margin-top: 8px;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* En mode paiement, cacher les actions du form */
+.modal.payment-active .form-actions {
+  display: none !important;
+}
+
+/* En mode paiement, afficher le footer */
+.modal.payment-active .footer {
+  display: flex !important;
+}
