@@ -437,6 +437,7 @@
   // ========================================
   // 🆕 Afficher placeholder PayPal (spinner)
   // ========================================
+// 🔧 CORRECTION : Injection PayPal dans une section dédiée
 function showPaypalPlaceholder() {
   if (confirmBtn) confirmBtn.style.display = 'none';
   
@@ -446,18 +447,10 @@ function showPaypalPlaceholder() {
   const container = document.createElement('div');
   container.id = 'paypal-button-container';
   container.className = 'loading';
-  container.style.width = '100%';
-container.style.marginTop = '16px';
-
   
   // Spinner réduit
-  container.style.minHeight = '120px';
-  container.style.display = 'flex';
-  container.style.alignItems = 'center';
-  container.style.justifyContent = 'center';
-  
   container.innerHTML = `
-    <div style="text-align:center;">
+    <div style="text-align:center; padding: 20px 0;">
       <div style="width:32px;height:32px;border:3px solid #f3f3f3;border-top:3px solid #0070ba;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 10px;"></div>
       <p style="color:#666;font-size:13px;margin:0;">Preparing payment...</p>
     </div>
@@ -470,208 +463,55 @@ container.style.marginTop = '16px';
     document.head.appendChild(style);
   }
 
-  // CORRECTION : Insérer dans le footer au lieu du form/modal
-  /*const footer = modal?.querySelector('.footer') || document.querySelector('.modal .footer');
-  if (footer) {
-    footer.appendChild(container);
-  } else {
-    const target = form || modal;
-    if (target) target.appendChild(container);
-  }*/
+  // 🎯 CORRECTION CRITIQUE : Créer une section dédiée dans le body du modal
+  const modalBody = modal?.querySelector('.body');
+  if (!modalBody) {
+    console.error('[PayPal] Modal body not found');
+    return null;
+  }
 
-  const body = modal?.querySelector('.body') || document.querySelector('.modal .body');
-if (body) {
-  body.appendChild(container);
-} else {
-  modal.appendChild(container);
-}
+  // Créer ou récupérer la section de paiement
+  let paymentSection = document.getElementById('payment-section');
+  if (!paymentSection) {
+    paymentSection = document.createElement('div');
+    paymentSection.id = 'payment-section';
+    paymentSection.className = 'payment-section';
+    modalBody.appendChild(paymentSection);
+  }
 
+  paymentSection.appendChild(container);
   
   return container;
 }
 
-//new fonction resume
-// Transformer le modal en mode "paiement" avec résumé
-/*function switchToPaymentView() {
-  const modalBody = modal?.querySelector('.body') || document.querySelector('.modal .body');
+// 🔧 CORRECTION : switchToPaymentView simplifié
+function switchToPaymentView() {
+  const modalBody = modal?.querySelector('.body');
   if (!modalBody) return;
 
-  // Récupérer les valeurs du formulaire
   const name = (nameInput?.value || '').trim();
   const linkUrl = (linkInput?.value || '').trim();
   const blocks = getSelectedIndices();
   const selectedPixels = blocks.length * 100;
-
-  const paypalContainer = document.getElementById('paypal-button-container');
-
-  // ⚙️ Si le container est encore dans le form, on le déplace avant de cacher le form
-  if (paypalContainer && form && form.contains(paypalContainer)) {
-    form.parentNode.appendChild(paypalContainer);
-  }
+  const total = window.reservedTotal || (blocks.length * 100 * (window.globalPrice || 1));
+  
+  const formattedPixels = selectedPixels.toLocaleString(locale);
+  const formattedTotal = total.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // Cacher le formulaire
   if (form) form.style.display = 'none';
 
-  // Créer un résumé compact
-  const summary = document.createElement('div');
-  summary.id = 'order-summary';
-  summary.style.cssText = 'padding:16px 20px;background:#f9fafb;border-radius:12px;margin-bottom:20px;';
-  summary.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <span style="font-weight:600;color:#374151;font-size:14px;">Your order</span>
-      <button id="editOrder" style="background:none;border:none;color:#8b5cf6;font-size:13px;font-weight:600;cursor:pointer;padding:4px 8px;border-radius:6px;transition:all 0.2s;">Edit</button>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#6b7280;">
-      <div style="display:flex;justify-content:space-between;">
-        <span>Pseudo:</span>
-        <span style="font-weight:600;color:#111827;">${name}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;">
-        <span>Profile:</span>
-        <span style="font-weight:600;color:#111827;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${linkUrl}">${linkUrl}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;">
-        <span>Pixels:</span>
-        <span style="font-weight:600;color:#8b5cf6;">${selectedPixels} px</span>
-      </div>
-    </div>
-  `;
-
-  modalBody.insertBefore(summary, modalBody.firstChild);
-
-  // Bouton "Edit" pour revenir au formulaire
-  const editBtn = summary.querySelector('#editOrder');
-  if (editBtn) {
-    editBtn.addEventListener('click', () => {
-      if (form) form.style.display = '';
-      summary.remove();
-      removePaypalContainer();
-      btnBusy(false);
-      if (confirmBtn) confirmBtn.style.display = '';
-    });
-
-    // Hover effect
-    editBtn.addEventListener('mouseenter', () => {
-      editBtn.style.background = '#f3f4f6';
-    });
-    editBtn.addEventListener('mouseleave', () => {
-      editBtn.style.background = 'none';
-    });
-  }
-  console.log('[switchToPaymentView] Payment view active');
-}*/
-
-/*function switchToPaymentView() {
-  const panel = modal?.querySelector('.panel');
-  const paypalContainer = document.getElementById('paypal-button-container');
-
-  // Déplacer le container PayPal avant de cacher le form
-  if (paypalContainer && form && form.contains(paypalContainer)) {
-    form.parentNode.appendChild(paypalContainer);
-  }
-
-  // Cacher le formulaire
-  if (form) form.style.display = 'none';
+  // Supprimer ancien résumé
+  const oldSummary = document.getElementById('order-summary');
+  if (oldSummary) oldSummary.remove();
 
   // Créer le résumé
-  const name = (nameInput?.value || '').trim();
-  const linkUrl = (linkInput?.value || '').trim();
-  const blocks = getSelectedIndices();
-  const selectedPixels = blocks.length * 100;
-
-  // Supprimer un ancien résumé s’il existe
-  const oldSummary = document.getElementById('order-summary');
-  if (oldSummary) oldSummary.remove();
-
-  const summary = document.createElement('div');
-  summary.id = 'order-summary';
-  summary.style.cssText = `
-    padding:16px 20px;
-    background:#f9fafb;
-    border-radius:12px;
-    margin:16px auto;
-    max-width:90%;
-    font-size:13px;
-  `;
-  summary.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <span style="font-weight:600;color:#374151;font-size:14px;">Your order</span>
-      <button id="editOrder" style="background:none;border:none;color:#8b5cf6;font-size:13px;font-weight:600;cursor:pointer;">Edit</button>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:6px;color:#6b7280;">
-      <div style="display:flex;justify-content:space-between;">
-        <span>Pseudo:</span>
-        <span style="font-weight:600;color:#111827;">${name}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;">
-        <span>Profile:</span>
-        <span style="font-weight:600;color:#111827;max-width:180px;overflow:hidden;text-overflow:ellipsis;" title="${linkUrl}">${linkUrl}</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;">
-        <span>Pixels:</span>
-        <span style="font-weight:600;color:#8b5cf6;">${selectedPixels} px</span>
-      </div>
-    </div>
-  `;
-
-  // ⚙️ → Insertion visible : juste au-dessus du container PayPal
-  const target = paypalContainer?.parentNode || panel;
-  target.insertBefore(summary, paypalContainer);
-
-  // Bouton "Edit"
-  const editBtn = summary.querySelector('#editOrder');
-  if (editBtn) {
-    editBtn.addEventListener('click', () => {
-      // Bloquer si on est en état erreur ou cancelled
-    const state = document.getElementById('paypal-button-container')?.className || '';
-    if (state.includes('error') || state.includes('cancelled')) {
-      uiWarn('You cannot edit after a cancelled or failed payment.');
-      return;
-    }
-      summary.remove();
-      if (form) form.style.display = '';
-      removePaypalContainer();
-      btnBusy(false);
-      if (confirmBtn) confirmBtn.style.display = '';
-    });
-  }
-
-  console.log('[switchToPaymentView] Summary added above PayPal container');
-}*/
-
-function switchToPaymentView() {
-  const panel = modal?.querySelector('.panel');
-  const paypalContainer = document.getElementById('paypal-button-container');
-
-  if (paypalContainer && form && form.contains(paypalContainer)) {
-    form.parentNode.appendChild(paypalContainer);
-  }
-
-  if (form) form.style.display = 'none';
-
-  const name = (nameInput?.value || '').trim();
-  const linkUrl = (linkInput?.value || '').trim();
-  const blocks = getSelectedIndices();
-  const selectedPixels = blocks.length * 100;
-  // 🆕 Récupérer le total depuis app.js
-  const total = window.reservedTotal || (blocks.length * 100 * (window.globalPrice || 1));
-  /*let total = null;
-    if (Number.isFinite(reservedTotal)) {
-      total = reservedTotal;
-    } else if (Number.isFinite(reservedPrice)) {
-      total = selectedPixels * reservedPrice;
-    }*/
-   const formattedPixels = selectedPixels.toLocaleString(locale);
-  const formattedTotal = total.toLocaleString(locale);
-  const oldSummary = document.getElementById('order-summary');
-  if (oldSummary) oldSummary.remove();
-
   const summary = document.createElement('div');
   summary.id = 'order-summary';
   summary.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <span style="font-weight:600;color:#111827;font-size:15px;">Order summary</span>
-      <button id="editOrder" style="background:none;border:none;color:#8b5cf6;font-size:13px;font-weight:600;cursor:pointer;padding:4px 8px;border-radius:6px;">Edit</button>
+      <button id="editOrder" type="button" style="background:none;border:none;color:#8b5cf6;font-size:13px;font-weight:600;cursor:pointer;padding:4px 8px;border-radius:6px;">Edit</button>
     </div>
     <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:13px;">
       <span style="color:#6b7280;">Pseudo:</span>
@@ -683,14 +523,13 @@ function switchToPaymentView() {
       <span style="color:#6b7280;">Pixels:</span>
       <span style="font-weight:600;color:#111827;text-align:right;">${formattedPixels} px</span>
     
-    <span style="color:#6b7280;">Total:</span>
+      <span style="color:#6b7280;">Total:</span>
       <span style="font-weight:600;color:#111827;text-align:right;">$${formattedTotal}</span>
-    
-      </div>
+    </div>
   `;
 
-  const target = paypalContainer?.parentNode || panel;
-  target.insertBefore(summary, paypalContainer);
+  // 🎯 Insérer le résumé au début du modalBody
+  modalBody.insertBefore(summary, modalBody.firstChild);
 
   const editBtn = summary.querySelector('#editOrder');
   if (editBtn) {
@@ -701,8 +540,9 @@ function switchToPaymentView() {
         return;
       }
       summary.remove();
+      const paymentSection = document.getElementById('payment-section');
+      if (paymentSection) paymentSection.remove();
       if (form) form.style.display = '';
-      removePaypalContainer();
       btnBusy(false);
       if (confirmBtn) confirmBtn.style.display = '';
     });
@@ -873,13 +713,21 @@ onError: async (err) => {
   // ========================================
   // Fonctions utilitaires
   // ========================================
+
   function removePaypalContainer() {
-    const container = document.getElementById('paypal-button-container');
-    if (container && container.parentNode) {
-      container.parentNode.removeChild(container);
-    }
-    if (confirmBtn) confirmBtn.style.display = '';
+  const container = document.getElementById('paypal-button-container');
+  if (container && container.parentNode) {
+    container.parentNode.removeChild(container);
   }
+  
+  // 🔧 AJOUT : Supprimer aussi la section de paiement
+  const paymentSection = document.getElementById('payment-section');
+  if (paymentSection && paymentSection.parentNode) {
+    paymentSection.parentNode.removeChild(paymentSection);
+  }
+  
+  if (confirmBtn) confirmBtn.style.display = '';
+}
 
   function haveMyValidLocks(blocks, graceMs = 5000) {
     if (!window.LockManager) return true;
