@@ -589,7 +589,7 @@ function switchToPaymentView() {
   }
 }
 
-/ Fonction utilitaire pour échapper le HTML
+// Fonction utilitaire pour échapper le HTML
 function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
