@@ -296,17 +296,9 @@
         return;
       }
 
-      // 🎯 CORRECTION 1: Créer le placeholder AVANT de cacher le form
-    console.log('[Finalize] Creating PayPal placeholder');
-    const paypalContainer = showPaypalPlaceholder();
-
-    // 🎯 CORRECTION 2: Transformer le modal APRÈS avoir créé le container
-    console.log('[Finalize] Switching to payment view');
-    switchToPaymentView();
-
-    // 🎯 CORRECTION 3: Maintenant on peut marquer le modal comme payment-active
-    modal.classList.add('payment-active');
-
+      // 🎯 CHANGEMENT CRITIQUE 1: Afficher conteneur PayPal IMMÉDIATEMENT
+      console.log('[Finalize] Showing PayPal placeholder immediately');
+      const paypalContainer = showPaypalPlaceholder();
 
       // 🎯 CHANGEMENT CRITIQUE 2: Lancer SDK + start-order EN PARALLÈLE
       console.log('[Finalize] Starting parallel: PayPal SDK + start-order');
@@ -445,25 +437,35 @@
   // ========================================
   // 🆕 Afficher placeholder PayPal (spinner)
   // ========================================
-// 🔧 CORRECTION : Injection PayPal dans une section dédiée
 function showPaypalPlaceholder() {
+  // Cacher le bouton confirm original
   if (confirmBtn) confirmBtn.style.display = 'none';
   
+  // Supprimer tout container existant
   const existing = document.getElementById('paypal-button-container');
-  if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+  if (existing) existing.remove();
 
+  // Créer le nouveau container
   const container = document.createElement('div');
   container.id = 'paypal-button-container';
   container.className = 'loading';
+  container.style.width = '100%';
+  container.style.marginTop = '16px';
   
-  // Spinner réduit
+  // Spinner de chargement
+  container.style.minHeight = '120px';
+  container.style.display = 'flex';
+  container.style.alignItems = 'center';
+  container.style.justifyContent = 'center';
+  
   container.innerHTML = `
-    <div style="text-align:center; padding: 20px 0;">
+    <div style="text-align:center;">
       <div style="width:32px;height:32px;border:3px solid #f3f3f3;border-top:3px solid #0070ba;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 10px;"></div>
       <p style="color:#666;font-size:13px;margin:0;">Preparing payment...</p>
     </div>
   `;
 
+  // Ajouter styles animation si nécessaire
   if (!document.getElementById('paypal-spinner-style')) {
     const style = document.createElement('style');
     style.id = 'paypal-spinner-style';
@@ -471,37 +473,27 @@ function showPaypalPlaceholder() {
     document.head.appendChild(style);
   }
 
-  // 🎯 CORRECTION CRITIQUE : Créer une section dédiée dans le body du modal
+  // ✅ CORRECTION: Stocker temporairement dans le body du modal
   const modalBody = modal?.querySelector('.body');
-  if (!modalBody) {
+  if (modalBody) {
+    // Le placer comme dernier enfant du body pour l'instant
+    modalBody.appendChild(container);
+  } else {
     console.error('[PayPal] Modal body not found');
-    return null;
+    modal.appendChild(container);
   }
-
-  // Créer ou récupérer la section de paiement
-  let paymentSection = document.getElementById('payment-section');
-  if (!paymentSection) {
-    paymentSection = document.createElement('div');
-    paymentSection.id = 'payment-section';
-    paymentSection.className = 'payment-section';
-    modalBody.appendChild(paymentSection);
-  }
-
-  paymentSection.appendChild(container);
   
   return container;
 }
 
-// 🔧 CORRECTION : switchToPaymentView simplifié
 function switchToPaymentView() {
-  const modalBody = modal?.querySelector('.body');
-  const formEl = document.getElementById('form');
+  // Ajouter classe au modal pour le mode paiement
+  if (modal) modal.classList.add('payment-mode');
   
-  if (!modalBody) {
-    console.error('[switchToPaymentView] Modal body not found');
-    return;
-  }
-
+  // Cacher le formulaire
+  if (form) form.style.display = 'none';
+  
+  // Récupérer les infos
   const name = (nameInput?.value || '').trim();
   const linkUrl = (linkInput?.value || '').trim();
   const blocks = getSelectedIndices();
@@ -509,42 +501,64 @@ function switchToPaymentView() {
   const total = window.reservedTotal || (blocks.length * 100 * (window.globalPrice || 1));
   
   const formattedPixels = selectedPixels.toLocaleString(locale);
-  const formattedTotal = total.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-  // Supprimer ancien résumé
+  const formattedTotal = total.toLocaleString(locale, { 
+    minimumFractionDigits: 2, 
+    maximumFractionDigits: 2 
+  });
+  
+  // Supprimer ancien summary
   const oldSummary = document.getElementById('order-summary');
   if (oldSummary) oldSummary.remove();
-
-  // Créer le résumé
+  
+  // Créer le summary
   const summary = document.createElement('div');
   summary.id = 'order-summary';
   summary.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <span style="font-weight:600;color:#111827;font-size:15px;">Order summary</span>
-      <button id="editOrder" type="button" style="background:none;border:none;color:#8b5cf6;font-size:13px;font-weight:600;cursor:pointer;padding:4px 8px;border-radius:6px;">Edit</button>
+      <button id="editOrder" style="background:none;border:none;color:#8b5cf6;font-size:13px;font-weight:600;cursor:pointer;padding:4px 8px;border-radius:6px;">Edit</button>
     </div>
     <div style="display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:13px;">
       <span style="color:#6b7280;">Pseudo:</span>
-      <span style="font-weight:600;color:#111827;text-align:right;">${name}</span>
+      <span style="font-weight:600;color:#111827;text-align:right;">${escapeHtml(name)}</span>
       
       <span style="color:#6b7280;">Profile:</span>
-      <span style="font-weight:600;color:#111827;text-align:right;overflow:hidden;text-overflow:ellipsis;" title="${linkUrl}">${linkUrl}</span>
+      <span style="font-weight:600;color:#111827;text-align:right;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(linkUrl)}">${escapeHtml(linkUrl)}</span>
       
       <span style="color:#6b7280;">Pixels:</span>
       <span style="font-weight:600;color:#111827;text-align:right;">${formattedPixels} px</span>
-    
+      
       <span style="color:#6b7280;">Total:</span>
       <span style="font-weight:600;color:#111827;text-align:right;">$${formattedTotal}</span>
     </div>
   `;
-
-  // Insérer le résumé au début du body
-  modalBody.insertBefore(summary, modalBody.firstChild);
-
-  // 🎯 Cacher le form via CSS class (pas style.display)
-  modal.classList.add('payment-active');
-
-  // Bouton Edit
+  
+  // ✅ CORRECTION: Tout insérer dans le body du modal
+  const modalBody = modal?.querySelector('.body');
+  const paypalContainer = document.getElementById('paypal-button-container');
+  
+  if (modalBody) {
+    // Vider le body et reconstruire
+    modalBody.innerHTML = '';
+    
+    // 1. Ajouter le summary
+    modalBody.appendChild(summary);
+    
+    // 2. Ajouter le container PayPal
+    if (paypalContainer) {
+      modalBody.appendChild(paypalContainer);
+    }
+    
+    // 3. Ajouter un bouton Cancel en bas
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'payment-cancel-btn';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.setAttribute('data-close', '');
+    cancelBtn.addEventListener('click', handlePaymentCancel);
+    modalBody.appendChild(cancelBtn);
+  }
+  
+  // Gérer le bouton Edit
   const editBtn = summary.querySelector('#editOrder');
   if (editBtn) {
     editBtn.addEventListener('click', () => {
@@ -554,15 +568,18 @@ function switchToPaymentView() {
         return;
       }
       
-      // Réafficher le form
-      modal.classList.remove('payment-active');
+      // Revenir au mode formulaire
+      modal.classList.remove('payment-mode');
+      modalBody.innerHTML = ''; // Vider le body
       
-      // Supprimer résumé et section paiement
-      summary.remove();
-      const paymentSection = document.getElementById('payment-section');
-      if (paymentSection) paymentSection.remove();
+      // Remettre le formulaire dans le body
+      if (form) {
+        modalBody.appendChild(form);
+        form.style.display = '';
+      }
       
-      // Réactiver le bouton confirm
+      // Remettre le footer visible (géré par CSS)
+      removePaypalContainer();
       btnBusy(false);
       if (confirmBtn) confirmBtn.style.display = '';
     });
@@ -570,35 +587,86 @@ function switchToPaymentView() {
     editBtn.addEventListener('mouseenter', () => editBtn.style.background = '#f3f4f6');
     editBtn.addEventListener('mouseleave', () => editBtn.style.background = 'none');
   }
-
-  console.log('[switchToPaymentView] Payment view activated');
 }
 
-//new fonction resume
+/ Fonction utilitaire pour échapper le HTML
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Gestionnaire pour le cancel en mode paiement
+async function handlePaymentCancel(e) {
+  e.preventDefault();
+  
+  // Déclencher les mêmes actions que le cancel normal
+  const toRelease = (window.currentLock && window.currentLock.length) 
+    ? window.currentLock.slice() 
+    : getSelectedIndices();
+  
+  window.currentLock = [];
+  
+  if (window.LockManager) {
+    window.LockManager.heartbeat.stop();
+  }
+  
+  if (typeof window.stopModalMonitor === 'function') {
+    window.stopModalMonitor();
+  }
+  
+  if (toRelease.length) {
+    try { 
+      await window.LockManager.unlock(toRelease); 
+    } catch {}
+    
+    if (window.LockManager) {
+      window.locks = window.LockManager.getLocalLocks();
+    }
+  }
+  
+  // Fermer le modal
+  modal.classList.remove('payment-mode');
+  modal.classList.add('hidden');
+  
+  // Nettoyer la sélection
+  if (typeof window.clearSelection === 'function') {
+    window.clearSelection();
+  }
+  
+  // Rafraîchir le statut
+  setTimeout(async () => {
+    if (typeof window.loadStatus === 'function') {
+      await window.loadStatus();
+    }
+    if (typeof window.paintAll === 'function') {
+      window.paintAll();
+    }
+  }, 150);
+}
   // ========================================
   // 🆕 Rendre les boutons PayPal
   // ========================================
   function renderPaypalButtons(container, orderId, currency) {
     if (!container) {
-      console.error('[PayPal] Container not found');
-      return;
-    }
+    console.error('[PayPal] Container not found');
+    return;
+  }
 
-    // Vider le spinner
-    //container.innerHTML = '';
-    //container.className = '';
-
-    // Vider le spinner MAIS garder la structure pour le ::before
+  // Vider le spinner mais garder le container
   container.innerHTML = '';
-  // NE PAS supprimer toutes les classes, juste 'loading'
   container.classList.remove('loading');
-  // CORRECTION : Ajouter la classe 'active' par défaut
   container.className = 'active';
+  
+  // Créer un wrapper pour les boutons PayPal
+  const wrapper = document.createElement('div');
+  wrapper.className = 'paypal-buttons-wrapper';
+  container.appendChild(wrapper);
 
-    if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
-      uiWarn('Payment: missing PayPal configuration');
-      return;
-    }
+  if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
+    uiWarn('Payment: missing PayPal configuration');
+    return;
+  }
 
     window.PayPalIntegration.initAndRender({
       orderId,
@@ -664,20 +732,6 @@ function switchToPaymentView() {
         }
       },
 
-      /*onCancel: async () => {
-        try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-        setPayPalHeaderState('cancelled');
-        try { await unlockSelection(); } catch {}
-        btnBusy(false);
-      },
-
-      onError: async (err) => {
-        uiError(err, 'PayPal');
-        setPayPalHeaderState('error');
-        try { window.LockManager?.heartbeat?.stop?.(); } catch {}
-        try { await unlockSelection(); } catch {}
-        btnBusy(false);
-      }*/
      //new oncancel et onerror
     onCancel: async () => {
   console.warn('[PayPal] Payment cancelled by user');
@@ -735,24 +789,13 @@ onError: async (err) => {
   // ========================================
   // Fonctions utilitaires
   // ========================================
-
   function removePaypalContainer() {
-  const container = document.getElementById('paypal-button-container');
-  if (container && container.parentNode) {
-    container.parentNode.removeChild(container);
+    const container = document.getElementById('paypal-button-container');
+    if (container && container.parentNode) {
+      container.parentNode.removeChild(container);
+    }
+    if (confirmBtn) confirmBtn.style.display = '';
   }
-  
-  // 🔧 AJOUT : Supprimer aussi la section de paiement
-  const paymentSection = document.getElementById('payment-section');
-  if (paymentSection && paymentSection.parentNode) {
-    paymentSection.parentNode.removeChild(paymentSection);
-  }
-  
-  // 🎯 CORRECTION: Retirer l'état payment-active
-  modal.classList.remove('payment-active');
-
-  if (confirmBtn) confirmBtn.style.display = '';
-}
 
   function haveMyValidLocks(blocks, graceMs = 5000) {
     if (!window.LockManager) return true;
@@ -765,13 +808,6 @@ onError: async (err) => {
     return true;
   }
 
-  /*function setPayPalHeaderState(state){
-    const el = document.getElementById('paypal-button-container');
-    if (!el) return;
-    el.className = String(state || '').trim();
-  }*/
-
-  //new
   function setPayPalHeaderState(state) {
   const el = document.getElementById('paypal-button-container');
   if (!el) return;
@@ -799,8 +835,6 @@ onError: async (err) => {
       el.style.filter = '';
   }
 }
-
-  //new
 
   async function waitForCompleted(orderId, maxSeconds = 120) {
     const maxAttempts = 12;
@@ -830,26 +864,19 @@ onError: async (err) => {
   });
 
   // Reset complet
- function resetModalState() {
-  uploadedImageCache = null;
-  
-  if (fileInput) {
-    fileInput.value = '';
-    delete fileInput._cachedFile;
-  }
-  
-  const progressIndicator = document.querySelector('.upload-progress-mini');
-  if (progressIndicator) progressIndicator.remove();
+  function resetModalState() {
+    uploadedImageCache = null;
+    
+    if (fileInput) {
+      fileInput.value = '';
+      delete fileInput._cachedFile;
+    }
+    
+    const progressIndicator = document.querySelector('.upload-progress-mini');
+    if (progressIndicator) progressIndicator.remove();
 
-  removePaypalContainer();
-  
-  // 🎯 AJOUT: Remettre le formulaire visible
-  modal.classList.remove('payment-active');
-  if (form) form.style.display = '';
-  
-  const oldSummary = document.getElementById('order-summary');
-  if (oldSummary) oldSummary.remove();
-}
+    removePaypalContainer();
+  }
 
   // Événements d'ouverture/fermeture du modal
   document.addEventListener('modal:opening', () => {
@@ -859,9 +886,5 @@ onError: async (err) => {
   document.addEventListener('modal:closing', () => {
     resetModalState();
   });
-
-  //new
-
-  //new
   console.log('[Finalize] Parallel optimization loaded - PayPal SDK + start-order in parallel');
 })();

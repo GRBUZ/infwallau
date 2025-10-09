@@ -508,167 +508,6 @@ body:not(.heavy-selection) .cell.sel::before {
   will-change: transform, box-shadow;
 }
 
-/* ====== RÉORGANISATION COMPLÈTE DE L'INTERFACE PAYPAL ====== */
-/* paypal claude new */
-/* ====== CLEAN PAYPAL MODAL LAYOUT ====== */
-/* ====== PAYPAL MODAL - VERSION SIMPLE ET ÉLÉGANTE ====== */
-/* ====== PAYPAL MODAL - VERSION SIMPLE ET ÉLÉGANTE ====== */
-/* ====== OPTION 1: DESIGN MODERNE AVEC HEADER INTÉGRÉ ====== */
-
-/* Footer modal sans le message à droite */
-.modal .footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 24px;
-  padding: 20px;
-  border-top: 1px solid #f1f5f9;
-  background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
-}
-
-/* Cancel button */
-.modal .footer .btn:not(.primary) {
-  padding: 10px 20px;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #374151;
-  font-weight: 600;
-  font-size: 14px;
-  font-family: "Inter", sans-serif;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.modal .footer .btn:not(.primary):hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
-  transform: translateY(-1px);
-}
-
-/* Container PayPal avec header intégré */
-#paypal-button-container {
-  flex: 1;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 0 !important;
-  max-width: 350px;
-  margin: 0 auto !important;
-  padding: 0 !important;
-  background: none !important;
-  border: none !important;
-  position: relative;
-}
-
-/* Header au-dessus des boutons PayPal */
-#paypal-button-container::before {
-  content: "💳 Choose your payment method";
-  display: block;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border: 1px solid #e2e8f0;
-  border-radius: 8px 8px 0 0;
-  padding: 12px 16px;
-  font-family: "Inter", sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-  text-align: center;
-  margin-bottom: -1px;
-  transition: all 0.3s ease;
-}
-
-/* États du header */
-#paypal-button-container.active::before {
-  content: "💳 Choose your payment method";
-  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
-  border-color: #bbf7d0;
-  color: #166534;
-}
-
-#paypal-button-container.expired::before {
-  content: "⏰ Reservation expired — reselect";
-  background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
-  border-color: #fecaca;
-  color: #dc2626;
-}
-
-/* Wrapper pour les boutons */
-.paypal-buttons-wrapper {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0 0 8px 8px;
-  padding: 12px;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-}
-
-/* Boutons PayPal */
-#paypal-button-container .paypal-buttons-wrapper > div[data-funding-source] {
-  border-radius: 6px !important;
-  overflow: hidden !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
-  transition: all 0.2s ease !important;
-  height: 44px !important;
-}
-
-#paypal-button-container .paypal-buttons-wrapper > div[data-funding-source]:hover {
-  transform: translateY(-1px) !important;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15) !important;
-}
-
-/* Version mobile */
-@media (max-width: 768px) {
-  .modal .footer {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-  
-  .modal .footer .btn:not(.primary) {
-    order: 2;
-    align-self: center;
-    margin-top: 8px;
-  }
-  
-  #paypal-button-container {
-    order: 1;
-    max-width: none;
-  }
-}
-
-/* ====== ALTERNATIVE: DESIGN AVEC BADGE FLOTTANT ====== */
-
-.paypal-status-badge {
-  position: absolute;
-  top: -8px;
-  right: 16px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #64748b;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-}
-
-.paypal-status-badge.active {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
-  color: #166534;
-}
-
-.paypal-status-badge.expired {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #dc2626;
-}
-
-/* paypal claude new */
-
-
 /*warning message*/
 /* ====== MESSAGE D'AVERTISSEMENT SÉLECTION ====== */
 .warning-message {
@@ -997,10 +836,23 @@ body:not(.heavy-selection) .cell.sel::before {
   order: 2;
 }
 
+/*new*/
+/* minimal, local, sûr */
+.modal.payment-active .footer {
+  max-height: calc(80vh - 64px); /* 64 = header + marge — ajuste */
+  overflow-y: auto;
+}
+.modal.payment-active #paypal-button-container {
+  max-height: calc(80vh - 140px); /* réduit la hauteur du container */
+  overflow-y: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
 
-/* ====== FIX SCROLL PAYPAL - ARCHITECTURE CORRIGÉE ====== */
+/*new*/
 
-/* Panel modal optimisé pour scroll */
+/*new modal paypal*/
+/* === MODAL STRUCTURE CORRIGÉE === */
 .modal .panel {
   position: relative;
   display: flex;
@@ -1012,71 +864,70 @@ body:not(.heavy-selection) .cell.sel::before {
     0 25px 50px rgba(0,0,0,.15),
     0 0 0 1px rgba(255,255,255,0.8);
   width: min(520px, 95vw);
-  max-height: 90vh; /* ✅ Hauteur maximale contrôlée */
-  overflow: hidden; /* ✅ Masque le débordement global */
+  max-height: 90vh;
+  overflow: hidden; /* ✅ Panel ne scroll pas, seul le body scroll */
   animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Header sticky */
+/* Header fixe en haut */
 .modal .header {
   flex-shrink: 0;
-  position: sticky;
-  top: 0;
-  background: #fff;
+  position: relative;
+  background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
   z-index: 10;
   padding: 16px 20px;
   border-bottom: 1px solid #f1f5f9;
 }
 
-/* Body scrollable */
+/* Body scrollable avec conteneur PayPal */
 .modal .body {
-  flex: 1 1 auto;
-  min-height: 0; /* ✅ Essentiel pour scroll */
-  overflow-y: auto; /* ✅ Scroll activé */
-  -webkit-overflow-scrolling: touch;
-  padding: 20px;
+  flex: 1;
+  min-height: 0; /* ✅ Crucial pour permettre le scroll */
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  -webkit-overflow-scrolling: touch; /* Smooth scroll iOS */
 }
 
-/* Footer fixe en bas (pas sticky) */
+/* Footer uniquement pour Cancel en mode form */
 .modal .footer {
   flex-shrink: 0;
-  background: #fafafa;
-  z-index: 5;
   padding: 16px 20px;
   border-top: 1px solid #f1f5f9;
+  background: #fafafa;
   display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 12px;
-}
-
-/* ====== SECTION DE PAIEMENT DÉDIÉE ====== */
-.payment-section {
-  display: flex;
-  flex-direction: column;
+  justify-content: center;
   gap: 16px;
-  padding: 16px 0;
-  margin-top: auto; /* ✅ Pousse vers le bas si peu de contenu */
 }
 
-/* Container PayPal dans la section */
-#paypal-button-container {
+/* Mode paiement : footer caché, tout dans le body */
+.modal.payment-mode .footer {
+  display: none !important;
+}
+
+/* Container PayPal dans le body */
+.modal .body #paypal-button-container {
   width: 100%;
-  max-width: 400px;
+  max-width: 350px;
   margin: 0 auto;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 0 !important;
-  padding: 0 !important;
-  background: none !important;
-  border: none !important;
-  position: relative;
+  flex-shrink: 0;
 }
 
-/* Header PayPal intégré */
+/* Order summary */
+#order-summary {
+  padding: 16px 20px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  font-family: "Inter", sans-serif;
+}
+
+/* PayPal header states intégré */
 #paypal-button-container::before {
   content: "💳 Choose your payment method";
   display: block;
@@ -1093,7 +944,6 @@ body:not(.heavy-selection) .cell.sel::before {
   transition: all 0.3s ease;
 }
 
-/* États du header */
 #paypal-button-container.active::before {
   content: "💳 Choose your payment method";
   background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
@@ -1101,11 +951,11 @@ body:not(.heavy-selection) .cell.sel::before {
   color: #166534;
 }
 
-#paypal-button-container.expired::before {
-  content: "⏰ Reservation expired — reselect";
-  background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
-  border-color: #fecaca;
-  color: #dc2626;
+#paypal-button-container.processing::before {
+  content: "⏳ Processing payment…";
+  background: linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%);
+  border-color: #fed7aa;
+  color: #9a3412;
 }
 
 #paypal-button-container.cancelled::before {
@@ -1116,24 +966,10 @@ body:not(.heavy-selection) .cell.sel::before {
 }
 
 #paypal-button-container.error::before {
-  content: "⚠️ Payment failed — try again";
+  content: "⚠️ Payment failed – try again";
   background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
   border-color: #fecaca;
   color: #dc2626;
-}
-
-#paypal-button-container.processing::before {
-  content: "⏳ Processing payment…";
-  background: linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%);
-  border-color: #fed7aa;
-  color: #9a3412;
-}
-
-#paypal-button-container.pending::before {
-  content: "⌛ Payment recorded — finalizing…";
-  background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%);
-  border-color: #bfdbfe;
-  color: #1d4ed8;
 }
 
 #paypal-button-container.completed::before {
@@ -1143,300 +979,53 @@ body:not(.heavy-selection) .cell.sel::before {
   color: #166534;
 }
 
-/* Wrapper des boutons PayPal */
-#paypal-button-container > div {
+/* Wrapper pour les boutons PayPal */
+.paypal-buttons-wrapper {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 0 0 8px 8px;
   padding: 12px;
-  min-height: 100px; /* ✅ Hauteur minimale garantie */
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
 }
 
-/* Boutons PayPal stylisés */
-#paypal-button-container > div > div[data-funding-source] {
-  border-radius: 6px !important;
-  overflow: hidden !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
-  transition: all 0.2s ease !important;
-  height: 44px !important;
-  margin-bottom: 8px !important;
-}
-
-#paypal-button-container > div > div[data-funding-source]:last-child {
-  margin-bottom: 0 !important;
-}
-
-#paypal-button-container > div > div[data-funding-source]:hover {
-  transform: translateY(-1px) !important;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15) !important;
-}
-
-/* États désactivés */
-#paypal-button-container.expired > div,
-#paypal-button-container.cancelled > div,
-#paypal-button-container.error > div {
-  pointer-events: none;
-  opacity: 0.6;
-  filter: grayscale(0.3);
-}
-
-/* ====== ORDER SUMMARY OPTIMISÉ ====== */
-#order-summary {
-  padding: 16px 20px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+/* Bouton Cancel en mode paiement */
+.payment-cancel-btn {
+  margin-top: 16px;
+  padding: 10px 20px;
+  border: 2px solid #e5e7eb;
   border-radius: 12px;
-  margin: 0 0 16px 0; /* ✅ Marge uniquement en bas */
-  font-size: 13px;
+  background: #ffffff;
+  color: #374151;
+  font-weight: 600;
+  font-size: 14px;
   font-family: "Inter", sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-self: center;
 }
 
-#editOrder:hover {
-  background: #f3f4f6 !important;
+.payment-cancel-btn:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
 }
 
-/* ====== RESPONSIVE MOBILE ====== */
+/* Mobile responsive */
 @media (max-width: 768px) {
   .modal .panel {
     max-height: 95vh;
-    width: 98vw;
+    width: 100vw;
+    border-radius: 16px 16px 0 0;
   }
   
   .modal .body {
-    padding: 16px;
+    padding: 12px 16px;
   }
   
   #paypal-button-container {
-    max-width: 100%;
-  }
-  
-  #paypal-button-container > div > div[data-funding-source] {
-    height: 40px !important;
+    max-width: none;
   }
 }
-
-/* ====== SMOOTH SCROLLBAR ====== */
-.modal .body::-webkit-scrollbar {
-  width: 8px;
-}
-
-.modal .body::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 4px;
-}
-
-.modal .body::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-
-.modal .body::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-/* Body du modal - CORRECTION */
-.modal .body {
-  flex: 1 1 auto;
-  min-height: 200px; /* ✅ Hauteur minimale garantie */
-  max-height: calc(90vh - 140px); /* ✅ Limite la hauteur */
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* S'assurer que le form prend l'espace */
-.modal .body form,
-.modal form.body {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  width: 100%;
-}
-
-/* Labels et inputs visibles */
-.modal label {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-  font-family: "Inter", sans-serif;
-}
-
-.modal input,
-.modal textarea {
-  padding: 12px 16px;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  font-size: 14px;
-  font-family: "Inter", sans-serif;
-  transition: all 0.2s ease;
-  background: #ffffff;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-/* ====== MODAL - STRUCTURE CORRIGÉE ====== */
-.modal .panel {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  box-shadow:
-    0 25px 50px rgba(0,0,0,.15),
-    0 0 0 1px rgba(255,255,255,0.8);
-  width: min(520px, 95vw);
-  max-height: 90vh;
-  overflow: hidden;
-  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Header sticky */
-.modal .header {
-  flex-shrink: 0;
-  position: sticky;
-  top: 0;
-  background: #fff;
-  z-index: 10;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f1f5f9;
-  background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
-}
-
-.modal .header h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: #111827;
-  font-family: "Inter", sans-serif;
-}
-
-.modal .header .close {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 24px;
-  color: #9ca3af;
-}
-
-.modal .header .close:hover {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-/* Body scrollable - DOIT ÊTRE VISIBLE */
-.modal .body {
-  flex: 1 1 auto;
-  min-height: 300px; /* ✅ Hauteur minimale garantie */
-  max-height: calc(90vh - 140px);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: 20px;
-  display: block !important; /* ✅ FORCE l'affichage */
-  background: #ffffff;
-}
-
-/* Form à l'intérieur du body */
-.modal .body form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  width: 100%;
-}
-
-/* Labels et inputs */
-.modal label {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-  font-family: "Inter", sans-serif;
-}
-
-.modal input,
-.modal textarea {
-  padding: 12px 16px;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  font-size: 14px;
-  font-family: "Inter", sans-serif;
-  transition: all 0.2s ease;
-  background: #ffffff;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.modal input:focus,
-.modal textarea:focus {
-  outline: none;
-  border-color: #8b5cf6;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
-}
-
-/* Footer fixe */
-.modal .footer {
-  flex-shrink: 0;
-  background: #fafafa;
-  z-index: 5;
-  padding: 16px 20px;
-  border-top: 1px solid #f1f5f9;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 12px;
-}
-
-/* ====== MODE PAIEMENT ====== */
-/* Quand on passe en mode paiement, on cache le form */
-.modal.payment-active .body form {
-  display: none !important;
-}
-
-/* Section de paiement visible seulement en mode payment */
-.payment-section {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 0;
-  width: 100%;
-}
-
-/*new*/
-/* Actions du formulaire (boutons intégrés) */
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 12px;
-  padding-top: 8px;
-  margin-top: 8px;
-  border-top: 1px solid #f1f5f9;
-}
-
-/* En mode paiement, cacher les actions du form */
-.modal.payment-active .form-actions {
-  display: none !important;
-}
-
-/* En mode paiement, afficher le footer */
-.modal.payment-active .footer {
-  display: flex !important;
-}
+/*new modal paypal*/

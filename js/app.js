@@ -357,34 +357,20 @@
     toggleCell(idx);
   });
 
-
   function resetModalAppState() {
-  if (linkInput)  linkInput.value  = '';
-  if (nameInput)  nameInput.value  = '';
-  if (emailInput) emailInput.value = '';
+    if (linkInput)  linkInput.value  = '';
+    if (nameInput)  nameInput.value  = '';
+    if (emailInput) emailInput.value = '';
 
-  const fileInput =
-    document.getElementById('avatar') ||
-    document.getElementById('file')   ||
-    document.querySelector('input[type="file"]');
+    const fileInput =
+      document.getElementById('avatar') ||
+      document.getElementById('file')   ||
+      document.querySelector('input[type="file"]');
 
-  if (fileInput) {
-    fileInput.value = '';
+    if (fileInput) {
+      fileInput.value = '';
+    }
   }
-  
-  // 🎯 AJOUT: Nettoyer l'état du modal
-  modal.classList.remove('payment-active');
-  if (form) form.style.display = '';
-  
-  const oldSummary = document.getElementById('order-summary');
-  if (oldSummary) oldSummary.remove();
-  
-  const oldPaymentSection = document.getElementById('payment-section');
-  if (oldPaymentSection) oldPaymentSection.remove();
-  
-  const oldPaypalContainer = document.getElementById('paypal-button-container');
-  if (oldPaypalContainer) oldPaypalContainer.remove();
-}
  
   function setPayPalEnabled(enabled){
     const c = document.getElementById('paypal-button-container');
@@ -447,70 +433,54 @@
     }
   }
   
-function openModal(){
-  resetModalAppState();
+  function openModal(){
+    resetModalAppState();
 
-  document.dispatchEvent(new CustomEvent('modal:opening'));
+    document.dispatchEvent(new CustomEvent('modal:opening'));
+    modal.classList.remove('hidden');
+
+    modalOpened = true;
+    const selectionInfo = document.getElementById('selectionInfo');
+    if (selectionInfo) selectionInfo.classList.remove('show');
+
+    const selectedPixels = selected.size * 100;
+
+    let total = null;
+    if (Number.isFinite(reservedTotal)) {
+      total = reservedTotal;
+    } else if (Number.isFinite(reservedPrice)) {
+      total = selectedPixels * reservedPrice;
+    }
   
-  modal.classList.remove('hidden');
-  modal.classList.remove('payment-active'); // ✅ Retirer payment-active
+// Les stats seront affichées dans le summary après confirm
+confirmBtn.disabled = !Number.isFinite(total);
 
-  modalOpened = true;
-  const selectionInfo = document.getElementById('selectionInfo');
-  if (selectionInfo) selectionInfo.classList.remove('show');
+    if (currentLock.length) {
+      window.LockManager.heartbeat.start(currentLock, 30000, 180000, {
+        maxMs: 180000,
+        autoUnlock: true,
+        requireActivity: true
+      });
+    } else {
+      window.LockManager.heartbeat.stop();
+    }
 
-  const selectedPixels = selected.size * 100;
-
-  let total = null;
-  if (Number.isFinite(reservedTotal)) {
-    total = reservedTotal;
-  } else if (Number.isFinite(reservedPrice)) {
-    total = selectedPixels * reservedPrice;
+    startModalMonitor();
   }
-
-  confirmBtn.disabled = !Number.isFinite(total);
-
-  if (currentLock.length) {
-    window.LockManager.heartbeat.start(currentLock, 30000, 180000, {
-      maxMs: 180000,
-      autoUnlock: true,
-      requireActivity: true
-    });
-  } else {
-    window.LockManager.heartbeat.stop();
-  }
-
-  startModalMonitor();
-}
 
   function closeModal(){
-  document.dispatchEvent(new CustomEvent('modal:closing'));
-  modal.classList.add('hidden');
-  modal.classList.remove('payment-active'); // ✅ AJOUT
-  
-  window.LockManager.heartbeat.stop();
-  stopModalMonitor();
-  
-  confirmBtn.disabled = false;
-  confirmBtn.textContent = '✨ Confirm Purchase';
-  
-  // 🎯 AJOUT: Nettoyer complètement le modal
-  if (form) form.style.display = '';
-  
-  const oldSummary = document.getElementById('order-summary');
-  if (oldSummary) oldSummary.remove();
-  
-  const oldPaymentSection = document.getElementById('payment-section');
-  if (oldPaymentSection) oldPaymentSection.remove();
-  
-  const oldPaypalContainer = document.getElementById('paypal-button-container');
-  if (oldPaypalContainer) oldPaypalContainer.remove();
-  
-  reservedPrice = null;
-  reservedTotalAmount = null; 
-  reservedTotal = null;
-  modalOpened = false;
-}
+    document.dispatchEvent(new CustomEvent('modal:closing'));
+    modal.classList.add('hidden');
+    window.LockManager.heartbeat.stop();
+    stopModalMonitor();
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = '✨ Confirm Purchase';
+    reservedPrice = null;
+    reservedTotalAmount = null; 
+    reservedTotal = null;
+    modalOpened = false;
+  }
+
   document.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', async () => {
     const toRelease = (currentLock && currentLock.length) ? currentLock.slice() : Array.from(selected);
     currentLock = [];
@@ -618,53 +588,6 @@ function openModal(){
   }
 
   // OPTIMISATION 2: Polling moins agressif (3.5s au lieu de 2.5s)
-  /*async function loadStatus(){
-    try{
-      const s = await apiCall('/status');
-      if (!s || !s.ok) return;
-
-      if (s && s.sold && typeof s.sold === 'object') {
-        const isEmpty = Object.keys(s.sold).length === 0;
-        const hasRegions = s.regions && Object.keys(s.regions).length > 0;
-        if (!isEmpty || !hasRegions) {
-          sold = s.sold;
-        }
-      }
-
-      window.sold = sold;
-
-      const merged = window.LockManager.merge(s.locks || {});
-      locks = merged;
-
-      window.regions = s.regions || {};
-      if (typeof window.renderRegions === 'function') window.renderRegions();
-
-      if (typeof s.currentPrice === 'number') {
-        globalPrice = s.currentPrice;
-      }
-
-      if (!modal.classList.contains('hidden')) {
-        if (confirmBtn.textContent !== 'Processing…') {
-          const blocks = currentLock.length ? currentLock : Array.from(selected);
-          const ok = haveMyValidLocks(blocks, 5000);
-          confirmBtn.disabled = !ok;
-
-          if (ok) {
-            confirmBtn.textContent = 'Confirm';
-          } else {
-            confirmBtn.textContent = '⏰ Reservation expired — reselect';
-            window.LockManager.heartbeat.stop();
-          }
-          setPayPalEnabled(ok);
-        }
-      }
-
-      paintAll();
-    } catch (e) {
-      console.warn('[status] failed', e);
-    }
-  }*/
-
     async function loadStatus(){
   try{
     // use since param if server supports it
