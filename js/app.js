@@ -1,674 +1,825 @@
-// app.js — Version originale avec 3 optimisations ciblées UNIQUEMENT
-(function(){
+// app-refactored.js - Version unifiée sans modal
+(function() {
   'use strict';
 
-  if (!window.CoreManager) {
-    console.error('[app.js] CoreManager is required. Please load js/core-manager.js before this file.');
-    return;
-  }
-  if (!window.LockManager) {
-    console.error('[app.js] LockManager is required. Please load js/locks.js before this file.');
+  // ===== CONFIGURATION & DEPENDENCIES =====
+  if (!window.CoreManager || !window.LockManager) {
+    console.error('[App] Missing dependencies');
     return;
   }
 
   const { uid, apiCall } = window.CoreManager;
-
   const N = 100;
   const TOTAL_PIXELS = 1_000_000;
+  const locale = navigator.language || 'en-US';
 
-  const grid = document.getElementById('grid');
-  const buyBtn = document.getElementById('buyBtn');
-  const priceLine = document.getElementById('priceLine');
-  const pixelsLeftEl = document.getElementById('pixelsLeft');
-  const selectionInfo = document.getElementById('selectionInfo');
-
-  const modal = document.getElementById('modal');
-  const form = document.getElementById('form');
-  const linkInput = document.getElementById('link');
-  const nameInput = document.getElementById('name');
-  const emailInput = document.getElementById('email');
-  const confirmBtn = document.getElementById('confirm');
-  const modalStats = document.getElementById('modalStats');
-  const selectionGuide = document.getElementById('selectionGuide');
-  const locale = navigator.language || 'en-US'; // détecte la langue du navigateur
-  const checkoutView = document.getElementById('checkoutView');
-  const checkoutForm = document.getElementById('checkoutForm');
-  const cancelCheckoutBtn = document.getElementById('cancelCheckout');
-  const confirmCheckoutBtn = document.getElementById('confirmCheckout');
-
-
-  let sold = {};
-  let locks = {};
-  let selected = new Set();
-  let currentLock = [];
-
-  let modalLockTimer = null;
-  let globalPrice = null;
-  let reservedPrice = null;
-  let reservedTotal = null;
-  let reservedTotalAmount = null;
-  let hasUserDragged = false;
-  let isMouseOverGrid = false;
-  let modalOpened = false;
-  // en haut, ajouter
-  let lastStatusTs = 0;
-
-  window.getSelectedIndices = () => Array.from(selected);
-  function idxToRowCol(idx){ return [Math.floor(idx/N), idx%N]; }
-  function rowColToIdx(r,c){ return r*N + c; }
-
-  function setPayPalHeaderState(state){
-    const el = document.getElementById('paypal-button-container');
-    if (el) el.className = String(state || '').trim();
-  }
-
-  // OPTIMISATION 1: Build grid avec DocumentFragment (plus rapide)
-  (function build(){
-    const frag = document.createDocumentFragment();
-    for (let i=0;i<N*N;i++){
-      const d = document.createElement('div');
-      d.className = 'cell';
-      d.dataset.idx = i;
-      frag.appendChild(d);
-    }
-    grid.appendChild(frag);
-    const cs = getComputedStyle(grid);
-    if (cs.position === 'static') grid.style.position = 'relative';
-  })();
-
-  const invalidEl = document.createElement('div');
-  invalidEl.id = 'invalidRect';
-  Object.assign(invalidEl.style, { position:'absolute', border:'2px solid #ef4444', background:'rgba(239,68,68,0.08)', pointerEvents:'none', display:'none', zIndex:'999' });
-  const invalidIcon = document.createElement('div');
-  Object.assign(invalidIcon.style, { position:'absolute', left:'50%', top:'50%', transform:'translate(-50%,-50%)', pointerEvents:'none', zIndex:'1000' });
-  invalidIcon.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10" fill="rgba(255,255,255,0.95)"></circle><circle cx="12" cy="12" r="9" fill="none" stroke="#ef4444" stroke-width="2"></circle><line x1="8" y1="8" x2="16" y2="16" stroke="#ef4444" stroke-width="2"></line><line x1="16" y1="8" x2="8" y2="16" stroke="#ef4444" stroke-width="2"></line></svg>`;
-  invalidEl.appendChild(invalidIcon);
-  grid.appendChild(invalidEl);
-
-  function getCellSize(){
-    const cell = grid.children[0];
-    if(!cell) return { w:10, h:10 };
-    const r = cell.getBoundingClientRect();
-    return { w:Math.max(1,Math.round(r.width)), h:Math.max(1,Math.round(r.height)) };
-  }
-  
-  function showInvalidRect(r0,c0,r1,c1, ttl=900){
-    const { w:CW, h:CH } = getCellSize();
-    const left=c0*CW, top=r0*CH, w=(c1-c0+1)*CW, h=(r1-r0+1)*CH;
-    Object.assign(invalidEl.style,{ left:left+'px', top:top+'px', width:w+'px', height:h+'px', display:'block' });
-    const size = Math.max(16, Math.min(64, Math.floor(Math.min(w, h) * 0.7)));
-    const svg = invalidIcon.querySelector('svg'); svg.style.width=size+'px'; svg.style.height=size+'px';
-    if (ttl>0) setTimeout(()=>{ invalidEl.style.display='none'; }, ttl);
-  }
-  
-  function hideInvalidRect(){ invalidEl.style.display='none'; }
-
-  function isBlockedCell(idx){
-    if (sold[idx]) return true;
-    const l = locks[idx];
-    return !!(l && l.until > Date.now() && l.uid !== uid);
-  }
-
-  function paintCell(idx){
-    const d = grid.children[idx];
-    const s = sold[idx];
-    const l = locks[idx];
-    const reserved = l && l.until > Date.now() && !s;
-    const reservedByOther = reserved && l.uid !== uid;
-
-    d.classList.toggle('sold', !!s);
-    d.classList.toggle('pending', !!reservedByOther);
-    d.classList.toggle('sel', selected.has(idx));
-
-    d.style.backgroundImage = '';
-    d.style.backgroundSize = '';
-    d.style.backgroundPosition = '';
-
-    if (s){
-      d.title=(s.name?s.name+' · ':'')+(s.linkUrl||'');
-      if(!d.firstChild){ const a=document.createElement('a'); a.className='region-link'; a.target='_blank'; d.appendChild(a); }
-      d.firstChild.href = s.linkUrl || '#';
-    } else {
-      d.title=''; if (d.firstChild) d.firstChild.remove();
-    }
-  }
-  
-  function paintAll(){
-    for(let i=0;i<N*N;i++) paintCell(i);
-    refreshTopbar();
-  }
-
-  function updateSelectionInfo() {
-    const selectionInfo = document.getElementById('selectionInfo');
-    if (!selectionInfo) return;
-
-    if (modal && !modal.classList.contains('hidden')) {
-      selectionInfo.classList.remove('show');
-      return;
-    }
-
-    const selectedPixels = selected.size * 100;
-    if (selectedPixels <= 0) {
-      selectionInfo.classList.remove('show');
-      return;
-    }
-
-    const currentPrice = Number.isFinite(+globalPrice) ? +globalPrice : 1;
-
-    const STEP_PX = 1000;
-    const STEP_INCREMENT = 0.01;
-
-    let remaining = selectedPixels;
-    let tierIndex = 0;
-    let total = 0;
-
-    const fullSteps = Math.floor(remaining / STEP_PX);
-    for (let k = 0; k < fullSteps; k++) {
-      const pricePerPixel = currentPrice + (STEP_INCREMENT * tierIndex);
-      total += pricePerPixel * STEP_PX;
-      tierIndex++;
-    }
-
-    const rest = remaining % STEP_PX;
-    if (rest > 0) {
-      const pricePerPixel = currentPrice + (STEP_INCREMENT * tierIndex);
-      total += pricePerPixel * rest;
-    }
-
-    const totalRounded = Math.round(total * 100) / 100;
-
-    selectionInfo.innerHTML =
-      `<span class="count">${selectedPixels.toLocaleString(locale)}</span> pixels selected • ~$${totalRounded.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    selectionInfo.classList.add('show');
-  }
-
-  function refreshTopbar(){
-    const currentPrice = Number.isFinite(globalPrice) ? globalPrice : 1;
-  const formattedCurrentPrice = currentPrice.toLocaleString(locale);
-    priceLine.textContent = `1 pixel = $${formattedCurrentPrice}`;
-    pixelsLeftEl.textContent = `${TOTAL_PIXELS.toLocaleString(locale)} pixels`;
-
-    buyBtn.textContent = `💎 Claim your spot`; buyBtn.disabled = false;
-
-    if (selected.size > 150) {
-      document.body.classList.add('heavy-selection');
-    } else {
-      document.body.classList.remove('heavy-selection');
-    }
-    updateSelectionInfo();
-  }
-
-  function clearSelection(){
-    for(const i of selected) grid.children[i].classList.remove('sel');
-    selected.clear();
-    if (selectionGuide) {
-      selectionGuide.classList.remove('hidden');
-    }
-    modalOpened = false;
-    refreshTopbar();
-    resetGuideState();
-  }
-
-  let isDragging=false, dragStartIdx=-1, movedDuringDrag=false, lastDragIdx=-1, suppressNextClick=false;
-  let blockedDuringDrag = false;
-
-  function selectRect(aIdx,bIdx){
-    const [ar,ac]=idxToRowCol(aIdx), [br,bc]=idxToRowCol(bIdx);
-    const r0=Math.min(ar,br), r1=Math.max(ar,br), c0=Math.min(ac,bc), c1=Math.max(ac,bc);
-    blockedDuringDrag = false;
-    for(let r=r0;r<=r1;r++){
-      for(let c=c0;c<=c1;c++){
-        const idx=rowColToIdx(r,c);
-        if (isBlockedCell(idx)) { blockedDuringDrag = true; break; }
-      }
-      if (blockedDuringDrag) break;
-    }
-    if (blockedDuringDrag){ 
-      clearSelection(); 
-      showInvalidRect(r0,c0,r1,c1,900); 
-      return; 
-    }
-    hideInvalidRect(); 
-    clearSelection();
-    for(let r=r0;r<=r1;r++) for(let c=c0;c<=c1;c++){ 
-      const idx=rowColToIdx(r,c); 
-      selected.add(idx); 
-    }
-    for(const i of selected) grid.children[i].classList.add('sel');
+  // ===== STATE MANAGEMENT =====
+  const AppState = {
+    view: 'grid', // 'grid' | 'checkout'
+    checkoutStep: 1, // 1: form, 2: payment, 3: success
     
-    if (selectionGuide) {
-      if (selected.size === 0) {
-        selectionGuide.classList.remove('hidden');
+    // Grid state
+    sold: {},
+    locks: {},
+    regions: {},
+    selected: new Set(),
+    globalPrice: 1,
+    
+    // Checkout state
+    currentOrder: null,
+    orderData: {
+      blocks: [],
+      name: '',
+      linkUrl: '',
+      imageUrl: null,
+      totalAmount: 0,
+      unitPrice: 0
+    },
+    
+    // Timer state
+    lockTimer: null,
+    lockExpiry: null
+  };
+
+  // ===== DOM REFERENCES =====
+  const DOM = {
+    // Views
+    mainContainer: document.getElementById('mainContainer'),
+    gridView: document.getElementById('gridView'),
+    checkoutView: document.getElementById('checkoutView'),
+    
+    // Grid
+    grid: document.getElementById('grid'),
+    buyBtn: document.getElementById('buyBtn'),
+    priceLine: document.getElementById('priceLine'),
+    pixelsLeft: document.getElementById('pixelsLeft'),
+    selectionInfo: document.getElementById('selectionInfo'),
+    warningMessage: document.getElementById('warningMessage'),
+    
+    // Checkout
+    checkoutForm: document.getElementById('checkoutForm'),
+    nameInput: document.getElementById('name'),
+    linkInput: document.getElementById('link'),
+    imageInput: document.getElementById('image'),
+    imagePreview: document.getElementById('imagePreview'),
+    
+    // Summary
+    summaryPixels: document.getElementById('summaryPixels'),
+    summaryPrice: document.getElementById('summaryPrice'),
+    summaryTotal: document.getElementById('summaryTotal'),
+    timerValue: document.getElementById('timerValue'),
+    pixelPreview: document.getElementById('pixelPreview'),
+    
+    // Buttons
+    backToGrid: document.getElementById('backToGrid'),
+    proceedToPayment: document.getElementById('proceedToPayment'),
+    
+    // Steps
+    steps: {
+      1: document.getElementById('step1'),
+      2: document.getElementById('step2'),
+      3: document.getElementById('step3')
+    },
+    progressSteps: document.querySelectorAll('.progress-step')
+  };
+
+  // ===== VIEW MANAGEMENT =====
+  const ViewManager = {
+    switchTo(view) {
+      AppState.view = view;
+      DOM.mainContainer.dataset.view = view;
+      
+      if (view === 'grid') {
+        DOM.gridView.classList.add('active');
+        DOM.checkoutView.classList.remove('active');
+        this.stopLockTimer();
       } else {
-        selectionGuide.classList.add('hidden');
+        DOM.gridView.classList.remove('active');
+        DOM.checkoutView.classList.add('active');
+        this.startLockTimer();
+        this.updateSummary();
       }
-    }
-    modalOpened = false;
-    refreshTopbar();
-  }
-
-  function toggleCell(idx){
-    if (isBlockedCell(idx)) return;
-    if (selected.has(idx)) { selected.delete(idx); }
-    else { selected.add(idx); }
-    paintCell(idx);
+    },
     
-    if (selectionGuide) {
-      if (selected.size === 0) {
-        selectionGuide.classList.remove('hidden');
-        showGuideIfNeeded();
-      } else {
-        selectionGuide.classList.add('hidden');
+    setCheckoutStep(step) {
+      AppState.checkoutStep = step;
+      
+      // Update steps visibility
+      Object.entries(DOM.steps).forEach(([num, el]) => {
+        el.classList.toggle('active', parseInt(num) === step);
+      });
+      
+      // Update progress bar
+      DOM.progressSteps.forEach((el, i) => {
+        const stepNum = i + 1;
+        el.classList.toggle('active', stepNum <= step);
+        el.classList.toggle('completed', stepNum < step);
+      });
+    },
+    
+    updateSummary() {
+      const { blocks, totalAmount, unitPrice } = AppState.orderData;
+      const pixels = blocks.length * 100;
+      
+      DOM.summaryPixels.textContent = pixels.toLocaleString(locale);
+      DOM.summaryPrice.textContent = `$${unitPrice.toFixed(2)}`;
+      DOM.summaryTotal.textContent = `$${totalAmount.toFixed(2)}`;
+      
+      // Update pixel preview
+      this.renderPixelPreview();
+    },
+    
+    renderPixelPreview() {
+      const { blocks } = AppState.orderData;
+      if (!blocks.length) return;
+      
+      // Create mini grid visualization
+      const minRow = Math.min(...blocks.map(i => Math.floor(i / N)));
+      const maxRow = Math.max(...blocks.map(i => Math.floor(i / N)));
+      const minCol = Math.min(...blocks.map(i => i % N));
+      const maxCol = Math.max(...blocks.map(i => i % N));
+      
+      const width = maxCol - minCol + 1;
+      const height = maxRow - minRow + 1;
+      
+      DOM.pixelPreview.innerHTML = `
+        <div class="preview-grid" style="--cols: ${width}; --rows: ${height}">
+          ${blocks.map(idx => {
+            const r = Math.floor(idx / N) - minRow;
+            const c = (idx % N) - minCol;
+            return `<div class="preview-pixel" style="--r: ${r}; --c: ${c}"></div>`;
+          }).join('')}
+        </div>
+        <div class="preview-info">${width}×${height} blocks</div>
+      `;
+    },
+    
+    startLockTimer() {
+      this.stopLockTimer();
+      AppState.lockExpiry = Date.now() + 180000; // 3 minutes
+      
+      const updateTimer = () => {
+        const remaining = Math.max(0, AppState.lockExpiry - Date.now());
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        
+        DOM.timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        if (remaining <= 0) {
+          this.handleLockExpired();
+        }
+      };
+      
+      updateTimer();
+      AppState.lockTimer = setInterval(updateTimer, 1000);
+    },
+    
+    stopLockTimer() {
+      if (AppState.lockTimer) {
+        clearInterval(AppState.lockTimer);
+        AppState.lockTimer = null;
       }
-    }
+    },
     
-    if (typeof requestAnimationFrame === 'function') {
-      requestAnimationFrame(refreshTopbar);
-    } else {
-      modalOpened = false;
-      refreshTopbar();
-    }
-  }
-
-  function idxFromClientXY(x,y){
-    const rect=grid.getBoundingClientRect();
-    const { w:CW, h:CH } = getCellSize();
-    const gx=Math.floor((x-rect.left)/CW), gy=Math.floor((y-rect.top)/CH);
-    if (gx<0||gy<0||gx>=N||gy>=N) return -1;
-    return gy*N + gx;
-  }
-
-  function updateGuidePosition(e) {
-    if (hasUserDragged || !isMouseOverGrid) return;
+    handleLockExpired() {
+      this.stopLockTimer();
+      alert('Your reservation has expired. Please select your pixels again.');
+      this.returnToGrid();
+    },
     
-    if (selectionGuide) {
-      selectionGuide.style.left = e.clientX + 'px';
-      selectionGuide.style.top = e.clientY + 'px';
-    }
-  }
-
-  function dismissGuide() {
-    hasUserDragged = true;
-    if (selectionGuide) {
-      selectionGuide.classList.add('dismissed');
-    }
-  }
-
-  function showGuideIfNeeded() {
-    if (!hasUserDragged && selected.size === 0) {
-      if (selectionGuide) {
-        selectionGuide.classList.remove('dismissed');
-        if (isMouseOverGrid) {
-          selectionGuide.classList.add('show');
+    async returnToGrid() {
+      // Unlock current blocks
+      if (AppState.orderData.blocks.length) {
+        try {
+          await window.LockManager.unlock(AppState.orderData.blocks);
+        } catch (e) {
+          console.warn('[Unlock] Failed:', e);
         }
       }
+      
+      // Reset state
+      AppState.orderData = {
+        blocks: [],
+        name: '',
+        linkUrl: '',
+        imageUrl: null,
+        totalAmount: 0,
+        unitPrice: 0
+      };
+      
+      AppState.selected.clear();
+      GridManager.clearSelection();
+      
+      // Switch view
+      this.switchTo('grid');
+      this.setCheckoutStep(1);
+      
+      // Refresh status
+      await StatusManager.load();
+      GridManager.paintAll();
     }
-  }
-  
-  function resetGuideState() {
-    if (!hasUserDragged && selected.size === 0) {
-      if (selectionGuide) {
-        selectionGuide.classList.remove('dismissed');
-        if (isMouseOverGrid) {
-          selectionGuide.classList.add('show');
+  };
+
+  // ===== GRID MANAGEMENT =====
+  const GridManager = {
+    init() {
+      // Build grid
+      const frag = document.createDocumentFragment();
+      for (let i = 0; i < N * N; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.idx = i;
+        frag.appendChild(cell);
+      }
+      DOM.grid.appendChild(frag);
+      
+      // Setup event handlers
+      this.setupEvents();
+    },
+    
+    setupEvents() {
+      let isDragging = false;
+      let dragStartIdx = -1;
+      let lastDragIdx = -1;
+      let suppressClick = false;
+      
+      const idxFromXY = (x, y) => {
+        const rect = DOM.grid.getBoundingClientRect();
+        const cell = DOM.grid.children[0];
+        if (!cell) return -1;
+        
+        const cellRect = cell.getBoundingClientRect();
+        const cellSize = cellRect.width;
+        
+        const col = Math.floor((x - rect.left) / cellSize);
+        const row = Math.floor((y - rect.top) / cellSize);
+        
+        if (col < 0 || col >= N || row < 0 || row >= N) return -1;
+        return row * N + col;
+      };
+      
+      DOM.grid.addEventListener('mousedown', (e) => {
+        const idx = idxFromXY(e.clientX, e.clientY);
+        if (idx < 0) return;
+        
+        isDragging = true;
+        dragStartIdx = idx;
+        lastDragIdx = idx;
+        this.selectRect(idx, idx);
+        e.preventDefault();
+      });
+      
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const idx = idxFromXY(e.clientX, e.clientY);
+        if (idx < 0 || idx === lastDragIdx) return;
+        
+        lastDragIdx = idx;
+        suppressClick = true;
+        this.selectRect(dragStartIdx, idx);
+      });
+      
+      window.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          dragStartIdx = -1;
+          lastDragIdx = -1;
+        }
+      });
+      
+      DOM.grid.addEventListener('click', (e) => {
+        if (suppressClick) {
+          suppressClick = false;
+          return;
+        }
+        
+        const idx = idxFromXY(e.clientX, e.clientY);
+        if (idx >= 0) this.toggleCell(idx);
+      });
+    },
+    
+    selectRect(startIdx, endIdx) {
+      const [sr, sc] = [Math.floor(startIdx / N), startIdx % N];
+      const [er, ec] = [Math.floor(endIdx / N), endIdx % N];
+      
+      const r0 = Math.min(sr, er), r1 = Math.max(sr, er);
+      const c0 = Math.min(sc, ec), c1 = Math.max(sc, ec);
+      
+      // Check for blocked cells
+      let blocked = false;
+      for (let r = r0; r <= r1 && !blocked; r++) {
+        for (let c = c0; c <= c1; c++) {
+          const idx = r * N + c;
+          if (this.isBlocked(idx)) {
+            blocked = true;
+            break;
+          }
         }
       }
-    }
-  }
-
-  grid.addEventListener('mouseenter', (e) => {
-    if (hasUserDragged) return;
-    isMouseOverGrid = true;
-    if (selectionGuide && selected.size === 0) {
-      selectionGuide.classList.add('show');
-      updateGuidePosition(e);
-    }
-  });
-
-  grid.addEventListener('mouseleave', () => {
-    isMouseOverGrid = false;
-    if (selectionGuide && !hasUserDragged) {
-      selectionGuide.classList.remove('show');
-    }
-  });
-
-  grid.addEventListener('mousemove', updateGuidePosition);
-
-  grid.addEventListener('mousedown',(e)=>{
-    const idx=idxFromClientXY(e.clientX,e.clientY); if(idx<0) return;
-    isDragging=true; dragStartIdx=idx; lastDragIdx=idx; movedDuringDrag=false; suppressNextClick=false;
-    selectRect(idx, idx); e.preventDefault();
-  });
- 
-  window.addEventListener('mousemove',(e)=>{
-    if(!isDragging) return;
-    const idx=idxFromClientXY(e.clientX,e.clientY); if(idx<0) return;
-    if(idx!==lastDragIdx){ movedDuringDrag=true; lastDragIdx=idx; }
-    if (!hasUserDragged && movedDuringDrag) {
-      dismissGuide();
-    }
-    selectRect(dragStartIdx, idx);
-  });
-  
-  window.addEventListener('mouseup',()=>{
-    if (isDragging){ suppressNextClick=movedDuringDrag; }
-    isDragging=false; dragStartIdx=-1; movedDuringDrag=false; lastDragIdx=-1;
-  });
-  
-  grid.addEventListener('click',(e)=>{
-    if(suppressNextClick){ suppressNextClick=false; return; }
-    if(isDragging) return;
-    const idx=idxFromClientXY(e.clientX,e.clientY); if(idx<0) return;
-    toggleCell(idx);
-  });
-
-  function resetModalAppState() {
-    if (linkInput)  linkInput.value  = '';
-    if (nameInput)  nameInput.value  = '';
-    if (emailInput) emailInput.value = '';
-
-    const fileInput =
-      document.getElementById('avatar') ||
-      document.getElementById('file')   ||
-      document.querySelector('input[type="file"]');
-
-    if (fileInput) {
-      fileInput.value = '';
-    }
-  }
- 
-  function setPayPalEnabled(enabled){
-    const c = document.getElementById('paypal-button-container');
-    if (!c) return;
-    c.style.pointerEvents = enabled ? '' : 'none';
-    c.style.opacity = enabled ? '' : '0.45';
-    c.setAttribute('aria-disabled', enabled ? 'false' : 'true');
-    setPayPalHeaderState(enabled ? 'active' : 'expired');
-  }
- //new
-
- //new
-
-  function haveMyValidLocks(arr, graceMs = 2000){
-    if (!arr || !arr.length) return false;
-    const now = Date.now() + Math.max(0, graceMs|0);
-    for (const i of arr){
-      const l = locks[String(i)];
-      if (!l || l.uid !== uid || !(l.until > now)) return false;
-    }
-    return true;
-  }
-  
-  function startModalMonitor(warmupMs = 1200){
-    stopModalMonitor();
-
-    confirmBtn.disabled = false;
-    confirmBtn.textContent = '✨ Confirm Purchase';
-    setPayPalEnabled(true);
-    setPayPalHeaderState('active');
+      
+      if (blocked) {
+        this.clearSelection();
+        this.showInvalidArea(r0, c0, r1, c1);
+        return;
+      }
+      
+      this.clearSelection();
+      for (let r = r0; r <= r1; r++) {
+        for (let c = c0; c <= c1; c++) {
+          const idx = r * N + c;
+          AppState.selected.add(idx);
+          DOM.grid.children[idx].classList.add('sel');
+        }
+      }
+      
+      this.updateSelectionInfo();
+    },
     
-    const tick = () => {
-      if (confirmBtn.textContent === 'Processing…') return;
-
-      const blocks = currentLock.length ? currentLock : Array.from(selected);
-      const ok = haveMyValidLocks(blocks, 5000);
-
-      confirmBtn.disabled = !ok;
-      confirmBtn.textContent = ok ? 'Confirm' : '⏰ Reservation expired — reselect';
-      setPayPalEnabled(ok);
-
-      if (!ok && blocks && blocks.length) {
-        window.LockManager.heartbeat.stop();
+    toggleCell(idx) {
+      if (this.isBlocked(idx)) return;
+      
+      if (AppState.selected.has(idx)) {
+        AppState.selected.delete(idx);
+        DOM.grid.children[idx].classList.remove('sel');
+      } else {
+        AppState.selected.add(idx);
+        DOM.grid.children[idx].classList.add('sel');
       }
-    };
-
-    const start = () => {
-      tick();
-      modalLockTimer = setInterval(tick, 5000);
-    };
-
-    modalLockTimer = setTimeout(start, Math.max(0, warmupMs|0));
-  }
-
-  function stopModalMonitor(){
-    if (modalLockTimer){
-      try { clearTimeout(modalLockTimer); } catch {}
-      try { clearInterval(modalLockTimer); } catch {}
-      modalLockTimer = null;
-    }
-  }
-  
-// === NOUVELLES FONCTIONS POUR CHECKOUT ===
-function showCheckoutView() {
-  if (!checkoutView) return;
-
-  // cacher la grille et le guide
-  grid.style.display = 'none';
-  if (selectionGuide) selectionGuide.style.display = 'none';
-
-  // afficher le checkout
-  checkoutView.style.display = 'block';
-
-  // remettre à zéro les champs
-  resetModalAppState();
-
-  // démarrer le heartbeat (réservation)
-  if (currentLock.length) {
-    window.LockManager.heartbeat.start(currentLock, 30000, 180000, {
-      maxMs: 180000,
-      autoUnlock: true,
-      requireActivity: true
-    });
-  }
-
-  startModalMonitor();
-}
-
-function hideCheckoutView() {
-  if (!checkoutView) return;
-
-  // arrêter les verrous et remontrer la grille
-  window.LockManager.heartbeat.stop();
-  stopModalMonitor();
-
-  checkoutView.style.display = 'none';
-  grid.style.display = 'grid';
-  if (selectionGuide) selectionGuide.style.display = '';
-
-  reservedPrice = null;
-  reservedTotal = null;
-  reservedTotalAmount = null;
-  currentLock = [];
-  clearSelection();
-}
-
-function prepareCheckout() {
-  // déclencheur quand le user clique sur "Confirm Purchase"
-  checkoutForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const blocks = currentLock.length ? currentLock.slice() : Array.from(selected);
-    if (!haveMyValidLocks(blocks, 1000)) {
-      window.LockManager.heartbeat.stop();
-      await loadStatus().catch(()=>{});
-      hideCheckoutView();
-      clearSelection();
-      paintAll();
-      return;
-    }
-
-    document.dispatchEvent(new CustomEvent('finalize:submit'));
-  });
-
-  if (cancelCheckoutBtn) {
-    cancelCheckoutBtn.addEventListener('click', async () => {
-      const toRelease = (currentLock && currentLock.length) ? currentLock.slice() : Array.from(selected);
-      if (toRelease.length) {
-        try { await window.LockManager.unlock(toRelease); } catch {}
-        locks = window.LockManager.getLocalLocks();
+      
+      this.updateSelectionInfo();
+    },
+    
+    clearSelection() {
+      for (const idx of AppState.selected) {
+        DOM.grid.children[idx].classList.remove('sel');
       }
-      hideCheckoutView();
-      setTimeout(async () => { await loadStatus(); paintAll(); }, 150);
-    });
+      AppState.selected.clear();
+      this.updateSelectionInfo();
+    },
+    
+    isBlocked(idx) {
+      if (AppState.sold[idx]) return true;
+      const lock = AppState.locks[idx];
+      return !!(lock && lock.until > Date.now() && lock.uid !== uid);
+    },
+    
+    paintCell(idx) {
+      const cell = DOM.grid.children[idx];
+      const sold = AppState.sold[idx];
+      const lock = AppState.locks[idx];
+      const lockedByOther = lock && lock.until > Date.now() && lock.uid !== uid;
+      
+      cell.classList.toggle('sold', !!sold);
+      cell.classList.toggle('pending', !!lockedByOther);
+      cell.classList.toggle('sel', AppState.selected.has(idx));
+      
+      if (sold) {
+        cell.title = (sold.name || '') + ' • ' + (sold.linkUrl || '');
+      } else {
+        cell.title = '';
+      }
+    },
+    
+    paintAll() {
+      for (let i = 0; i < N * N; i++) {
+        this.paintCell(i);
+      }
+      this.updateTopbar();
+    },
+    
+    updateSelectionInfo() {
+      const count = AppState.selected.size * 100;
+      if (count === 0) {
+        DOM.selectionInfo.classList.remove('show');
+        return;
+      }
+      
+      const total = this.calculateTotal(AppState.selected.size * 100);
+      DOM.selectionInfo.innerHTML = 
+        `<span class="count">${count.toLocaleString(locale)}</span> pixels • $${total.toFixed(2)}`;
+      DOM.selectionInfo.classList.add('show');
+    },
+    
+    updateTopbar() {
+      DOM.priceLine.textContent = `1 pixel = $${AppState.globalPrice.toFixed(2)}`;
+      DOM.pixelsLeft.textContent = `${TOTAL_PIXELS.toLocaleString(locale)} pixels`;
+      this.updateSelectionInfo();
+    },
+    
+    calculateTotal(pixels) {
+      const STEP = 1000;
+      const INCREMENT = 0.01;
+      let total = 0;
+      let tierIndex = 0;
+      
+      const fullSteps = Math.floor(pixels / STEP);
+      for (let i = 0; i < fullSteps; i++) {
+        total += (AppState.globalPrice + (INCREMENT * tierIndex)) * STEP;
+        tierIndex++;
+      }
+      
+      const remainder = pixels % STEP;
+      if (remainder > 0) {
+        total += (AppState.globalPrice + (INCREMENT * tierIndex)) * remainder;
+      }
+      
+      return Math.round(total * 100) / 100;
+    },
+    
+    showInvalidArea(r0, c0, r1, c1) {
+      const cell = DOM.grid.children[0];
+      const cellSize = cell.getBoundingClientRect().width;
+      
+      const overlay = document.createElement('div');
+      overlay.className = 'invalid-overlay';
+      overlay.style.cssText = `
+        position: absolute;
+        left: ${c0 * cellSize}px;
+        top: ${r0 * cellSize}px;
+        width: ${(c1 - c0 + 1) * cellSize}px;
+        height: ${(r1 - r0 + 1) * cellSize}px;
+        background: rgba(239, 68, 68, 0.2);
+        border: 2px solid #ef4444;
+        pointer-events: none;
+        z-index: 1000;
+      `;
+      
+      DOM.grid.appendChild(overlay);
+      setTimeout(() => overlay.remove(), 800);
+    }
+  };
+
+  // ===== CHECKOUT FLOW =====
+  const CheckoutFlow = {
+    async initiate() {
+      const blocks = Array.from(AppState.selected);
+      if (!blocks.length) {
+        this.showWarning('Please select pixels first!');
+        return;
+      }
+      
+      try {
+        // Lock blocks
+        const lockResult = await window.LockManager.lock(blocks, 180000);
+        if (!lockResult.ok || lockResult.conflicts?.length) {
+          GridManager.showInvalidArea(0, 0, N-1, N-1);
+          GridManager.clearSelection();
+          return;
+        }
+        
+        // Setup order data
+        AppState.orderData = {
+          blocks: lockResult.locked || blocks,
+          name: '',
+          linkUrl: '',
+          imageUrl: null,
+          totalAmount: lockResult.totalAmount || GridManager.calculateTotal(blocks.length * 100),
+          unitPrice: lockResult.unitPrice || AppState.globalPrice
+        };
+        
+        // Start heartbeat
+        window.LockManager.heartbeat.start(AppState.orderData.blocks, 30000, 180000);
+        
+        // Switch to checkout view
+        ViewManager.switchTo('checkout');
+        
+      } catch (e) {
+        console.error('[Checkout] Failed:', e);
+        alert('Failed to reserve pixels. Please try again.');
+      }
+    },
+    
+    async processForm() {
+      const name = DOM.nameInput.value.trim();
+      const linkUrl = this.normalizeUrl(DOM.linkInput.value);
+      
+      if (!name || !linkUrl) {
+        this.showWarning('Please fill in all required fields');
+        return;
+      }
+      
+      // Check if image is uploaded
+      if (!AppState.orderData.imageUrl) {
+        this.showWarning('Please upload an image');
+        return;
+      }
+      
+      // Save form data
+      AppState.orderData.name = name;
+      AppState.orderData.linkUrl = linkUrl;
+      
+      // Start order
+      try {
+        const response = await apiCall('/start-order', {
+          method: 'POST',
+          body: JSON.stringify({
+            name,
+            linkUrl,
+            blocks: AppState.orderData.blocks,
+            imageUrl: AppState.orderData.imageUrl
+          })
+        });
+        
+        if (!response.ok) throw new Error(response.error || 'Failed to start order');
+        
+        AppState.currentOrder = response;
+        
+        // Move to payment step
+        ViewManager.setCheckoutStep(2);
+        
+        // Initialize PayPal
+        await this.initializePayPal();
+        
+      } catch (e) {
+        console.error('[Order] Failed:', e);
+        alert('Failed to process order. Please try again.');
+      }
+    },
+    
+    async initializePayPal() {
+      if (!window.PayPalIntegration) {
+        console.error('PayPal not loaded');
+        return;
+      }
+      
+      await window.PayPalIntegration.initAndRender({
+        orderId: AppState.currentOrder.orderId,
+        currency: AppState.currentOrder.currency || 'USD',
+        
+        onApproved: async (data, actions) => {
+          try {
+            const response = await apiCall('/paypal-capture-finalize', {
+              method: 'POST',
+              body: JSON.stringify({
+                orderId: AppState.currentOrder.orderId,
+                paypalOrderId: data.orderID
+              })
+            });
+            
+            if (!response.ok) throw new Error(response.error || 'Payment failed');
+            
+            // Success!
+            ViewManager.setCheckoutStep(3);
+            window.LockManager.heartbeat.stop();
+            
+            // Refresh grid
+            setTimeout(async () => {
+              await StatusManager.load();
+              GridManager.paintAll();
+            }, 1000);
+            
+          } catch (e) {
+            console.error('[Payment] Failed:', e);
+            alert('Payment processing failed. Please contact support.');
+          }
+        },
+        
+        onCancel: () => {
+          console.log('Payment cancelled');
+        },
+        
+        onError: (err) => {
+          console.error('Payment error:', err);
+          alert('Payment error. Please try again.');
+        }
+      });
+    },
+    
+    normalizeUrl(url) {
+      url = String(url || '').trim();
+      if (!url) return '';
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      return url;
+    },
+    
+    showWarning(message) {
+      DOM.warningMessage.textContent = message;
+      DOM.warningMessage.classList.add('show');
+      setTimeout(() => DOM.warningMessage.classList.remove('show'), 3000);
+    }
+  };
+
+  // ===== IMAGE UPLOAD =====
+  const ImageUpload = {
+    init() {
+      DOM.imageInput.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        DOM.imagePreview.innerHTML = '<div class="upload-spinner">Uploading...</div>';
+        
+        try {
+          // Validate file
+          await window.UploadManager.validateFile(file);
+          
+          // Compress if needed
+          const compressed = await this.compressImage(file);
+          
+          // Upload
+          const result = await window.UploadManager.uploadForRegion(
+            compressed, 
+            'region-' + Date.now()
+          );
+          
+          if (!result.ok) throw new Error(result.error || 'Upload failed');
+          
+          AppState.orderData.imageUrl = result.imageUrl;
+          
+          // Show preview
+          DOM.imagePreview.innerHTML = `
+            <img src="${result.imageUrl}" alt="Preview" />
+            <button type="button" class="remove-image" onclick="ImageUpload.remove()">×</button>
+          `;
+          
+        } catch (error) {
+          console.error('[Upload] Failed:', error);
+          DOM.imagePreview.innerHTML = '<span class="error">Upload failed. Please try again.</span>';
+        }
+      });
+    },
+    
+    async compressImage(file) {
+      if (file.size < 50 * 1024) return file;
+      
+      try {
+        const bitmap = await createImageBitmap(file);
+        const canvas = document.createElement('canvas');
+        const maxSize = 1200;
+        
+        let { width, height } = bitmap;
+        if (width > maxSize || height > maxSize) {
+          const ratio = Math.min(maxSize / width, maxSize / height);
+          width *= ratio;
+          height *= ratio;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(bitmap, 0, 0, width, height);
+        
+        const blob = await new Promise(resolve => 
+          canvas.toBlob(resolve, 'image/webp', 0.8)
+        );
+        
+        return new File([blob], 'image.webp', { type: 'image/webp' });
+        
+      } catch (e) {
+        console.warn('[Compress] Failed, using original:', e);
+        return file;
+      }
+    },
+    
+    remove() {
+      AppState.orderData.imageUrl = null;
+      DOM.imageInput.value = '';
+      DOM.imagePreview.innerHTML = '<span>Click to upload or drag & drop</span>';
+    }
+  };
+
+  // ===== STATUS MANAGEMENT =====
+  const StatusManager = {
+    lastUpdate: 0,
+    
+    async load() {
+      try {
+        const response = await apiCall('/status?ts=' + Date.now());
+        if (!response.ok) return;
+        
+        AppState.sold = response.sold || {};
+        AppState.locks = window.LockManager.merge(response.locks || {});
+        AppState.regions = response.regions || {};
+        
+        if (response.currentPrice) {
+          AppState.globalPrice = response.currentPrice;
+        }
+        
+        this.lastUpdate = Date.now();
+        
+        // Update regions display
+        if (window.renderRegions) {
+          window.renderRegions();
+        }
+        
+      } catch (e) {
+        console.warn('[Status] Load failed:', e);
+      }
+    },
+    
+    startPolling() {
+      setInterval(async () => {
+        await this.load();
+        GridManager.paintAll();
+      }, 4000);
+    }
+  };
+
+  // ===== EVENT HANDLERS =====
+  const EventHandlers = {
+    init() {
+      // Buy button
+      DOM.buyBtn.addEventListener('click', () => {
+        CheckoutFlow.initiate();
+      });
+      
+      // Back button
+      DOM.backToGrid.addEventListener('click', () => {
+        if (confirm('Are you sure? Your selection will be lost.')) {
+          ViewManager.returnToGrid();
+        }
+      });
+      
+      // Form submit
+      DOM.checkoutForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await CheckoutFlow.processForm();
+      });
+      
+      // View success pixels
+      document.getElementById('viewMyPixels')?.addEventListener('click', () => {
+        ViewManager.returnToGrid();
+      });
+      
+      // Escape key
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && AppState.view === 'checkout') {
+          if (confirm('Exit checkout? Your reservation will be cancelled.')) {
+            ViewManager.returnToGrid();
+          }
+        }
+      });
+    }
+  };
+
+  // ===== INITIALIZATION =====
+  async function init() {
+    console.log('[App] Initializing refactored version...');
+    
+    // Initialize grid
+    GridManager.init();
+    
+    // Initialize image upload
+    ImageUpload.init();
+    
+    // Initialize event handlers
+    EventHandlers.init();
+    
+    // Load initial status
+    await StatusManager.load();
+    GridManager.paintAll();
+    
+    // Start polling
+    StatusManager.startPolling();
+    
+    // Expose global functions for compatibility
+    window.ImageUpload = ImageUpload;
+    window.getSelectedIndices = () => Array.from(AppState.selected);
+    window.renderRegions = renderRegions;
+    
+    console.log('[App] Initialization complete');
   }
-}
 
-buyBtn.addEventListener('click', async () => {
-  if (!selected.size) {
-    const warningMessage = document.getElementById('warningMessage');
-    if (warningMessage) {
-      warningMessage.classList.add('show', 'shake');
-      setTimeout(() => warningMessage.classList.remove('show'), 2000);
-      setTimeout(() => warningMessage.classList.remove('shake'), 500);
-    }
-    return;
-  }
-
-  const want = Array.from(selected);
-  try {
-    const lr = await window.LockManager.lock(want, 180000);
-    locks = window.LockManager.getLocalLocks();
-
-    if (!lr || !lr.ok || (lr.conflicts && lr.conflicts.length>0) || (lr.locked && lr.locked.length !== want.length)) {
-      const rect = rectFromIndices(want);
-      if (rect) showInvalidRect(rect.r0, rect.c0, rect.r1, rect.c1, 1200);
-      clearSelection(); paintAll();
-      return;
-    }
-
-    currentLock = (lr.locked || []).slice();
-
-    if (typeof lr.totalAmount === 'number' && isFinite(lr.totalAmount)) {
-      reservedTotal = lr.totalAmount;
-    }
-    if (lr.unitPrice != null && isFinite(lr.unitPrice)) {
-      reservedPrice = lr.unitPrice;
-    }
-
-    clearSelection();
-    for (const i of currentLock) {
-      selected.add(i);
-      grid.children[i].classList.add('sel');
-    }
-    showCheckoutView();
-    paintAll();
-  } catch (e) {
-    alert('Reservation failed: ' + (e?.message || e));
-  }
-});
-
-
-  form.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-
-    const blocks = currentLock.length ? currentLock.slice() : Array.from(selected);
-
-    if (!haveMyValidLocks(blocks, 1000)) {
-      window.LockManager.heartbeat.stop();
-      await loadStatus().catch(()=>{});
-      clearSelection();
-      paintAll();
-      return;
-    }
-
-    document.dispatchEvent(new CustomEvent('finalize:submit'));
-  });
-
-  function rectFromIndices(arr){
-    if (!arr || !arr.length) return null;
-    let r0=999, c0=999, r1=-1, c1=-1;
-    for (const idx of arr){
-      const r=Math.floor(idx/N), c=idx%N;
-      if (r<r0) r0=r; if (c<c0) c0=c; if (r>r1) r1=r; if (c>c1) c1=c;
-    }
-    return { r0,c0,r1,c1 };
-  }
-
-  // OPTIMISATION 2: Polling moins agressif (3.5s au lieu de 2.5s)
-    async function loadStatus(){
-  try{
-    // use since param if server supports it
-    const sinceParam = lastStatusTs ? '?since=' + encodeURIComponent(lastStatusTs) : '?ts=' + Date.now();
-    const s = await apiCall('/status' + sinceParam);
-
-    if (!s || !s.ok) return;
-
-    // update price & regions quickly
-    if (typeof s.currentPrice === 'number') globalPrice = s.currentPrice;
-    window.regions = s.regions || window.regions || {};
-
-    // compute diffs between old & new sold/locks to avoid full repaint
-    const newSold = s.sold || {};
-    const newLocks = s.locks || {};
-    const changed = new Set();
-
-    // union of keys touched
-    for (const k of Object.keys(sold || {})) changed.add(k);
-    for (const k of Object.keys(newSold)) changed.add(k);
-    for (const k of Object.keys(locks || {})) changed.add(k);
-    for (const k of Object.keys(newLocks)) changed.add(k);
-
-    // update local sold and locks (merge locks with manager)
-    sold = newSold;
-    const merged = window.LockManager.merge(newLocks || {});
-    locks = merged;
-
-    // paint only changed indices
-    for (const k of changed) {
-      const idx = parseInt(k, 10);
-      if (!Number.isNaN(idx) && grid.children[idx]) paintCell(idx);
-    }
-
-    // update regions visuals and topbar
-    if (typeof window.renderRegions === 'function') window.renderRegions();
-    refreshTopbar();
-
-    // update last status timestamp if server provides it (helpful for since)
-    if (typeof s.ts === 'number') lastStatusTs = Number(s.ts) || lastStatusTs;
-
-  } catch (e) {
-    console.warn('[status] failed', e);
-  }
-}
-  (async function init(){
-    await loadStatus();
-    paintAll();
-    setInterval(async ()=>{ await loadStatus(); }, 3500); // OPTIMISATION: 3.5s au lieu de 2.5s
-  })();
-
-  window.regions = window.regions || {};
-  
+  // ===== REGIONS RENDERING =====
   function renderRegions() {
-    const gridEl = document.getElementById('grid');
+    const gridEl = DOM.grid;
     if (!gridEl) return;
+    
     gridEl.querySelectorAll('.region-overlay').forEach(n => n.remove());
+    
     const firstCell = gridEl.querySelector('.cell');
     const size = firstCell ? firstCell.offsetWidth : 10;
-
+    
     const regionLink = {};
-  
-    for (const [idx, s] of Object.entries(window.sold || {})) {
+    
+    for (const [idx, s] of Object.entries(AppState.sold)) {
       const regionId = s.regionId || s.region_id;
       const linkUrl = s.linkUrl || s.link_url;
       if (s && regionId && !regionLink[regionId] && linkUrl) {
         regionLink[regionId] = linkUrl;
       }
     }
-
-    for (const [rid, reg] of Object.entries(window.regions || {})) {
+    
+    for (const [rid, reg] of Object.entries(AppState.regions)) {
       if (!reg || !reg.rect || !reg.imageUrl) continue;
       const { x, y, w, h } = reg.rect;
       const idxTL = y * 100 + x;
       const tl = gridEl.querySelector(`.cell[data-idx="${idxTL}"]`);
       if (!tl) continue;
+      
       const a = document.createElement('a');
       a.className = 'region-overlay';
-      if (regionLink[rid]) { a.href = regionLink[rid]; a.target = '_blank'; a.rel = 'noopener nofollow'; }
+      if (regionLink[rid]) {
+        a.href = regionLink[rid];
+        a.target = '_blank';
+        a.rel = 'noopener nofollow';
+      }
+      
       Object.assign(a.style, {
         position: 'absolute',
         left: tl.offsetLeft + 'px',
-        top:  tl.offsetTop  + 'px',
-        width:  (w * size) + 'px',
+        top: tl.offsetTop + 'px',
+        width: (w * size) + 'px',
         height: (h * size) + 'px',
         backgroundImage: `url("${reg.imageUrl}")`,
         backgroundSize: 'cover',
@@ -676,20 +827,14 @@ buyBtn.addEventListener('click', async () => {
         backgroundRepeat: 'no-repeat',
         zIndex: 999
       });
+      
       gridEl.appendChild(a);
     }
+    
     gridEl.style.position = 'relative';
     gridEl.style.zIndex = 2;
   }
 
-  window.renderRegions = renderRegions;
-  //new
-  // Exposer globalement pour finalize-addon
-window.startModalMonitor = startModalMonitor;
-// Exposer globalement
-window.stopModalMonitor = stopModalMonitor;
-  //new
-  window.__debugGetLocks = () => ({ fromManager: window.LockManager.getLocalLocks(), localVar: locks, uid });
-prepareCheckout();
-
+  // Start app
+  init();
 })();

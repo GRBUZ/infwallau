@@ -1,148 +1,95 @@
-/* Reset et base */
-*{box-sizing:border-box}
-html,body{height:100%}
-body{margin:0;font-family:"Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;color:#111;background:#fff;overflow-x:hidden}
+/* style-refactored.css - Styles pour l'architecture sans modal */
 
-/* ====== Header amélioré ====== */
-.masthead{
+/* ===== RESET & BASE ===== */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #111;
+  background: #fff;
+  overflow-x: hidden;
+}
+
+/* ===== HEADER (inchangé) ===== */
+.masthead {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  width: 100%;
   z-index: 1000;
   box-shadow: 0 4px 20px rgba(0,0,0,0.08);
 }
 
-.masthead-title{
-  font-family:"Clash Display", "Inter", sans-serif;
+.masthead-title {
+  font-family: "Clash Display", "Inter", sans-serif;
   font-weight: 700;
   font-size: clamp(18px, 2.2vw, 22px);
-  line-height: 1.05;
-  letter-spacing: -0.5px;
   margin: 0;
   padding: 10px 0 6px;
   text-align: center;
-  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
-  color: transparent;
-  background-clip: text;
+  background: linear-gradient(135deg, #d946ef 0%, #a21caf 100%);
   -webkit-background-clip: text;
-  background-image: linear-gradient(135deg, #d946ef 0%, #c026d3 50%, #a21caf 100%);
+  background-clip: text;
+  color: transparent;
   border-bottom: 1px solid rgba(203, 213, 225, 0.5);
-  position: relative;
 }
 
-/* Effet de brillance subtile */
-.masthead-title::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-  animation: titleShine 4s ease-in-out infinite;
-}
-
-@keyframes titleShine {
-  0% { left: -100%; }
-  50% { left: 100%; }
-  100% { left: 100%; }
-}
-
-/* Bande violette avec gradient moderne */
-.masthead-strip{
+.masthead-strip {
   background: linear-gradient(135deg, #d946ef 0%, #c026d3 25%, #a21caf 75%, #86198f 100%);
   position: relative;
-  overflow: hidden;
 }
 
-/* Effet de brillance subtile */
-.masthead-strip::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-  animation: shine 3s ease-in-out infinite;
-}
-
-@keyframes shine {
-  0% { left: -100%; }
-  50% { left: 100%; }
-  100% { left: 100%; }
-}
-
-.masthead-inner{
+.masthead-inner {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 16px 18px 20px; /* Réduit de 24px à 20px */
+  padding: 16px 18px 20px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: center;
   gap: 20px;
-  position: relative;
-  z-index: 2;
 }
 
-.masthead-tagline{
-  font-family:"Inter", sans-serif;
-  margin: 0;
+.masthead-tagline {
   font-weight: 600;
   line-height: 1.3;
   font-size: clamp(14px, 2vw, 17px);
   color: #ffffff;
   text-shadow: 0 2px 4px rgba(0,0,0,.2);
-  letter-spacing: -0.2px;
 }
 
-.masthead-meta{
+.masthead-meta {
   text-align: right;
-  font-weight: 700;
   color: #ffffff;
-  font-family: "Inter", sans-serif;
 }
 
-.masthead-meta .pixels-left{ 
-  font-size: clamp(14px, 2vw, 17px); /* Même taille que tagline */
+.masthead-meta .pixels-left,
+.masthead-meta .price-line {
+  font-size: clamp(14px, 2vw, 17px);
   margin-bottom: 3px;
-  text-shadow: 0 2px 4px rgba(0,0,0,.2);
-  font-weight: 600; /* Même poids que tagline */
-  letter-spacing: -0.2px;
+  font-weight: 600;
 }
 
-.masthead-meta .price-line{ 
-  font-size: clamp(14px, 2vw, 17px); /* Même taille que tagline */
-  margin-bottom: 3px;
-  opacity: 0.95;
-  font-weight: 600; /* Même poids que tagline */
-  letter-spacing: -0.2px;
-}
-
-.masthead-meta .note{ 
-  font-size: clamp(12px, 1.6vw, 14px); /* Légèrement augmenté mais reste plus petit */
+.masthead-meta .note {
+  font-size: clamp(12px, 1.6vw, 14px);
   opacity: 0.85;
   font-weight: 500;
-  letter-spacing: -0.1px;
 }
 
-/* ====== Boutons repositionnés ====== */
-.masthead-actions{
+.masthead-actions {
   position: absolute;
-  bottom: -2px; /* Remontés de 2px par rapport au bas */
+  bottom: -2px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  justify-content: center;
   gap: 16px;
   z-index: 3;
 }
 
-/* Pills modernes avec micro-interactions */
-.pill{
-  font-family: "Inter", sans-serif;
+.pill {
   display: inline-flex;
   align-items: center;
   padding: 10px 20px;
@@ -151,326 +98,481 @@ body{margin:0;font-family:"Inter", ui-sans-serif, system-ui, -apple-system, "Seg
   text-decoration: none;
   font-weight: 700;
   font-size: 14px;
-  line-height: 1.2;
-  letter-spacing: -0.1px;
   border: 2px solid rgba(255,255,255,0.9);
-  box-shadow: 
-    0 4px 14px rgba(0,0,0,.15),
-    0 0 0 0 rgba(255,255,255,0.3);
+  box-shadow: 0 4px 14px rgba(0,0,0,.15);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
-  position: relative;
-  overflow: hidden;
 }
 
-.pill::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-  transition: left 0.5s ease;
-}
-
-.pill:hover::before {
-  left: 100%;
-}
-
-.pill:hover{ 
+.pill:hover {
   transform: translateY(-2px) scale(1.02);
-  box-shadow: 
-    0 8px 25px rgba(0,0,0,.2),
-    0 0 0 3px rgba(255,255,255,0.2);
+  box-shadow: 0 8px 25px rgba(0,0,0,.2);
 }
 
-.pill:active {
-  transform: translateY(-1px) scale(0.98);
+.pill-primary {
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
 }
 
-.pill-primary{
-  background: linear-gradient(135deg, #f59e0b 0%, #f97316 50%, #ea580c 100%);
-  border-color: rgba(255,255,255,0.95);
+.pill-secondary {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
 }
 
-.pill-secondary{
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
-  border-color: rgba(255,255,255,0.85);
+/* ===== MAIN CONTAINER ===== */
+#mainContainer {
+  padding-top: 125px;
+  min-height: 100vh;
+  transition: all 0.3s ease;
 }
 
-/* ====== Main content avec espacement réduit ====== */
-body {
-  padding-top: 125px; /* Encore réduit car header plus compact */
+.view-container {
+  display: none;
+  animation: fadeIn 0.3s ease;
 }
 
-main{
+.view-container.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== GRID VIEW ===== */
+#gridView {
   display: flex;
   justify-content: center;
-  padding: 24px 16px; /* Réduit encore */
+  padding: 24px 16px;
 }
 
-.grid{
-  position: relative;
+.grid {
   width: 1000px;
   height: 1000px;
   display: grid;
-  grid-template-columns: repeat(100,10px);
-  grid-template-rows: repeat(100,10px);
+  grid-template-columns: repeat(100, 10px);
+  grid-template-rows: repeat(100, 10px);
   gap: 0;
   background: #fafafa;
   border: 1px solid #eee;
   user-select: none;
+  position: relative;
 }
 
-.cell{
+.cell {
   width: 10px;
   height: 10px;
   background: #fff;
   border: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: all 0.1s ease;
 }
 
-.cell.sold{
+.cell.sold {
   background: #ddd;
   border-color: #ddd;
+  cursor: default;
 }
 
-.cell.pending{
+.cell.pending {
   background: #fff6cc;
   border-color: #ffd66b;
+  cursor: not-allowed;
 }
 
-.cell.sel{
-  outline: 1px solid #8b5cf6;
+.cell.sel {
   background: #f5f3ff;
+  border-color: #8b5cf6;
+  outline: 1px solid #8b5cf6;
 }
 
-/* ====== Modal amélioré ====== */
-.modal.hidden{display:none}
-.modal{
-  position: fixed;
-  inset: 0;
+/* ===== CHECKOUT VIEW ===== */
+.checkout-progress {
+  background: #f8f9fa;
+  padding: 32px 0;
+  margin-bottom: 48px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 80px;
+  position: relative;
+}
+
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+}
+
+.progress-step.active {
+  opacity: 1;
+}
+
+.progress-step.completed {
+  opacity: 0.7;
+}
+
+.step-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #6b7280;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2000;
-  backdrop-filter: blur(8px);
+  font-weight: 700;
+  font-size: 16px;
+  transition: all 0.3s ease;
 }
 
-.modal .backdrop{
-  position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.4);
-  animation: fadeIn 0.2s ease;
+.progress-step.active .step-number {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+.progress-step.completed .step-number {
+  background: #10b981;
+  color: white;
 }
 
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.modal .header{
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f1f5f9;
-  background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
-}
-
-
-.modal label{
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.step-label {
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
-  font-family: "Inter", sans-serif;
+  color: #6b7280;
 }
 
-.modal input, .modal textarea {
+.progress-step.active .step-label {
+  color: #111827;
+}
+
+.progress-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 60px;
+  width: 60px;
+  height: 2px;
+  background: #e5e7eb;
+  z-index: -1;
+}
+
+.progress-step.completed:not(:last-child)::after {
+  background: #10b981;
+}
+
+/* ===== CHECKOUT CONTENT ===== */
+.checkout-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 48px;
+}
+
+/* ===== ORDER SUMMARY SIDEBAR ===== */
+.order-summary-sidebar {
+  position: sticky;
+  top: 145px;
+  height: fit-content;
+}
+
+.summary-card {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.summary-card h3 {
+  margin: 0 0 20px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.summary-preview {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), 4px);
+  grid-template-rows: repeat(var(--rows), 4px);
+  gap: 1px;
+}
+
+.preview-pixel {
+  background: #8b5cf6;
+  width: 4px;
+  height: 4px;
+  grid-row: calc(var(--r) + 1);
+  grid-column: calc(var(--c) + 1);
+}
+
+.preview-info {
+  text-align: center;
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.summary-details {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 16px;
+  margin-bottom: 20px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.detail-row.total {
+  font-weight: 700;
+  font-size: 16px;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 8px;
+  padding-top: 12px;
+}
+
+.lock-timer {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.btn-secondary {
+  width: 100%;
+  padding: 12px;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: #f8f9fa;
+  border-color: #d1d5db;
+}
+
+/* ===== CHECKOUT MAIN ===== */
+.checkout-main {
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.checkout-step {
+  display: none;
+}
+
+.checkout-step.active {
+  display: block;
+  animation: fadeIn 0.3s ease;
+}
+
+.checkout-step h2 {
+  margin: 0 0 32px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* ===== FORM STYLES ===== */
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+}
+
+.label-icon {
+  margin-right: 4px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group input[type="email"] {
+  width: 100%;
   padding: 12px 16px;
   border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: 8px;
   font-size: 14px;
-  font-family: "Inter", sans-serif;
   transition: all 0.2s ease;
-  background: #ffffff;
 }
 
-.modal input:focus, .modal textarea:focus {
+.form-group input:focus {
   outline: none;
   border-color: #8b5cf6;
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
-.modal .footer{
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 20px;
-  border-top: 1px solid #f1f5f9;
-  background: #fafafa;
-}
-
-.btn{
-  background: #ffffff;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 10px 20px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
-  font-family: "Inter", sans-serif;
+.file-upload-wrapper {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  border: 2px dashed #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
   transition: all 0.2s ease;
 }
 
-.btn:hover{
-  background: #f9fafb;
-  border-color: #d1d5db;
-}
-
-.btn.primary{
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-  color: #fff;
+.file-upload-wrapper:hover {
   border-color: #8b5cf6;
+  background: #faf5ff;
 }
 
-.btn.primary:hover{
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+.file-upload-wrapper input[type="file"] {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.file-upload-preview {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-size: 14px;
+  text-align: center;
+  position: relative;
+}
+
+.file-upload-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: cover;
+}
+
+.remove-image {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 32px;
+}
+
+.btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
 }
 
-/* ====== Footer violet subtil mais visible ====== */
-.site-footer{
-  margin-top: 40px;
-  background: linear-gradient(135deg, #a855f7 0%, #9333ea 50%, #7c3aed 100%);
-  color: #ffffff;
-  border-top: 1px solid rgba(255,255,255,0.2);
-  position: relative;
-  opacity: 0.7; /* Plus subtil que le header mais clairement violet */
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.footer-inner{
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 18px 20px;
-  text-align: center;
-}
-
-.footer-links{
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-}
-
-.footer-links a{
-  color: #f3f4f6;
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 600;
-  font-family: "Inter", sans-serif;
-  padding: 8px 16px;
+/* ===== PAYMENT CONTAINER ===== */
+.payment-container {
+  padding: 24px;
+  background: #f8f9fa;
   border-radius: 8px;
-  transition: all 0.2s ease;
 }
 
-.footer-links a:hover{
-  background: rgba(255,255,255,0.15);
-  color: #ffffff;
-  transform: translateY(-1px);
+#paypal-button-container {
+  min-height: 200px;
 }
 
-.footer-copy{
-  font-size: 13px;
-  opacity: 0.8;
-  font-weight: 500;
-  font-family: "Inter", sans-serif;
+.payment-security {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 14px;
+  color: #6b7280;
 }
 
-/* ====== Responsive amélioré ====== */
-@media (max-width: 768px) {
-  /* Header compact */
-  body { padding-top: 90px; }
-  
-  .masthead-title { font-size: 16px; padding: 8px 0 4px; }
-  
-  .masthead-inner { 
-    padding: 10px 12px 16px;
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
-  
-  .masthead-meta { text-align: center; }
-  
-  .masthead-tagline { font-size: 11px; }
-  .masthead-meta .pixels-left,
-  .masthead-meta .price-line { font-size: 11px; }
-  .masthead-meta .note { font-size: 9px; }
-  
-  /* Boutons petits */
-  .pill { padding: 5px 10px; font-size: 10px; }
-  
-  /* Grille qui prend TOUTE la largeur */
-  main { padding: 10px 5px; }
-  
-  .grid {
-    width: calc(100vw - 10px);
-    height: calc(100vw - 10px);
-    max-width: 390px;
-    max-height: 390px;
-  }
-  
-  .cell { border-width: 0.5px; }
-}
-/* ====== GLOW EFFECTS SUR SÉLECTION ====== */
-/* ====== GLOW EFFECTS CONDITIONNELS ====== */
-/*.cell.sel{
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
-  border: 2px solid #6d28d9 !important;
-  position: relative;
-  z-index: 2;
-}*/
-
-/* Glow seulement si moins de 200 pixels sélectionnés */
-body:not(.heavy-selection) .cell.sel {
-  animation: selectedGlow 1.5s infinite;
+/* ===== SUCCESS MESSAGE ===== */
+.success-message {
+  text-align: center;
+  padding: 48px;
 }
 
-body:not(.heavy-selection) .cell.sel::before {
-  content: '';
-  position: absolute;
-  top: -2px; left: -2px; right: -2px; bottom: -2px;
-  background: linear-gradient(45deg, transparent, rgba(255,255,255,0.3), transparent);
-  animation: shine 2s infinite;
-  z-index: 1;
-  pointer-events: none;
+.success-icon {
+  font-size: 64px;
+  margin-bottom: 24px;
 }
-/*
-@keyframes selectedGlow {
-  0%, 100% {
-    box-shadow: 0 0 8px rgba(139, 92, 246, 0.6), 0 0 16px rgba(139, 92, 246, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 12px rgba(139, 92, 246, 0.8), 0 0 24px rgba(139, 92, 246, 0.6);
-  }
-}*/
 
-@keyframes shine {
-  0% { transform: translateX(-100%) rotate(45deg); }
-  100% { transform: translateX(100%) rotate(45deg); }
+.success-message h2 {
+  color: #10b981;
+  margin-bottom: 16px;
 }
-/*glow*/
-/* ====== INFO DE SÉLECTION EN BAS ====== */
+
+.success-details {
+  margin: 24px 0;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+/* ===== MESSAGES FLOTTANTS ===== */
 .selection-info {
   position: fixed;
   bottom: 30px;
@@ -487,9 +589,6 @@ body:not(.heavy-selection) .cell.sel::before {
   visibility: hidden;
   transform: translateX(-50%) translateY(20px);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4);
-  font-family: "Inter", sans-serif;
 }
 
 .selection-info.show {
@@ -498,18 +597,6 @@ body:not(.heavy-selection) .cell.sel::before {
   transform: translateX(-50%) translateY(0);
 }
 
-.selection-info .count {
-  font-size: 16px;
-  margin-right: 8px;
-}
-
-/* Performance optimizations */
-.cell.sel {
-  will-change: transform, box-shadow;
-}
-
-/*warning message*/
-/* ====== MESSAGE D'AVERTISSEMENT SÉLECTION ====== */
 .warning-message {
   position: fixed;
   bottom: 30px;
@@ -526,9 +613,6 @@ body:not(.heavy-selection) .cell.sel::before {
   visibility: hidden;
   transform: translateX(-50%) translateY(20px);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.4);
-  font-family: "Inter", sans-serif;
   border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
@@ -538,526 +622,117 @@ body:not(.heavy-selection) .cell.sel::before {
   transform: translateX(-50%) translateY(0);
 }
 
-.warning-message::before {
-  content: '⚠️';
-  margin-right: 8px;
-  font-size: 16px;
+/* ===== FOOTER ===== */
+.site-footer {
+  margin-top: 80px;
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+  color: #ffffff;
+  opacity: 0.7;
 }
 
-/* Animation de shake */
-.warning-message.shake {
-  animation: warningShake 0.5s ease-in-out;
-}
-
-@keyframes warningShake {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  25% { transform: translateX(-52%) translateY(0); }
-  75% { transform: translateX(-48%) translateY(0); }
-}
-/*warning message*/
-
-#paypal-button-container.cancelled::before {
-  content: "❌ Payment cancelled";
-  background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
-  border-color: #fecaca;
-  color: #dc2626;
-}
-#paypal-button-container.error::before {
-  content: "⚠️ Payment failed — try again";
-  background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
-  border-color: #fecaca;
-  color: #dc2626;
-}
-
-/* New states (match JS setPayPalHeaderState) */
-#paypal-button-container.processing::before {
-  content: "⏳ Processing payment…";
-  background: linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%);
-  border-color: #fed7aa;
-  color: #9a3412;
-}
-
-#paypal-button-container.pending::before {
-  content: "⌛ Payment recorded — finalizing…";
-  background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 100%);
-  border-color: #bfdbfe;
-  color: #1d4ed8;
-}
-
-#paypal-button-container.completed::before {
-  content: "✅ Payment completed";
-  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
-  border-color: #bbf7d0;
-  color: #166534;
-}
-
-/* Optional: visu disabled quand pas cliquable (expired/cancelled/error) */
-#paypal-button-container.expired .paypal-buttons-wrapper,
-#paypal-button-container.cancelled .paypal-buttons-wrapper,
-#paypal-button-container.error .paypal-buttons-wrapper {
-  pointer-events: none;
-  opacity: 0.6;
-  filter: grayscale(0.1);
-}
-
-/* instruction selection */
-/* ====== INSTRUCTION SÉLECTION ====== */
-/* Guide qui suit le curseur */
-.selection-guide {
-  position: fixed; /* Fixed pour suivre globalement */
-  background: rgba(139, 92, 246, 0.9);
-  color: white;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-family: "Inter", sans-serif;
-  font-weight: 600;
-  font-size: 12px;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.2s ease;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  transform: translate(-50%, -120%); /* Centré au-dessus du curseur */
-  white-space: nowrap;
-}
-
-/* Flèche pointant vers le curseur */
-.selection-guide::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  margin-left: -4px;
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 4px solid rgba(139, 92, 246, 0.9);
-}
-
-.selection-guide.show {
-  opacity: 1;
-  visibility: visible;
-}
-
-.selection-guide.dismissed {
-  display: none !important;
-}
-
-@media (max-width: 768px) {
-  .selection-guide {
-    font-size: 11px;
-    padding: 6px 10px;
-    transform: translate(-50%, -130%); /* Un peu plus haut sur mobile */
-  }
-}
-/* instruction selection */
-
-.modal .footer {
-  display: flex !important;
-  flex-direction: column !important;
-  align-items: center !important;
-  gap: 16px !important;
-}
-
-/* PayPal EN HAUT (order: 1) */
-#paypal-button-container {
-  order: 1 !important;
-  max-width: 300px !important;
-}
-
-/* Cancel EN BAS (order: 2) */
-.modal .footer .btn:not(.primary) {
-  order: 2 !important;
-}
-
-/* Réduire les boutons PayPal */
-#paypal-button-container .paypal-buttons-wrapper > div[data-funding-source] {
-  height: 36px !important;
-  min-height: 36px !important;
-}
-
-/*new haut modal*/
-/* ====== MODAL HEADER AMÉLIORÉ ====== */
-.modal .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f1f5f9;
-  background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
-  position: relative; /* pour éviter les chevauchements */
-}
-
-/* Titre à gauche */
-.modal .header h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: #111827;
-  font-family: "Inter", sans-serif;
-  flex: 1; /* prend l’espace dispo */
-}
-
-/* Infos prix à droite sur une ligne */
-.modal .header .price-info {
-  display: flex;
-  flex-direction: row;   /* 🔥 une seule ligne */
-  align-items: center;
-  gap: 12px;
-  white-space: nowrap;   /* évite le retour à la ligne */
-}
-
-/* Nombre de pixels - même style que titre */
-.modal .header .pixels {
-  font-size: 16px;       /* 🔥 harmonisé */
-  font-weight: 700;
-  color: #8b5cf6;
-  font-family: "Inter", sans-serif;
-}
-
-/* Montant $ - même taille mais gras + gradient */
-.modal .header .amount {
-  font-size: 16px;       /* 🔥 harmonisé */
-  font-weight: 700;
-  color: #111827;
-  font-family: "Inter", sans-serif;
-  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Bouton close */
-.modal .header .close,
-.modal .header button[data-close] {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 18px;
-  color: #9ca3af;
-  margin-left: 12px; /* espace avec le prix */
-  flex-shrink: 0;    /* ne se fait pas écraser */
-}
-
-.modal .header .close:hover {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-/*new haut modal*/
-
-
-/* ====== ORDER SUMMARY HARMONISÉ ====== */
-#order-summary {
-  padding: 16px 20px;
-  background: #ffffff;           /* 🔥 Fond blanc au lieu de gris */
-  border: 1px solid #e5e7eb;     /* 🔥 Bordure subtile */
-  border-radius: 12px;
-  margin: 16px 20px;
-  font-size: 13px;
-  font-family: "Inter", sans-serif;
-}
-
-#editOrder:hover {
-  background: #f3f4f6 !important;
-}
-
-/* === FIX SCROLL PAYPAL MODAL === */
-.modal .panel {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  box-shadow:
-    0 25px 50px rgba(0,0,0,.15),
-    0 0 0 1px rgba(255,255,255,0.8);
-  width: min(520px, 95vw);
-  max-height: 90vh;
-  overflow-y: auto; /* ✅ scroll autorisé */
-  -webkit-overflow-scrolling: touch;
-  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.modal .header {
-  flex-shrink: 0;
-  position: sticky;
-  top: 0;
-  background: #fff;
-  z-index: 2;
-  padding: 16px 20px;
-  border-bottom: 1px solid #eee;
-}
-
-.modal .body {
-  flex: 1 1 auto;
-  min-height: 0; /* ✅ essentiel pour autoriser le scroll */
-  overflow-y: auto;
-  padding: 16px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* Footer scroll-safe + layout PayPal */
-.modal .footer {
-  flex-shrink: 0;           /* ✅ ne pousse pas le contenu */
-  position: sticky;
-  bottom: 0;
-  background: #fff;
-  z-index: 3;
-  padding: 16px 20px;
-  border-top: 1px solid #eee;
-  display: flex;
-  flex-direction: column;   /* ✅ garde le layout PayPal vertical */
-  align-items: center;
-  gap: 16px;
-}
-
-/* PayPal container */
-#paypal-button-container {
-  order: 1;
-  max-width: 350px;
-}
-
-.modal .footer .btn:not(.primary) {
-  order: 2;
-}
-
-/*new*/
-/* minimal, local, sûr */
-.modal.payment-active .footer {
-  max-height: calc(80vh - 64px); /* 64 = header + marge — ajuste */
-  overflow-y: auto;
-}
-.modal.payment-active #paypal-button-container {
-  max-height: calc(80vh - 140px); /* réduit la hauteur du container */
-  overflow-y: auto;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-/*new*/
-
-/*new modal paypal*/
-/* === MODAL STRUCTURE CORRIGÉE === */
-.modal .panel {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  box-shadow:
-    0 25px 50px rgba(0,0,0,.15),
-    0 0 0 1px rgba(255,255,255,0.8);
-  width: min(520px, 95vw);
-  max-height: 90vh;
-  overflow: hidden; /* ✅ Panel ne scroll pas, seul le body scroll */
-  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Header fixe en haut */
-.modal .header {
-  flex-shrink: 0;
-  position: relative;
-  background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
-  z-index: 10;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f1f5f9;
-}
-
-/* Body scrollable avec conteneur PayPal */
-.modal .body {
-  flex: 1;
-  min-height: 0; /* ✅ Crucial pour permettre le scroll */
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 16px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  -webkit-overflow-scrolling: touch; /* Smooth scroll iOS */
-}
-
-/* Footer uniquement pour Cancel en mode form */
-.modal .footer {
-  flex-shrink: 0;
-  padding: 16px 20px;
-  border-top: 1px solid #f1f5f9;
-  background: #fafafa;
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-}
-
-/* Mode paiement : footer caché, tout dans le body */
-.modal.payment-mode .footer {
-  display: none !important;
-}
-
-/* Container PayPal dans le body */
-.modal .body #paypal-button-container {
-  width: 100%;
-  max-width: 350px;
+.footer-inner {
+  max-width: 1200px;
   margin: 0 auto;
-  flex-shrink: 0;
-}
-
-/* Order summary */
-#order-summary {
-  padding: 16px 20px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  margin-bottom: 16px;
-  font-size: 13px;
-  font-family: "Inter", sans-serif;
-}
-
-/* PayPal header states intégré */
-#paypal-button-container::before {
-  content: "💳 Choose your payment method";
-  display: block;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border: 1px solid #e2e8f0;
-  border-radius: 8px 8px 0 0;
-  padding: 12px 16px;
-  font-family: "Inter", sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
+  padding: 18px 20px;
   text-align: center;
-  margin-bottom: -1px;
-  transition: all 0.3s ease;
 }
 
-#paypal-button-container.active::before {
-  content: "💳 Choose your payment method";
-  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
-  border-color: #bbf7d0;
-  color: #166534;
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 12px;
 }
 
-#paypal-button-container.processing::before {
-  content: "⏳ Processing payment…";
-  background: linear-gradient(135deg, #fff7ed 0%, #fffbeb 100%);
-  border-color: #fed7aa;
-  color: #9a3412;
-}
-
-#paypal-button-container.cancelled::before {
-  content: "❌ Payment cancelled";
-  background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
-  border-color: #fecaca;
-  color: #dc2626;
-}
-
-#paypal-button-container.error::before {
-  content: "⚠️ Payment failed – try again";
-  background: linear-gradient(135deg, #fef2f2 0%, #fef7f7 100%);
-  border-color: #fecaca;
-  color: #dc2626;
-}
-
-#paypal-button-container.completed::before {
-  content: "✅ Payment completed";
-  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
-  border-color: #bbf7d0;
-  color: #166534;
-}
-
-/* Wrapper pour les boutons PayPal */
-.paypal-buttons-wrapper {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0 0 8px 8px;
-  padding: 12px;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-}
-
-/* Bouton Cancel en mode paiement */
-.payment-cancel-btn {
-  margin-top: 16px;
-  padding: 10px 20px;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #374151;
-  font-weight: 600;
+.footer-links a {
+  color: #f3f4f6;
+  text-decoration: none;
   font-size: 14px;
-  font-family: "Inter", sans-serif;
-  cursor: pointer;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
   transition: all 0.2s ease;
-  align-self: center;
 }
 
-.payment-cancel-btn:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
+.footer-links a:hover {
+  background: rgba(255,255,255,0.15);
   transform: translateY(-1px);
 }
 
-/* Mobile responsive */
+/* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
-  .modal .panel {
-    max-height: 95vh;
-    width: 100vw;
-    border-radius: 16px 16px 0 0;
+  body { padding-top: 90px; }
+  
+  .masthead-inner {
+    grid-template-columns: 1fr;
+    text-align: center;
   }
   
-  .modal .body {
-    padding: 12px 16px;
+  .masthead-meta {
+    text-align: center;
   }
   
-  #paypal-button-container {
-    max-width: none;
+  .grid {
+    width: calc(100vw - 10px);
+    height: calc(100vw - 10px);
+    max-width: 390px;
+    max-height: 390px;
   }
-}
-/*new modal paypal*/
-.checkout-view {
-  padding: 40px 20px;
-  background: #f9fafb;
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-}
-.checkout-inner {
-  background: white;
-  padding: 32px;
-  border-radius: 12px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-  max-width: 480px;
-  width: 100%;
-}
-.checkout-form label {
-  display: block;
-  margin-bottom: 16px;
-}
-.checkout-actions .btn {
-  flex: 1;
+  
+  .checkout-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .order-summary-sidebar {
+    position: relative;
+    top: 0;
+    margin-bottom: 24px;
+  }
+  
+  .checkout-progress {
+    gap: 40px;
+  }
+  
+  .progress-step:not(:last-child)::after {
+    width: 30px;
+    left: 35px;
+  }
 }
 
-#formSection {
-  display: none;
-  animation: fadeIn 0.3s ease;
+/* ===== UTILITIES ===== */
+.upload-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #8b5cf6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
 }
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.invalid-overlay {
+  animation: invalidPulse 0.8s ease;
+}
+
+@keyframes invalidPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.error {
+  color: #ef4444;
+  font-size: 14px;
+}
+
+.selection-guide {
+  display: none;
+}
+
+.region-overlay {
+  pointer-events: auto;
 }

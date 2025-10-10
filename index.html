@@ -42,29 +42,23 @@
     <li>Secure your space in digital advertising history</li>
   </ul>
 </div>
-  <header class="masthead">
-    <!-- 1) Titre tout en haut -->
-    <h1 class="masthead-title">Influencers Wall</h1>
 
-    <!-- 2) Bande violette -->
+  <!-- Header reste identique -->
+  <header class="masthead">
+    <h1 class="masthead-title">Influencers Wall</h1>
     <div class="masthead-strip">
       <div class="masthead-inner">
-        <!-- Accroche à gauche -->
         <p class="masthead-tagline">
           Own your space. Own your fame.<br>
           Where influence meets immortality.<br>
           Your story deserves the spotlight.
         </p>
-
-        <!-- Stats à droite -->
         <div class="masthead-meta">
           <div class="pixels-left" id="pixelsLeft">1,000,000 pixels</div>
           <div class="price-line" id="priceLine">1 pixel = $1.22</div>
           <div class="note">Every 1,000 pixels sold, price +$0.01</div>
         </div>
       </div>
-
-      <!-- 3) Boutons au bas de la bande -->
       <div class="masthead-actions">
         <button id="buyBtn" class="pill pill-primary">💎 Claim your spot</button>
         <a id="contactBtn" href="#contact" class="pill pill-secondary">💬 Contact</a>
@@ -72,132 +66,201 @@
     </div>
   </header>
 
-  <main>
-    <div id="grid" class="grid" aria-label="pixel grid"></div>
-    <!-- Instructions de sélection -->
-<div id="selectionGuide" class="selection-guide">
-  <div class="guide-content">
-    <div class="guide-text">🖱️ Click and drag to select pixels</div>
-  </div>
-</div>
+  <!-- Container principal avec vues switchables -->
+  <main id="mainContainer" data-view="grid">
+    
+    <!-- Vue 1: Grille -->
+    <div id="gridView" class="view-container active">
+      <div id="grid" class="grid" aria-label="pixel grid"></div>
+      <div id="selectionGuide" class="selection-guide">
+        <div class="guide-content">
+          <div class="guide-text">🖱️ Click and drag to select pixels</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vue 2: Checkout Flow -->
+    <div id="checkoutView" class="view-container">
+      <!-- Progress bar -->
+      <div class="checkout-progress">
+        <div class="progress-step active" data-step="1">
+          <span class="step-number">1</span>
+          <span class="step-label">Your info</span>
+        </div>
+        <div class="progress-step" data-step="2">
+          <span class="step-number">2</span>
+          <span class="step-label">Payment</span>
+        </div>
+        <div class="progress-step" data-step="3">
+          <span class="step-number">3</span>
+          <span class="step-label">Complete</span>
+        </div>
+      </div>
+
+      <!-- Checkout content -->
+      <div class="checkout-content">
+        
+        <!-- Sidebar avec résumé -->
+        <aside class="order-summary-sidebar">
+          <div class="summary-card">
+            <h3>Order Summary</h3>
+            <div class="summary-preview" id="pixelPreview"></div>
+            
+            <div class="summary-details">
+              <div class="detail-row">
+                <span>Pixels selected</span>
+                <span id="summaryPixels">0</span>
+              </div>
+              <div class="detail-row">
+                <span>Price per pixel</span>
+                <span id="summaryPrice">$0.00</span>
+              </div>
+              <div class="detail-row total">
+                <span>Total</span>
+                <span id="summaryTotal">$0.00</span>
+              </div>
+            </div>
+
+            <div class="lock-timer" id="lockTimer">
+              <span class="timer-icon">⏱️</span>
+              <span class="timer-text">Reserved for <span id="timerValue">3:00</span></span>
+            </div>
+
+            <button type="button" class="btn-secondary" id="backToGrid">
+              ← Back to selection
+            </button>
+          </div>
+        </aside>
+
+        <!-- Main checkout form -->
+        <div class="checkout-main">
+          
+          <!-- Step 1: Form -->
+          <div class="checkout-step active" id="step1">
+            <h2>Complete your purchase</h2>
+            
+            <form id="checkoutForm">
+              <div class="form-group">
+                <label for="name">
+                  <span class="label-icon">🏷️</span>
+                  Display Name
+                </label>
+                <input 
+                  type="text" 
+                  id="name" 
+                  name="name" 
+                  placeholder="@yourname" 
+                  maxlength="40" 
+                  required 
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="link">
+                  <span class="label-icon">🔗</span>
+                  Profile URL
+                </label>
+                <input 
+                  type="url" 
+                  id="link" 
+                  name="link" 
+                  placeholder="https://instagram.com/your-handle" 
+                  required 
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="image">
+                  <span class="label-icon">📸</span>
+                  Profile Photo
+                </label>
+                <div class="file-upload-wrapper">
+                  <input 
+                    type="file" 
+                    id="image" 
+                    accept="image/*" 
+                  />
+                  <div class="file-upload-preview" id="imagePreview">
+                    <span>Click to upload or drag & drop</span>
+                  </div>
+                </div>
+                <small class="form-hint">Max ~1.5 MB. JPG, PNG, GIF accepted.</small>
+              </div>
+
+              <button type="submit" class="btn-primary" id="proceedToPayment">
+                Continue to Payment →
+              </button>
+            </form>
+          </div>
+
+          <!-- Step 2: Payment -->
+          <div class="checkout-step" id="step2">
+            <h2>Choose payment method</h2>
+            
+            <div class="payment-container">
+              <div id="paypal-button-container"></div>
+              
+              <div class="payment-security">
+                <span>🔒 Secure payment powered by PayPal</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Success -->
+          <div class="checkout-step" id="step3">
+            <div class="success-message">
+              <div class="success-icon">✅</div>
+              <h2>Purchase Complete!</h2>
+              <p>Your pixels have been claimed successfully.</p>
+              <p class="success-details">
+                Transaction ID: <span id="transactionId"></span>
+              </p>
+              <button class="btn-primary" id="viewMyPixels">
+                View My Pixels
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
   </main>
 
-  <!-- Info de sélection -->
-<div id="selectionInfo" class="selection-info">
-  <span class="count">0</span> pixels selected • $0.00
-</div>
-<!-- Message d'avertissement -->
-<div id="warningMessage" class="warning-message">
-  Please select pixels first !
-</div>
-
-<!-- === NOUVELLE SECTION CHECKOUT === -->
-<section id="checkoutView" class="checkout-view" style="display:none;">
-  <div class="checkout-inner">
-    <h2>🎯 Finalize your purchase</h2>
-    <p class="checkout-note">Please review your details before payment.</p>
-
-    <form id="checkoutForm" class="checkout-form">
-      <label>🏷️ Pseudo (Display name)
-        <input id="name" name="name" placeholder="@yourname" maxlength="40" required />
-      </label>
-
-      <label>🔗 Profile URL
-        <input id="link" name="linkUrl" placeholder="https://instagram.com/your-handle" required />
-      </label>
-
-      <label>📸 Profile Photo
-        <input id="image" type="file" accept="image/*" />
-        <small style="color: #6b7280; font-size: 12px;">Max ~1.5 MB. JPG, PNG, GIF accepted.</small>
-      </label>
-    </form>
-
-    <!-- Zone PayPal -->
-    <div id="paypal-button-container" style="margin-top:24px;"></div>
-
-    <!-- Boutons d'action -->
-    <div class="checkout-actions" style="margin-top:24px; display:flex; gap:12px;">
-      <button id="cancelCheckout" class="btn">⬅ Back</button>
-      <button id="confirmCheckout" class="btn primary" form="checkoutForm">✨ Confirm Purchase</button>
-    </div>
+  <!-- Info/Warning messages -->
+  <div id="selectionInfo" class="selection-info">
+    <span class="count">0</span> pixels selected • $0.00
   </div>
-</section>
-<!-- === FIN SECTION CHECKOUT === -->
 
+  <div id="warningMessage" class="warning-message">
+    Please select pixels first!
+  </div>
 
+  <!-- Footer -->
   <footer class="site-footer">
     <div class="footer-inner">
       <nav class="footer-links">
-        <a href="/terms.html" target="_blank" rel="noopener noreferrer">📋 Terms of Use</a>
-        <a href="/privacy.html" target="_blank" rel="noopener noreferrer">🔒 Privacy Policy</a>
-        <a href="/faq.html" target="_blank" rel="noopener noreferrer">❓ FAQ</a>
+        <a href="/terms.html" target="_blank">📋 Terms of Use</a>
+        <a href="/privacy.html" target="_blank">🔐 Privacy Policy</a>
+        <a href="/faq.html" target="_blank">❓ FAQ</a>
       </nav>
       <div class="footer-copy">© 2025 Influencers Wall. All rights reserved.</div>
     </div>
   </footer>
 
-  <!-- Contact Modal -->
-  <div id="contactModal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="backdrop" data-close></div>
-    <div class="panel">
-      <div class="header">
-        <h2 style="margin:0; font-weight: 700;">💬 Contact me</h2>
-        <button class="close" style="border:none;background:none;font-size:24px;cursor:pointer;color:#9ca3af;" title="Close" data-close>&times;</button>
-      </div>
-
-      <form name="contact" method="POST" action="/contact-success.html" data-netlify="true" netlify-honeypot="bot-field" class="body">
-        <input type="hidden" name="form-name" value="contact" />
-        <p hidden><label>Don't fill this out: <input name="bot-field" /></label></p>
-
-        <label>👤 Your name
-          <input name="name" placeholder="Your name" required />
-        </label>
-        <label>📧 Your email
-          <input name="email" type="email" placeholder="you@example.com" required />
-        </label>
-        <label>💭 Message
-          <textarea name="message" placeholder="How can we help?" rows="5" required></textarea>
-        </label>
-
-        <div class="footer">
-          <button type="button" class="btn" data-close>Cancel</button>
-          <button type="submit" class="btn primary">📨 Send Message</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <script src="js/errors.js"></script> 
+  <!-- Scripts -->
+  <script src="js/errors.js"></script>
   <script src="js/core-manager.js"></script>
   <script src="js/auth-utils.js"></script>
-  <script src="js/locks.js"></script> <!-- NOUVEAU -->
+  <script src="js/locks.js"></script>
   <script src="js/upload-manager.js"></script>
-  <script src="js/upload-addon.js"></script>
-  <script>
-  window.PAYPAL_CLIENT_ID = "Ae_mhLuL6FbRVTkQNt4XZZfnFII_WVgtsyqitpvyyzJkQkyvOXrkDMMBvY9PxlYlkqvAEq4pIspOwbPa";
-  window.PAYPAL_CURRENCY = "USD";
-  </script>
-  <script src="/js/paypal-integration.js"></script>
-  <script src="js/finalize-addon.js"></script>
+  
+  <!-- New unified app script -->
   <script src="js/app.js"></script>
-  <script src="js/contact-modal.js"></script>
+  
   <script>
-  // Initialisation de l'authentification au chargement de la page
-  document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    console.log('[AUTH] Initialisation du token...');
-    await AuthUtils.getOrCreateToken();
-    console.log('[AUTH] Token prêt');
-  } catch (e) {
-    console.error('[AUTH] Échec initialisation token:', e);
-  }
-  });
+    window.PAYPAL_CLIENT_ID = "Ae_mhLuL6FbRVTkQNt4XZZfnFII_WVgtsyqitpvyyzJkQkyvOXrkDMMBvY9PxlYlkqvAEq4pIspOwbPa";
+    window.PAYPAL_CURRENCY = "USD";
   </script>
-  <script>
-  const yearEl = document.getElementById('year');
-  if (yearEl) {
-    yearEl.textContent = new Date().getFullYear();
-  }
-  </script>
+  <script src="js/paypal-integration.js"></script>
 </body>
 </html>
