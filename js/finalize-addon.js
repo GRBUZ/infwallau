@@ -661,7 +661,17 @@ async function handlePaymentCancel(e) {
   // Créer un wrapper pour les boutons PayPal
   const wrapper = document.createElement('div');
   wrapper.className = 'paypal-buttons-wrapper';
-  container.appendChild(wrapper);
+  
+  //container.appendChild(wrapper);
+  // Utiliser un overlay global, pas le modal
+const overlay = document.getElementById('paypal-overlay-container');
+const wrapperContainer = document.getElementById('paypal-buttons-wrapper');
+if (overlay && wrapperContainer) {
+  wrapperContainer.innerHTML = ''; // reset propre
+  wrapperContainer.appendChild(wrapper);
+  overlay.style.display = 'flex';
+}
+
 
   if (!window.PayPalIntegration || !window.PAYPAL_CLIENT_ID) {
     uiWarn('Payment: missing PayPal configuration');
@@ -730,6 +740,7 @@ async function handlePaymentCancel(e) {
         } finally {
           btnBusy(false);
         }
+        window.dispatchEvent(new CustomEvent('paypal:completed'));
       },
 
      //new oncancel et onerror
@@ -756,6 +767,7 @@ async function handlePaymentCancel(e) {
   if (typeof window.startModalMonitor === 'function') {
     window.startModalMonitor(0);
   }
+window.dispatchEvent(new CustomEvent('paypal:cancelled'));
 
   uiWarn('Payment cancelled. You can retry or edit your info.');
 },
@@ -774,10 +786,21 @@ onError: async (err) => {
 
   try { window.LockManager?.heartbeat?.stop?.(); } catch {}
   try { await unlockSelection(); } catch {}
+  window.dispatchEvent(new CustomEvent('paypal:cancelled'));
+
 }
      //new oncancel et onerror
 
     });
+
+    // Fermer overlay après paiement
+const closeOverlay = () => {
+  const overlay = document.getElementById('paypal-overlay-container');
+  if (overlay) overlay.style.display = 'none';
+};
+window.addEventListener('paypal:completed', closeOverlay);
+window.addEventListener('paypal:cancelled', closeOverlay);
+
     //new
     // 🔧 CORRECTION: Redémarrer le monitoring des locks après render PayPal
   if (typeof window.startModalMonitor === 'function') {
