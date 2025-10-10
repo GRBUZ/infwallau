@@ -716,69 +716,80 @@
   };
 
   // ===== EVENT HANDLERS =====
-  const EventHandlers = {
-    init() {
-      // Buy button
-      DOM.buyBtn.addEventListener('click', () => {
-        CheckoutFlow.initiate();
-      });
-      
-      // Back button
-      DOM.backToGrid.addEventListener('click', () => {
-        if (confirm('Are you sure? Your selection will be lost.')) {
+  // ===== EVENT HANDLERS =====
+const EventHandlers = {
+  init() {
+    // Buy button - CORRECTION ICI
+    DOM.buyBtn.addEventListener('click', async () => {
+      await CheckoutFlow.initiate();
+    });
+    
+    // Back button
+    DOM.backToGrid.addEventListener('click', () => {
+      if (confirm('Are you sure? Your selection will be lost.')) {
+        ViewManager.returnToGrid();
+      }
+    });
+    
+    // Form submit
+    DOM.checkoutForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await CheckoutFlow.processForm();
+    });
+    
+    // View success pixels
+    document.getElementById('viewMyPixels')?.addEventListener('click', () => {
+      ViewManager.returnToGrid();
+    });
+    
+    // Escape key
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && AppState.view === 'checkout') {
+        if (confirm('Exit checkout? Your reservation will be cancelled.')) {
           ViewManager.returnToGrid();
         }
-      });
-      
-      // Form submit
-      DOM.checkoutForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await CheckoutFlow.processForm();
-      });
-      
-      // View success pixels
-      document.getElementById('viewMyPixels')?.addEventListener('click', () => {
-        ViewManager.returnToGrid();
-      });
-      
-      // Escape key
-      window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && AppState.view === 'checkout') {
-          if (confirm('Exit checkout? Your reservation will be cancelled.')) {
-            ViewManager.returnToGrid();
-          }
-        }
-      });
-    }
-  };
+      }
+    });
+  }
+};
 
   // ===== INITIALIZATION =====
-  async function init() {
-    console.log('[App] Initializing refactored version...');
-    
-    // Initialize grid
-    GridManager.init();
-    
-    // Initialize image upload
-    ImageUpload.init();
-    
-    // Initialize event handlers
-    EventHandlers.init();
-    
-    // Load initial status
-    await StatusManager.load();
-    GridManager.paintAll();
-    
-    // Start polling
-    StatusManager.startPolling();
-    
-    // Expose global functions for compatibility
-    window.ImageUpload = ImageUpload;
-    window.getSelectedIndices = () => Array.from(AppState.selected);
-    window.renderRegions = renderRegions;
-    
-    console.log('[App] Initialization complete');
-  }
+// ===== INITIALIZATION =====
+async function init() {
+  console.log('[App] Initializing refactored version...');
+  
+  // Initialize grid
+  GridManager.init();
+  
+  // Initialize image upload
+  ImageUpload.init();
+  
+  // Initialize event handlers
+  EventHandlers.init();
+  
+  // Load initial status
+  await StatusManager.load();
+  GridManager.paintAll();
+  
+  // Start polling
+  StatusManager.startPolling();
+  
+  // Expose global functions for compatibility et débogage
+  window.ImageUpload = ImageUpload;
+  window.getSelectedIndices = () => Array.from(AppState.selected);
+  window.renderRegions = renderRegions;
+  
+  // AJOUT pour débogage
+  window.AppDebug = {
+    AppState,
+    ViewManager,
+    GridManager,
+    CheckoutFlow,
+    StatusManager
+  };
+  
+  console.log('[App] Initialization complete');
+}
 
   // ===== REGIONS RENDERING =====
   function renderRegions() {
