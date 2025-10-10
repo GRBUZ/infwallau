@@ -100,10 +100,11 @@
           confirmBtn.insertAdjacentElement('afterend', container);
         } else {
           // Fallback: ajouter au modal ou form
-          const modal = document.getElementById('modal') || document.querySelector('.modal');
+          const formSection = document.getElementById('formSection');
           const form = document.getElementById('form') || document.querySelector('form');
-          const target = form || modal || document.body;
+          const target = form || formSection || document.body;
           target.appendChild(container);
+
         }
       } else {
         // Évite les double-renders si on relance initAndRender

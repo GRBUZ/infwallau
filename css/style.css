@@ -1029,3 +1029,35 @@ body:not(.heavy-selection) .cell.sel::before {
   }
 }
 /*new modal paypal*/
+.checkout-view {
+  padding: 40px 20px;
+  background: #f9fafb;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.checkout-inner {
+  background: white;
+  padding: 32px;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+  max-width: 480px;
+  width: 100%;
+}
+.checkout-form label {
+  display: block;
+  margin-bottom: 16px;
+}
+.checkout-actions .btn {
+  flex: 1;
+}
+
+#formSection {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

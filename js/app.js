@@ -31,6 +31,11 @@
   const modalStats = document.getElementById('modalStats');
   const selectionGuide = document.getElementById('selectionGuide');
   const locale = navigator.language || 'en-US'; // détecte la langue du navigateur
+  const checkoutView = document.getElementById('checkoutView');
+  const checkoutForm = document.getElementById('checkoutForm');
+  const cancelCheckoutBtn = document.getElementById('cancelCheckout');
+  const confirmCheckoutBtn = document.getElementById('confirmCheckout');
+
 
   let sold = {};
   let locks = {};
@@ -433,132 +438,125 @@
     }
   }
   
-  function openModal(){
-    resetModalAppState();
+// === NOUVELLES FONCTIONS POUR CHECKOUT ===
+function showCheckoutView() {
+  if (!checkoutView) return;
 
-    document.dispatchEvent(new CustomEvent('modal:opening'));
-    modal.classList.remove('hidden');
+  // cacher la grille et le guide
+  grid.style.display = 'none';
+  if (selectionGuide) selectionGuide.style.display = 'none';
 
-    modalOpened = true;
-    const selectionInfo = document.getElementById('selectionInfo');
-    if (selectionInfo) selectionInfo.classList.remove('show');
+  // afficher le checkout
+  checkoutView.style.display = 'block';
 
-    const selectedPixels = selected.size * 100;
+  // remettre à zéro les champs
+  resetModalAppState();
 
-    let total = null;
-    if (Number.isFinite(reservedTotal)) {
-      total = reservedTotal;
-    } else if (Number.isFinite(reservedPrice)) {
-      total = selectedPixels * reservedPrice;
-    }
-  
-// Les stats seront affichées dans le summary après confirm
-confirmBtn.disabled = !Number.isFinite(total);
+  // démarrer le heartbeat (réservation)
+  if (currentLock.length) {
+    window.LockManager.heartbeat.start(currentLock, 30000, 180000, {
+      maxMs: 180000,
+      autoUnlock: true,
+      requireActivity: true
+    });
+  }
 
-    if (currentLock.length) {
-      window.LockManager.heartbeat.start(currentLock, 30000, 180000, {
-        maxMs: 180000,
-        autoUnlock: true,
-        requireActivity: true
-      });
-    } else {
+  startModalMonitor();
+}
+
+function hideCheckoutView() {
+  if (!checkoutView) return;
+
+  // arrêter les verrous et remontrer la grille
+  window.LockManager.heartbeat.stop();
+  stopModalMonitor();
+
+  checkoutView.style.display = 'none';
+  grid.style.display = 'grid';
+  if (selectionGuide) selectionGuide.style.display = '';
+
+  reservedPrice = null;
+  reservedTotal = null;
+  reservedTotalAmount = null;
+  currentLock = [];
+  clearSelection();
+}
+
+function prepareCheckout() {
+  // déclencheur quand le user clique sur "Confirm Purchase"
+  checkoutForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const blocks = currentLock.length ? currentLock.slice() : Array.from(selected);
+    if (!haveMyValidLocks(blocks, 1000)) {
       window.LockManager.heartbeat.stop();
+      await loadStatus().catch(()=>{});
+      hideCheckoutView();
+      clearSelection();
+      paintAll();
+      return;
     }
 
-    startModalMonitor();
-  }
+    document.dispatchEvent(new CustomEvent('finalize:submit'));
+  });
 
-  function closeModal(){
-    document.dispatchEvent(new CustomEvent('modal:closing'));
-    modal.classList.add('hidden');
-    window.LockManager.heartbeat.stop();
-    stopModalMonitor();
-    confirmBtn.disabled = false;
-    confirmBtn.textContent = '✨ Confirm Purchase';
-    reservedPrice = null;
-    reservedTotalAmount = null; 
-    reservedTotal = null;
-    modalOpened = false;
-  }
-
-  document.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', async () => {
-    const toRelease = (currentLock && currentLock.length) ? currentLock.slice() : Array.from(selected);
-    currentLock = [];
-    window.LockManager.heartbeat.stop();
-    stopModalMonitor();
-    if (toRelease.length) {
-      try { await window.LockManager.unlock(toRelease); } catch {}
-      locks = window.LockManager.getLocalLocks();
-    }
-    closeModal();
-    clearSelection();
-    setTimeout(async () => { await loadStatus(); paintAll(); }, 150);
-  }));
-
-  window.addEventListener('keydown', async (e)=>{
-    if(e.key==='Escape' && !modal.classList.contains('hidden')){
+  if (cancelCheckoutBtn) {
+    cancelCheckoutBtn.addEventListener('click', async () => {
       const toRelease = (currentLock && currentLock.length) ? currentLock.slice() : Array.from(selected);
-      currentLock = [];
-      window.LockManager.heartbeat.stop();
-      stopModalMonitor();
       if (toRelease.length) {
         try { await window.LockManager.unlock(toRelease); } catch {}
         locks = window.LockManager.getLocalLocks();
       }
-      closeModal();
-      clearSelection();
+      hideCheckoutView();
       setTimeout(async () => { await loadStatus(); paintAll(); }, 150);
-    }
-  });
+    });
+  }
+}
 
-  buyBtn.addEventListener('click', async ()=>{
-    if(!selected.size) {
-      const warningMessage = document.getElementById('warningMessage');
-      if (warningMessage) {
-        warningMessage.classList.add('show');
-        warningMessage.classList.add('shake');
-        
-        setTimeout(() => {
-          warningMessage.classList.remove('show');
-        }, 2000);
-        
-        setTimeout(() => {
-          warningMessage.classList.remove('shake');
-        }, 500);
-      }
+buyBtn.addEventListener('click', async () => {
+  if (!selected.size) {
+    const warningMessage = document.getElementById('warningMessage');
+    if (warningMessage) {
+      warningMessage.classList.add('show', 'shake');
+      setTimeout(() => warningMessage.classList.remove('show'), 2000);
+      setTimeout(() => warningMessage.classList.remove('shake'), 500);
+    }
+    return;
+  }
+
+  const want = Array.from(selected);
+  try {
+    const lr = await window.LockManager.lock(want, 180000);
+    locks = window.LockManager.getLocalLocks();
+
+    if (!lr || !lr.ok || (lr.conflicts && lr.conflicts.length>0) || (lr.locked && lr.locked.length !== want.length)) {
+      const rect = rectFromIndices(want);
+      if (rect) showInvalidRect(rect.r0, rect.c0, rect.r1, rect.c1, 1200);
+      clearSelection(); paintAll();
       return;
     }
 
-    const want = Array.from(selected);
-    try{
-      const lr = await window.LockManager.lock(want, 180000);
-      locks = window.LockManager.getLocalLocks();
+    currentLock = (lr.locked || []).slice();
 
-      if (!lr || !lr.ok || (lr.conflicts && lr.conflicts.length>0) || (lr.locked && lr.locked.length !== want.length)){
-        const rect = rectFromIndices(want);
-        if (rect) showInvalidRect(rect.r0, rect.c0, rect.r1, rect.c1, 1200);
-        clearSelection(); paintAll();
-        return;
-      }
-
-      currentLock = (lr.locked || []).slice();
-	  
-      if (typeof lr.totalAmount === 'number' && isFinite(lr.totalAmount)) {
-        reservedTotal = lr.totalAmount; 
-      }
-
-      if (lr.unitPrice != null && isFinite(lr.unitPrice)) {
-        reservedPrice = lr.unitPrice;
-      }
-	  
-      clearSelection();
-      for(const i of currentLock){ selected.add(i); grid.children[i].classList.add('sel'); }
-      openModal();
-      paintAll();
-    }catch(e){
-      alert('Reservation failed: ' + (e?.message || e));
+    if (typeof lr.totalAmount === 'number' && isFinite(lr.totalAmount)) {
+      reservedTotal = lr.totalAmount;
     }
-  });
+    if (lr.unitPrice != null && isFinite(lr.unitPrice)) {
+      reservedPrice = lr.unitPrice;
+    }
+
+    clearSelection();
+    for (const i of currentLock) {
+      selected.add(i);
+      grid.children[i].classList.add('sel');
+    }
+    showCheckoutView();
+    paintAll();
+  } catch (e) {
+    alert('Reservation failed: ' + (e?.message || e));
+  }
+});
+
 
   form.addEventListener('submit', async (e)=>{
     e.preventDefault();
@@ -568,7 +566,6 @@ confirmBtn.disabled = !Number.isFinite(total);
     if (!haveMyValidLocks(blocks, 1000)) {
       window.LockManager.heartbeat.stop();
       await loadStatus().catch(()=>{});
-      closeModal();
       clearSelection();
       paintAll();
       return;
@@ -693,4 +690,6 @@ window.startModalMonitor = startModalMonitor;
 window.stopModalMonitor = stopModalMonitor;
   //new
   window.__debugGetLocks = () => ({ fromManager: window.LockManager.getLocalLocks(), localVar: locks, uid });
+prepareCheckout();
+
 })();

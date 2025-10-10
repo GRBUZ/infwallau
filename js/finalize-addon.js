@@ -13,7 +13,8 @@
 
   const { uid, apiCall } = window.CoreManager;
 
-  const modal = document.getElementById('modal');
+  const grid = document.getElementById('grid');
+  const formSection = document.getElementById('formSection'); // nouvelle section visible à la place du grid
   const confirmBtn = document.getElementById('confirm') || document.querySelector('[data-confirm]');
   const form = document.getElementById('form') || document.querySelector('form[data-finalize]');
   const nameInput = document.getElementById('name') || document.querySelector('input[name="name"]');
@@ -137,6 +138,17 @@
       }
     }catch(_){}
   }
+
+  function showFormSection() {
+  if (grid) grid.style.display = 'none';
+  if (formSection) formSection.style.display = 'block';
+}
+
+function hideFormSection() {
+  if (formSection) formSection.style.display = 'none';
+  if (grid) grid.style.display = 'grid';
+}
+
 
   // ========================================
   // COMPRESSION IMAGE (inchangée)
@@ -329,11 +341,11 @@
       const { orderId, currency } = orderResult;
       console.log('[Finalize] Rendering PayPal buttons (SDK + order ready)');
       // 🆕 TRANSFORMER LE MODAL EN MODE PAIEMENT
-      
-      
+
+      showFormSection();
       switchToPaymentView();
-      modal.classList.add('payment-active');
       renderPaypalButtons(paypalContainer, orderId, currency);
+
 
     } catch (e) {
       console.error('[doConfirm] Error:', e);
@@ -625,9 +637,7 @@ async function handlePaymentCancel(e) {
     }
   }
   
-  // Fermer le modal
-  modal.classList.remove('payment-mode');
-  modal.classList.add('hidden');
+  hideFormSection();
   
   // Nettoyer la sélection
   if (typeof window.clearSelection === 'function') {
@@ -683,7 +693,7 @@ if (overlay && wrapperContainer) {
       currency: currency || 'USD',
 
       onApproved: async (data, actions) => {
-        modal.classList.remove('payment-active');
+        hideFormSection();
         try {
           btnBusy(true);
           setPayPalHeaderState('processing');
@@ -746,8 +756,7 @@ if (overlay && wrapperContainer) {
      //new oncancel et onerror
     onCancel: async () => {
   console.warn('[PayPal] Payment cancelled by user');
-  modal.classList.remove('payment-active');
-
+hideFormSection();
 
   // ⚠️ On ne stoppe pas les locks ni le monitoring
   // On laisse le container actif et éditable
@@ -774,7 +783,7 @@ window.dispatchEvent(new CustomEvent('paypal:cancelled'));
 
 onError: async (err) => {
   console.error('[PayPal] Error:', err);
-  modal.classList.remove('payment-active');
+  hideFormSection();
 
   uiError(err, 'PayPal');
   setPayPalHeaderState('error');
@@ -886,28 +895,5 @@ window.addEventListener('paypal:cancelled', closeOverlay);
     doConfirm();
   });
 
-  // Reset complet
-  function resetModalState() {
-    uploadedImageCache = null;
-    
-    if (fileInput) {
-      fileInput.value = '';
-      delete fileInput._cachedFile;
-    }
-    
-    const progressIndicator = document.querySelector('.upload-progress-mini');
-    if (progressIndicator) progressIndicator.remove();
-
-    removePaypalContainer();
-  }
-
-  // Événements d'ouverture/fermeture du modal
-  document.addEventListener('modal:opening', () => {
-    resetModalState();
-  });
-
-  document.addEventListener('modal:closing', () => {
-    resetModalState();
-  });
   console.log('[Finalize] Parallel optimization loaded - PayPal SDK + start-order in parallel');
 })();

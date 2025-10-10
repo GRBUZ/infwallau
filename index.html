@@ -91,50 +91,39 @@
   Please select pixels first !
 </div>
 
-  <!-- Modal amélioré -->
-  <!-- Remplacer la section modal dans index.html par : -->
-<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
-  <div class="backdrop" data-close></div>
-  <div class="panel">
-    <div class="header">
-      <h2>🎯 Finalize order</h2>
-      <button class="close" title="Close" data-close>&times;</button>
-    </div>
-    
-    <div class="body">
-      <!-- Le formulaire sera dans le body -->
-      <form id="form">
-        <label>🏷️ Pseudo (Display name)
-          <input id="name" name="name" placeholder="@yourname" maxlength="40" required />
-        </label>
-        
-        <label>🔗 Profile URL
-          <input id="link" name="linkUrl" placeholder="https://instagram.com/your-handle" required />
-        </label>
+<!-- === NOUVELLE SECTION CHECKOUT === -->
+<section id="checkoutView" class="checkout-view" style="display:none;">
+  <div class="checkout-inner">
+    <h2>🎯 Finalize your purchase</h2>
+    <p class="checkout-note">Please review your details before payment.</p>
 
-        <hr style="border: none; height: 1px; background: #e5e7eb; margin: 8px 0;">
+    <form id="checkoutForm" class="checkout-form">
+      <label>🏷️ Pseudo (Display name)
+        <input id="name" name="name" placeholder="@yourname" maxlength="40" required />
+      </label>
 
-        <label>📸 Profile Photo
-          <input id="image" type="file" accept="image/*" />
-          <small style="color: #6b7280; font-size: 12px;">Max ~1.5 MB. JPG, PNG, GIF accepted.</small>
-        </label>
-      </form>
-    </div>
+      <label>🔗 Profile URL
+        <input id="link" name="linkUrl" placeholder="https://instagram.com/your-handle" required />
+      </label>
 
-    <div class="footer">
-      <button type="button" class="btn" data-close>Cancel</button>
-      <button type="submit" id="confirm" class="btn primary" form="form">✨ Confirm Purchase</button>
+      <label>📸 Profile Photo
+        <input id="image" type="file" accept="image/*" />
+        <small style="color: #6b7280; font-size: 12px;">Max ~1.5 MB. JPG, PNG, GIF accepted.</small>
+      </label>
+    </form>
+
+    <!-- Zone PayPal -->
+    <div id="paypal-button-container" style="margin-top:24px;"></div>
+
+    <!-- Boutons d'action -->
+    <div class="checkout-actions" style="margin-top:24px; display:flex; gap:12px;">
+      <button id="cancelCheckout" class="btn">⬅ Back</button>
+      <button id="confirmCheckout" class="btn primary" form="checkoutForm">✨ Confirm Purchase</button>
     </div>
   </div>
-</div>
+</section>
+<!-- === FIN SECTION CHECKOUT === -->
 
- <!-- Overlay PayPal isolé du modal -->
-<div id="paypal-overlay-container" 
-     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9999; align-items:center; justify-content:center;">
-  <div id="paypal-buttons-wrapper" 
-       style="background:#fff; border-radius:12px; padding:20px; max-width:480px; width:90%; box-shadow:0 10px 25px rgba(0,0,0,0.25);">
-  </div>
-</div>
 
   <footer class="site-footer">
     <div class="footer-inner">
