@@ -91,10 +91,6 @@
   Please select pixels first !
 </div>
 
-<div id="paypal-overlay-container" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9999; align-items:center; justify-content:center;">
-  <div id="paypal-buttons-wrapper" style="background:#fff; border-radius:12px; padding:20px; max-width:480px; width:90%;"></div>
-</div>
-
   <!-- Modal amélioré -->
   <!-- Remplacer la section modal dans index.html par : -->
 <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
@@ -124,11 +120,19 @@
         </label>
       </form>
     </div>
-    
+
     <div class="footer">
       <button type="button" class="btn" data-close>Cancel</button>
       <button type="submit" id="confirm" class="btn primary" form="form">✨ Confirm Purchase</button>
     </div>
+  </div>
+</div>
+
+ <!-- Overlay PayPal isolé du modal -->
+<div id="paypal-overlay-container" 
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:9999; align-items:center; justify-content:center;">
+  <div id="paypal-buttons-wrapper" 
+       style="background:#fff; border-radius:12px; padding:20px; max-width:480px; width:90%; box-shadow:0 10px 25px rgba(0,0,0,0.25);">
   </div>
 </div>
 
