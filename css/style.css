@@ -119,7 +119,7 @@ html, body {
 
 /* ===== MAIN CONTAINER ===== */
 #mainContainer {
-  padding-top: 160px;
+  padding-top: 165px;
   min-height: 100vh;
   transition: all 0.3s ease;
 }
@@ -387,6 +387,7 @@ html, body {
   background: white;
   border-radius: 16px;
   padding: 32px;
+  padding-top: 165px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 

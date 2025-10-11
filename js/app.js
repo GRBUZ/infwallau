@@ -795,14 +795,24 @@ const EventHandlers = {
     }
     
     // Back button
-    if (DOM.backToGrid) {
-      DOM.backToGrid.addEventListener('click', () => {
-        if (confirm('Are you sure? Your selection will be lost.')) {
-          ViewManager.returnToGrid();
-        }
-      });
-      console.log('[EventHandlers] Back button listener attached'); // AJOUT
+   // Back button
+if (DOM.backToGrid) {
+  DOM.backToGrid.addEventListener('click', () => {
+    // Vérifier si les locks sont toujours valides et qu'il n'y a pas d'erreur
+    const isExpiredOrError = DOM.proceedToPayment && DOM.proceedToPayment.disabled;
+    
+    if (isExpiredOrError) {
+      // Pas de confirmation si expiré ou erreur, retour direct
+      ViewManager.returnToGrid();
+    } else {
+      // Demander confirmation seulement si les locks sont actifs
+      if (confirm('Are you sure? Your selection will be lost.')) {
+        ViewManager.returnToGrid();
+      }
     }
+  });
+  console.log('[EventHandlers] Back button listener attached');
+}
     
     // Form submit
     if (DOM.checkoutForm) {
