@@ -736,3 +736,22 @@ html, body {
 .region-overlay {
   pointer-events: auto;
 }
+
+/* Styles critiques pour les vues */
+.view-container {
+  display: none;
+}
+
+.view-container.active {
+  display: block;
+}
+
+#gridView.active {
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+#checkoutView.active {
+  display: block;
+}
