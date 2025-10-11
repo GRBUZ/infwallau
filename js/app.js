@@ -47,7 +47,7 @@
 
   // ===== VIEW MANAGEMENT =====
   const ViewManager = {
-    switchTo(view) {
+    /*switchTo(view) {
       AppState.view = view;
       DOM.mainContainer.dataset.view = view;
       
@@ -61,7 +61,49 @@
         this.startLockTimer();
         this.updateSummary();
       }
-    },
+    },*/
+    switchTo(view) {
+  AppState.view = view;
+  DOM.mainContainer.dataset.view = view;
+  
+  
+  if (view === 'grid') {
+  // Masquer checkout avec transition fluide
+  DOM.checkoutView.classList.remove('active');
+  setTimeout(() => {
+    DOM.checkoutView.style.display = 'none';
+  }, 400); // attendre la fin de la transition CSS (0.4s)
+
+  // Afficher la grille avec transition fluide
+  DOM.gridView.style.display = 'block';
+  requestAnimationFrame(() => {
+    DOM.gridView.classList.add('active');
+  });
+
+  this.stopLockTimer();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+} 
+else if (view === 'checkout') {
+  // Masquer la grille avec transition fluide
+  DOM.gridView.classList.remove('active');
+  setTimeout(() => {
+    DOM.gridView.style.display = 'none';
+  }, 400);
+
+  // Afficher le checkout avec transition fluide
+  DOM.checkoutView.style.display = 'block';
+  requestAnimationFrame(() => {
+    DOM.checkoutView.classList.add('active');
+  });
+
+  this.startLockTimer();
+  this.updateSummary();
+
+  // S'assurer que la vue checkout s'affiche bien en haut
+  DOM.checkoutView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+},
     
     setCheckoutStep(step) {
       AppState.checkoutStep = step;
