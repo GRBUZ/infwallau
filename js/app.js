@@ -452,15 +452,19 @@
   // ===== CHECKOUT FLOW =====
   const CheckoutFlow = {
     async initiate() {
+      console.log('[CheckoutFlow] Initiate called'); // AJOUT
       const blocks = Array.from(AppState.selected);
+      console.log('[CheckoutFlow] Selected blocks:', blocks.length); // AJOUT
       if (!blocks.length) {
         this.showWarning('Please select pixels first!');
         return;
       }
       
       try {
+        console.log('[CheckoutFlow] Attempting to lock blocks...'); // AJOUT
         // Lock blocks
         const lockResult = await window.LockManager.lock(blocks, 180000);
+        console.log('[CheckoutFlow] Lock result:', lockResult); // AJOUT
         if (!lockResult.ok || lockResult.conflicts?.length) {
           GridManager.showInvalidArea(0, 0, N-1, N-1);
           GridManager.clearSelection();
@@ -477,10 +481,12 @@
           unitPrice: lockResult.unitPrice || AppState.globalPrice
         };
         
+        console.log('[CheckoutFlow] Order data set:', AppState.orderData); // AJOUT
         // Start heartbeat
         window.LockManager.heartbeat.start(AppState.orderData.blocks, 30000, 180000);
         
         // Switch to checkout view
+        console.log('[CheckoutFlow] Switching to checkout view...'); // AJOUT
         ViewManager.switchTo('checkout');
         
       } catch (e) {
@@ -719,28 +725,49 @@
   // ===== EVENT HANDLERS =====
 const EventHandlers = {
   init() {
-    // Buy button - CORRECTION ICI
-    DOM.buyBtn.addEventListener('click', async () => {
-      await CheckoutFlow.initiate();
-    });
+    console.log('[EventHandlers] Initializing...'); // AJOUT
+    console.log('[EventHandlers] DOM.buyBtn:', DOM.buyBtn); // AJOUT
+    
+    // Buy button
+    if (DOM.buyBtn) {
+      DOM.buyBtn.addEventListener('click', async (e) => {
+        console.log('[EventHandlers] Buy button clicked!'); // AJOUT
+        console.log('[EventHandlers] Selected pixels:', AppState.selected.size); // AJOUT
+        e.preventDefault(); // AJOUT
+        await CheckoutFlow.initiate();
+      });
+      console.log('[EventHandlers] Buy button listener attached'); // AJOUT
+    } else {
+      console.error('[EventHandlers] Buy button NOT FOUND!'); // AJOUT
+    }
     
     // Back button
-    DOM.backToGrid.addEventListener('click', () => {
-      if (confirm('Are you sure? Your selection will be lost.')) {
-        ViewManager.returnToGrid();
-      }
-    });
+    if (DOM.backToGrid) {
+      DOM.backToGrid.addEventListener('click', () => {
+        if (confirm('Are you sure? Your selection will be lost.')) {
+          ViewManager.returnToGrid();
+        }
+      });
+      console.log('[EventHandlers] Back button listener attached'); // AJOUT
+    }
     
     // Form submit
-    DOM.checkoutForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      await CheckoutFlow.processForm();
-    });
+    if (DOM.checkoutForm) {
+      DOM.checkoutForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await CheckoutFlow.processForm();
+      });
+      console.log('[EventHandlers] Form submit listener attached'); // AJOUT
+    }
     
     // View success pixels
-    document.getElementById('viewMyPixels')?.addEventListener('click', () => {
-      ViewManager.returnToGrid();
-    });
+    const viewPixelsBtn = document.getElementById('viewMyPixels');
+    if (viewPixelsBtn) {
+      viewPixelsBtn.addEventListener('click', () => {
+        ViewManager.returnToGrid();
+      });
+      console.log('[EventHandlers] View pixels button listener attached'); // AJOUT
+    }
     
     // Escape key
     window.addEventListener('keydown', (e) => {
@@ -750,6 +777,9 @@ const EventHandlers = {
         }
       }
     });
+    console.log('[EventHandlers] Keyboard listener attached'); // AJOUT
+    
+    console.log('[EventHandlers] All listeners initialized'); // AJOUT
   }
 };
 
