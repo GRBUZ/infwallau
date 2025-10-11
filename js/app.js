@@ -13,6 +13,16 @@
   const TOTAL_PIXELS = 1_000_000;
   const locale = navigator.language || 'en-US';
 
+function haveMyValidLocks(arr, graceMs = 2000) {
+  if (!arr || !arr.length) return false;
+  const now = Date.now() + Math.max(0, graceMs | 0);
+  for (const i of arr) {
+    const l = AppState.locks[String(i)];
+    if (!l || l.uid !== uid || !(l.until > now)) return false;
+  }
+  return true;
+}
+
   // ===== STATE MANAGEMENT =====
   const AppState = {
     view: 'grid', // 'grid' | 'checkout'
@@ -157,25 +167,82 @@ clearCheckoutForm() {
       `;
     },
     
-    startLockTimer() {
-      this.stopLockTimer();
-      AppState.lockExpiry = Date.now() + 180000; // 3 minutes
-      
-      const updateTimer = () => {
-        const remaining = Math.max(0, AppState.lockExpiry - Date.now());
-        const minutes = Math.floor(remaining / 60000);
-        const seconds = Math.floor((remaining % 60000) / 1000);
-        
-        DOM.timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-        
-        if (remaining <= 0) {
-          this.handleLockExpired();
-        }
-      };
-      
-      updateTimer();
-      AppState.lockTimer = setInterval(updateTimer, 1000);
-    },
+    startLockTimer(warmupMs = 1200) {
+  this.stopLockTimer();
+  
+  // Réinitialiser le bouton
+  if (DOM.proceedToPayment) {
+    DOM.proceedToPayment.disabled = false;
+    DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+  }
+  this.setPayPalEnabled(true);
+  
+  const tick = () => {
+    // Ne pas vérifier si on est en train de processer un paiement
+    if (DOM.proceedToPayment && DOM.proceedToPayment.textContent === 'Processing…') {
+      return;
+    }
+    
+    const blocks = AppState.orderData.blocks;
+    const ok = haveMyValidLocks(blocks, 5000);
+    
+    if (DOM.proceedToPayment) {
+      DOM.proceedToPayment.disabled = !ok;
+      DOM.proceedToPayment.textContent = ok ? '💳 Continue to Payment' : '⏰ Reservation expired - reselect';
+    }
+    this.setPayPalEnabled(ok);
+    
+    // Arrêter le heartbeat si les locks ne sont plus valides
+    if (!ok && blocks && blocks.length) {
+      window.LockManager.heartbeat.stop();
+    }
+  };
+  
+  /*const start = () => {
+    tick();
+    AppState.lockTimer = setInterval(tick, 5000); // Vérifier toutes les 5 secondes
+  };*/
+  const start = () => {
+  tick();
+  AppState.lockTimer = setInterval(() => {
+    tick();
+    this.updateLockTimerDisplay(); // Ajouter ceci
+  }, 5000);
+};
+  
+  // Attendre warmupMs avant de commencer à vérifier
+  AppState.lockTimer = setTimeout(start, Math.max(0, warmupMs | 0));
+},
+
+updateLockTimerDisplay() {
+  if (!DOM.timerValue) return;
+  
+  const blocks = AppState.orderData.blocks;
+  if (!blocks || !blocks.length) {
+    DOM.timerValue.textContent = '0:00';
+    return;
+  }
+  
+  // Trouver le lock qui expire le plus tôt
+  let minExpiry = Infinity;
+  for (const idx of blocks) {
+    const lock = AppState.locks[String(idx)];
+    if (lock && lock.uid === uid && lock.until) {
+      minExpiry = Math.min(minExpiry, lock.until);
+    }
+  }
+  
+  if (!isFinite(minExpiry)) {
+    DOM.timerValue.textContent = '0:00';
+    return;
+  }
+  
+  const remaining = Math.max(0, minExpiry - Date.now());
+  const minutes = Math.floor(remaining / 60000);
+  const seconds = Math.floor((remaining % 60000) / 1000);
+  
+  DOM.timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+},
     
     stopLockTimer() {
       if (AppState.lockTimer) {
@@ -748,6 +815,10 @@ DOM.imagePreview.addEventListener('drop', e => {
         
         AppState.sold = response.sold || {};
         AppState.locks = window.LockManager.merge(response.locks || {});
+        // Mettre à jour l'affichage du timer si on est en checkout
+if (AppState.view === 'checkout' && ViewManager.updateLockTimerDisplay) {
+  ViewManager.updateLockTimerDisplay();
+}
         AppState.regions = response.regions || {};
         
         if (response.currentPrice) {
