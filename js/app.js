@@ -788,6 +788,48 @@ const EventHandlers = {
 async function init() {
   console.log('[App] Initializing refactored version...');
   
+  // Initialiser DOM ici quand le document est prêt
+  const DOM = {
+    // Views
+    mainContainer: document.getElementById('mainContainer'),
+    gridView: document.getElementById('gridView'),
+    checkoutView: document.getElementById('checkoutView'),
+    
+    // Grid
+    grid: document.getElementById('grid'),
+    buyBtn: document.getElementById('buyBtn'),
+    priceLine: document.getElementById('priceLine'),
+    pixelsLeft: document.getElementById('pixelsLeft'),
+    selectionInfo: document.getElementById('selectionInfo'),
+    warningMessage: document.getElementById('warningMessage'),
+    
+    // Checkout
+    checkoutForm: document.getElementById('checkoutForm'),
+    nameInput: document.getElementById('name'),
+    linkInput: document.getElementById('link'),
+    imageInput: document.getElementById('image'),
+    imagePreview: document.getElementById('imagePreview'),
+    
+    // Summary
+    summaryPixels: document.getElementById('summaryPixels'),
+    summaryPrice: document.getElementById('summaryPrice'),
+    summaryTotal: document.getElementById('summaryTotal'),
+    timerValue: document.getElementById('timerValue'),
+    pixelPreview: document.getElementById('pixelPreview'),
+    
+    // Buttons
+    backToGrid: document.getElementById('backToGrid'),
+    proceedToPayment: document.getElementById('proceedToPayment'),
+    
+    // Steps
+    steps: {
+      1: document.getElementById('step1'),
+      2: document.getElementById('step2'),
+      3: document.getElementById('step3')
+    },
+    progressSteps: document.querySelectorAll('.progress-step')
+  };
+  console.log('[App] DOM.checkoutView:', DOM.checkoutView); // DEBUG
   // Initialize grid
   GridManager.init();
   
@@ -877,5 +919,10 @@ async function init() {
   }
 
   // Start app
+  //init();
+  if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
   init();
+}
 })();
