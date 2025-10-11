@@ -119,7 +119,7 @@ html, body {
 
 /* ===== MAIN CONTAINER ===== */
 #mainContainer {
-  padding-top: 125px;
+  padding-top: 160px;
   min-height: 100vh;
   transition: all 0.3s ease;
 }

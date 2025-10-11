@@ -186,9 +186,21 @@ clearCheckoutForm() {
     
     handleLockExpired() {
       this.stopLockTimer();
-      alert('Your reservation has expired. Please select your pixels again.');
-      this.returnToGrid();
+      // Désactiver le bouton de paiement et afficher le message
+      if (DOM.proceedToPayment) {
+        DOM.proceedToPayment.disabled = true;
+        DOM.proceedToPayment.textContent = '⏰ Reservation expired - reselect';
+      }
+      // Désactiver aussi PayPal
+      this.setPayPalEnabled(false);
     },
+    setPayPalEnabled(enabled) {
+  const c = document.getElementById('paypal-button-container');
+  if (!c) return;
+  c.style.pointerEvents = enabled ? '' : 'none';
+  c.style.opacity = enabled ? '' : '0.45';
+  c.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+},
     
     async returnToGrid() {
       // Unlock current blocks
@@ -215,6 +227,11 @@ clearCheckoutForm() {
       
       // Clear checkout form fields
       this.clearCheckoutForm();
+      // Réactiver le bouton de paiement
+if (DOM.proceedToPayment) {
+  DOM.proceedToPayment.disabled = false;
+  DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+}
       // Switch view
       this.switchTo('grid');
       this.setCheckoutStep(1);
@@ -594,7 +611,12 @@ clearCheckoutForm() {
         
         onError: (err) => {
           console.error('Payment error:', err);
-          alert('Payment error. Please try again.');
+          // Désactiver le bouton au lieu d'afficher une alerte
+          if (DOM.proceedToPayment) {
+            DOM.proceedToPayment.disabled = true;
+            DOM.proceedToPayment.textContent = '❌ Payment failed - please reselect';
+          }
+          ViewManager.setPayPalEnabled(false);
         }
       });
     },
