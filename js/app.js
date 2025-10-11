@@ -615,6 +615,10 @@ else if (view === 'checkout') {
   // ===== IMAGE UPLOAD =====
   const ImageUpload = {
     init() {
+      // 🔹 1. Permettre de cliquer sur la zone pour ouvrir le sélecteur
+  DOM.imagePreview.addEventListener('click', () => {
+    DOM.imageInput.click();
+  });
       DOM.imageInput.addEventListener('change', async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -649,6 +653,25 @@ else if (view === 'checkout') {
           DOM.imagePreview.innerHTML = '<span class="error">Upload failed. Please try again.</span>';
         }
       });
+      // Optional: Drag & drop
+DOM.imagePreview.addEventListener('dragover', e => {
+  e.preventDefault();
+  DOM.imagePreview.classList.add('dragover');
+});
+DOM.imagePreview.addEventListener('dragleave', () => {
+  DOM.imagePreview.classList.remove('dragover');
+});
+DOM.imagePreview.addEventListener('drop', e => {
+  e.preventDefault();
+  DOM.imagePreview.classList.remove('dragover');
+  const file = e.dataTransfer.files?.[0];
+  if (file) {
+    DOM.imageInput.files = e.dataTransfer.files;
+    const event = new Event('change');
+    DOM.imageInput.dispatchEvent(event);
+  }
+});
+
     },
     
     async compressImage(file) {
