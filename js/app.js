@@ -47,21 +47,6 @@
 
   // ===== VIEW MANAGEMENT =====
   const ViewManager = {
-    /*switchTo(view) {
-      AppState.view = view;
-      DOM.mainContainer.dataset.view = view;
-      
-      if (view === 'grid') {
-        DOM.gridView.classList.add('active');
-        DOM.checkoutView.classList.remove('active');
-        this.stopLockTimer();
-      } else {
-        DOM.gridView.classList.remove('active');
-        DOM.checkoutView.classList.add('active');
-        this.startLockTimer();
-        this.updateSummary();
-      }
-    },*/
     switchTo(view) {
   AppState.view = view;
   DOM.mainContainer.dataset.view = view;
@@ -73,7 +58,6 @@
   setTimeout(() => {
     DOM.checkoutView.style.display = 'none';
   }, 400); // attendre la fin de la transition CSS (0.4s)
-
   // Afficher la grille avec transition fluide
   DOM.gridView.style.display = 'block';
   requestAnimationFrame(() => {
@@ -105,6 +89,21 @@ else if (view === 'checkout') {
 
 },
     
+clearCheckoutForm() {
+  // Vider les inputs texte si tu as ces DOM éléments
+  if (DOM.nameInput) DOM.nameInput.value = '';
+  if (DOM.linkInput) DOM.linkInput.value = '';
+
+  // Vider la preview image et réinitialiser l'input file
+  if (DOM.imageInput) DOM.imageInput.value = '';
+  if (DOM.imagePreview) {
+    DOM.imagePreview.innerHTML = '<span>Click to upload or drag & drop</span>';
+  }
+
+  // Vider l’URL de l’image dans l’état global
+  AppState.orderData.imageUrl = null;
+},
+
     setCheckoutStep(step) {
       AppState.checkoutStep = step;
       
@@ -214,6 +213,8 @@ else if (view === 'checkout') {
       AppState.selected.clear();
       GridManager.clearSelection();
       
+      // Clear checkout form fields
+      this.clearCheckoutForm();
       // Switch view
       this.switchTo('grid');
       this.setCheckoutStep(1);
