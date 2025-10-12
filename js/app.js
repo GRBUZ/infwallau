@@ -351,8 +351,14 @@
 
   // ===== VIEW MANAGEMENT =====
   const ViewManager = {
+    _scrollTimeout: null,
     switchTo(view, options = {}) {
       console.log('[ViewManager] Switching to:', view);
+      // ⭐ ANNULER tout scroll en attente
+      if (this._scrollTimeout) {
+        clearTimeout(this._scrollTimeout);
+        this._scrollTimeout = null;
+      }
       AppState.view = view;
       DOM.mainContainer.dataset.view = view;
 
@@ -403,12 +409,13 @@
         this.startLockMonitoring(1200);
         this.updateSummary();
         
-        // Scroll en haut
-        setTimeout(() => {
-          window.scrollTo(0, 0);
-          document.documentElement.scrollTop = 0;
-          document.body.scrollTop = 0;
-        }, 50);
+        // ⭐ STOCKER le timeout
+      this._scrollTimeout = setTimeout(() => {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+        this._scrollTimeout = null;
+      }, 50);
       }
     },
     
@@ -1394,22 +1401,31 @@ highlightPurchasedPixels(blocks) {
   
   DOM.grid.appendChild(highlight);
   
-  // ⭐ SCROLL vers le highlight (après un micro-délai)
-  setTimeout(() => {
+  // ⭐ SCROLL MULTIPLE FOIS pour être sûr (combat les autres scrolls)
+  const doScroll = () => {
     const gridRect = DOM.grid.getBoundingClientRect();
     const gridTop = window.scrollY + gridRect.top;
     const highlightTop = gridTop + (minRow * cellSize);
     const highlightHeight = (maxRow - minRow + 1) * cellSize;
     const highlightCenter = highlightTop + (highlightHeight / 2);
-    const targetScroll = highlightCenter - (window.innerHeight / 2);
+    const targetScroll = Math.max(0, highlightCenter - (window.innerHeight / 2));
     
-    console.log('[Highlight] Scrolling to:', targetScroll);
+    console.log('[Highlight] Scrolling to:', targetScroll, 'current:', window.scrollY);
     
     window.scrollTo({
-      top: Math.max(0, targetScroll),
+      top: targetScroll,
       behavior: 'smooth'
     });
-  }, 100);
+  };
+  
+  // Scroll immédiat
+  doScroll();
+  
+  // Re-scroll après 100ms (au cas où)
+  setTimeout(doScroll, 100);
+  
+  // Re-scroll après 300ms (sécurité)
+  setTimeout(doScroll, 300);
   
   // Retirer après 6 secondes
   setTimeout(() => {
