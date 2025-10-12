@@ -78,6 +78,10 @@ function haveMyValidLocks(arr, graceMs = 2000) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 } 
 else if (view === 'checkout') {
+  // Masquer la bulle d'info de sélection
+  if (DOM.selectionInfo) {
+    DOM.selectionInfo.classList.remove('show');
+  }
   // Masquer la grille avec transition fluide
   DOM.gridView.classList.remove('active');
   setTimeout(() => {
@@ -167,8 +171,9 @@ clearCheckoutForm() {
       `;
     },
     
-    startLockTimer(warmupMs = 1200) {
+startLockTimer(warmupMs = 1200) {
   this.stopLockTimer();
+  AppState.lockExpiry = Date.now() + 180000; // 3 minutes
   
   // Réinitialiser le bouton
   if (DOM.proceedToPayment) {
@@ -177,7 +182,19 @@ clearCheckoutForm() {
   }
   this.setPayPalEnabled(true);
   
-  const tick = () => {
+  // Timer visuel (décompte de 3 minutes)
+  const updateVisualTimer = () => {
+    const remaining = Math.max(0, AppState.lockExpiry - Date.now());
+    const minutes = Math.floor(remaining / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    
+    if (DOM.timerValue) {
+      DOM.timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+  };
+  
+  // Vérification des locks réels (toutes les 5 secondes)
+  const checkLocks = () => {
     // Ne pas vérifier si on est en train de processer un paiement
     if (DOM.proceedToPayment && DOM.proceedToPayment.textContent === 'Processing…') {
       return;
@@ -198,20 +215,22 @@ clearCheckoutForm() {
     }
   };
   
-  /*const start = () => {
-    tick();
-    AppState.lockTimer = setInterval(tick, 5000); // Vérifier toutes les 5 secondes
-  };*/
-  const start = () => {
-  tick();
-  AppState.lockTimer = setInterval(() => {
-    tick();
-    this.updateLockTimerDisplay(); // Ajouter ceci
-  }, 5000);
-};
+  // Démarrer le timer visuel immédiatement (chaque seconde)
+  updateVisualTimer();
+  const visualTimerInterval = setInterval(updateVisualTimer, 1000);
   
-  // Attendre warmupMs avant de commencer à vérifier
-  AppState.lockTimer = setTimeout(start, Math.max(0, warmupMs | 0));
+  // Démarrer la vérification des locks après warmup (toutes les 5 secondes)
+  const lockCheckTimeout = setTimeout(() => {
+    checkLocks();
+    const lockCheckInterval = setInterval(checkLocks, 5000);
+    
+    // Stocker les deux intervalles pour pouvoir les arrêter
+    AppState.lockCheckInterval = lockCheckInterval;
+  }, Math.max(0, warmupMs | 0));
+  
+  // Stocker les références pour pouvoir les arrêter
+  AppState.lockTimer = visualTimerInterval;
+  AppState.lockCheckTimeout = lockCheckTimeout;
 },
 
 updateLockTimerDisplay() {
@@ -244,12 +263,20 @@ updateLockTimerDisplay() {
   DOM.timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 },
     
-    stopLockTimer() {
-      if (AppState.lockTimer) {
-        clearInterval(AppState.lockTimer);
-        AppState.lockTimer = null;
-      }
-    },
+   stopLockTimer() {
+  if (AppState.lockTimer) {
+    clearInterval(AppState.lockTimer);
+    AppState.lockTimer = null;
+  }
+  if (AppState.lockCheckTimeout) {
+    clearTimeout(AppState.lockCheckTimeout);
+    AppState.lockCheckTimeout = null;
+  }
+  if (AppState.lockCheckInterval) {
+    clearInterval(AppState.lockCheckInterval);
+    AppState.lockCheckInterval = null;
+  }
+},
     
     handleLockExpired() {
       this.stopLockTimer();
@@ -477,6 +504,11 @@ if (DOM.proceedToPayment) {
     },
     
     updateSelectionInfo() {
+      // Ne jamais afficher la bulle en mode checkout
+  if (AppState.view === 'checkout') {
+    DOM.selectionInfo.classList.remove('show');
+    return;
+  }
       const count = AppState.selected.size * 100;
       if (count === 0) {
         DOM.selectionInfo.classList.remove('show');
@@ -624,6 +656,8 @@ if (DOM.proceedToPayment) {
         
         // Move to payment step
         ViewManager.setCheckoutStep(2);
+        // Réinitialiser le timer de 3 minutes pour l'étape de paiement
+        ViewManager.startLockTimer(0); // Pas de warmup, restart immédiat
         
         // Initialize PayPal
         await this.initializePayPal();

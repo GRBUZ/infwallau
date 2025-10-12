@@ -123,6 +123,14 @@ html, body {
   min-height: 100vh;
   transition: all 0.3s ease;
 }
+/* Réduire le padding quand on est en checkout */
+#mainContainer[data-view="checkout"] {
+  padding-top: 140px; /* Moins d'espace en haut */
+}
+/* Réduire le margin du footer en mode checkout */
+#mainContainer[data-view="checkout"] .site-footer {
+  margin-top: 40px; /* Au lieu de 80px */
+}
 
 .view-container {
   display: none;
@@ -188,12 +196,12 @@ html, body {
 /* ===== CHECKOUT VIEW ===== */
 .checkout-progress {
   background: #f8f9fa;
-  padding: 32px 0;
-  margin-bottom: 48px;
+  padding: 20px 0; /* Réduit de 32px à 20px */
+  margin-bottom: 32px; /* Réduit de 48px à 32px */
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 80px;
+  gap: 60px; /* Réduit de 80px à 60px */
   position: relative;
 }
 
@@ -270,27 +278,27 @@ html, body {
   margin: 0 auto;
   padding: 0 24px;
   display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 48px;
+  grid-template-columns: 300px 1fr; /* Réduit de 320px à 300px */
+  gap: 32px; /* Réduit de 48px à 32px */
 }
 
 /* ===== ORDER SUMMARY SIDEBAR ===== */
 .order-summary-sidebar {
   position: sticky;
-  top: 145px;
+  top: 165px;
   height: fit-content;
 }
 
 .summary-card {
   background: white;
   border: 2px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 24px;
+  border-radius: 12px;
+  padding: 20px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 .summary-card h3 {
-  margin: 0 0 20px;
+  margin: 0 0 16px;
   font-size: 18px;
   font-weight: 700;
   color: #111827;
@@ -385,8 +393,8 @@ html, body {
 /* ===== CHECKOUT MAIN ===== */
 .checkout-main {
   background: white;
-  border-radius: 16px;
-  padding: 32px;
+  border-radius: 12px;
+  padding: 24px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
@@ -400,7 +408,7 @@ html, body {
 }
 
 .checkout-step h2 {
-  margin: 0 0 32px;
+  margin: 0 0 24px;
   font-size: 24px;
   font-weight: 700;
   color: #111827;
@@ -408,12 +416,12 @@ html, body {
 
 /* ===== FORM STYLES ===== */
 .form-group {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   font-weight: 600;
   font-size: 14px;
   color: #374151;
@@ -507,7 +515,7 @@ html, body {
 
 .btn-primary {
   width: 100%;
-  padding: 14px 24px;
+  padding: 12px 20px;
   background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
   color: white;
   border: none;
@@ -516,7 +524,7 @@ html, body {
   font-size: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-top: 32px;
+  margin-top: 24px;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -771,3 +779,37 @@ html, body {
   transform: translateY(0);
   pointer-events: auto;
 }
+
+/*new*/
+@media (max-width: 768px) {
+  #mainContainer[data-view="checkout"] {
+    padding-top: 100px; /* Encore moins d'espace sur mobile */
+  }
+  
+  .checkout-progress {
+    padding: 16px 0;
+    margin-bottom: 24px;
+    gap: 30px;
+  }
+  
+  .checkout-content {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 0 16px;
+  }
+  
+  .checkout-main {
+    padding: 20px;
+  }
+  
+  .order-summary-sidebar {
+    position: relative;
+    top: 0;
+    margin-bottom: 20px;
+  }
+  
+  .summary-card {
+    padding: 16px;
+  }
+}
+/*new*/
