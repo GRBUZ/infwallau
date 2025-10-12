@@ -309,38 +309,52 @@ startLockMonitoring(warmupMs = 1200) {
     const heartbeatObj = window.LockManager?.heartbeat;
     const heartbeatRunning = !!(heartbeatObj && (heartbeatObj.isRunning || heartbeatObj._running || heartbeatObj._timer));
 
-    if (!ok) {
-      // Cas normal : locks invalides -> stop heartbeat pour éviter renew
-      try { window.LockManager.heartbeat.stop(); } catch (e) {}
-      console.log('[ViewManager] Heartbeat stopped due to invalid locks');
-    } else if (timerExpired && !heartbeatRunning) {
-      // Cas pathologique : server still shows locks valid but our local timer expired & heartbeat stopped
-      console.warn('[ViewManager] Defensive unlock: timer expired locally but server still reports locks. Forcing unlock.');
-      try {
-        // Essayer d'utiliser LockManager.unlock() si présent
-        await window.LockManager.unlock(blocks);
-      } catch (e) {
-        // fallback: appeler endpoint /unlock
-        try {
-          await window.CoreManager.apiCall('/unlock', {
-            method: 'POST',
-            body: JSON.stringify({ blocks })
-          });
-        } catch (ex) {
-          console.error('[LockMonitor] Defensive unlock failed', ex);
-        }
-      }
-      // Après forcage -> mise à jour UI
-      AppState.locks = window.LockManager.getLocalLocks ? window.LockManager.getLocalLocks() : (AppState.locks || {});
-      if (DOM.proceedToPayment) {
-        DOM.proceedToPayment.disabled = true;
-        DOM.proceedToPayment.textContent = '⏰ Reservation expired - reselect';
-      }
-      this.setPayPalEnabled(false);
-    } else {
-      // cas OK, on laisse tourner
-      // rien à faire
+if (!ok) {
+  // Cas normal : locks invalides -> stop heartbeat pour éviter renew
+  try { window.LockManager.heartbeat.stop(); } catch (e) {}
+  console.log('[ViewManager] Heartbeat stopped due to invalid locks');
+
+  // ✅ Stopper la boucle de monitoring pour éviter les logs infinis
+  if (AppState.lockCheckInterval) {
+    clearInterval(AppState.lockCheckInterval);
+    AppState.lockCheckInterval = null;
+    console.log('[ViewManager] Lock monitoring stopped (invalid locks)');
+  }
+
+  return; // <---- 🔥 empêche toute suite inutile
+}
+
+if (timerExpired && !heartbeatRunning) {
+  console.warn('[ViewManager] Defensive unlock: timer expired locally but server still reports locks. Forcing unlock.');
+  try {
+    await window.LockManager.unlock(blocks);
+  } catch (e) {
+    try {
+      await window.CoreManager.apiCall('/unlock', {
+        method: 'POST',
+        body: JSON.stringify({ blocks })
+      });
+    } catch (ex) {
+      console.error('[LockMonitor] Defensive unlock failed', ex);
     }
+  }
+
+  // ✅ Stop le monitoring après unlock défensif
+  if (AppState.lockCheckInterval) {
+    clearInterval(AppState.lockCheckInterval);
+    AppState.lockCheckInterval = null;
+    console.log('[ViewManager] Lock monitoring stopped after defensive unlock');
+  }
+
+  AppState.locks = {};
+  if (DOM.proceedToPayment) {
+    DOM.proceedToPayment.disabled = true;
+    DOM.proceedToPayment.textContent = '⏰ Reservation expired - reselect';
+  }
+  this.setPayPalEnabled(false);
+  return; // <---- 🔥 très important : arrêter la fonction ici
+}
+
   };
 
   // Lancer la première vérification après warmup, puis toutes les 5 secondes
