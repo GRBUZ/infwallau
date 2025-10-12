@@ -1,4 +1,4 @@
-// app.js - Version unifiée sans modal
+// app.js - Version unifiée avec logique locks/heartbeat complète
 (function() {
   'use strict';
 
@@ -13,44 +13,48 @@
   const TOTAL_PIXELS = 1_000_000;
   const locale = navigator.language || 'en-US';
 
-function haveMyValidLocks(arr, graceMs = 2000) {
-  if (!arr || !arr.length) return false;
-  const now = Date.now() + Math.max(0, graceMs | 0);
-  for (const i of arr) {
-    const l = AppState.locks[String(i)];
-    if (!l || l.uid !== uid || !(l.until > now)) return false;
-  }
-  return true;
-}
-// ===== HEARTBEAT CONTROL =====
-let __processing = false;
+  // ===== HEARTBEAT CONTROL =====
+  let __processing = false;
 
-function pauseHeartbeat() {
-  if (__processing) return;
-  __processing = true;
-  try { window.LockManager?.heartbeat?.stop?.(); } catch (e) {
-    console.warn('[Heartbeat] pause failed', e);
-  }
-}
-
-function resumeHeartbeat() {
-  if (!__processing) return;
-  __processing = false;
-  try {
-    const sel = AppState.orderData?.blocks || [];
-    if (sel.length) {
-      window.LockManager?.heartbeat?.start?.(sel, 30000, 180000, {
-        maxMs: 180000,
-        autoUnlock: true,
-        requireActivity: true
-      });
-      console.log('[Heartbeat] resumed for', sel.length, 'blocks');
+  function pauseHeartbeat() {
+    if (__processing) return;
+    __processing = true;
+    try { 
+      window.LockManager?.heartbeat?.stop?.(); 
+      console.log('[Heartbeat] Paused');
+    } catch (e) {
+      console.warn('[Heartbeat] Pause failed', e);
     }
-  } catch (e) {
-    console.warn('[Heartbeat] resume failed', e);
   }
-}
 
+  function resumeHeartbeat() {
+    if (!__processing) return;
+    __processing = false;
+    try {
+      const sel = AppState.orderData?.blocks || [];
+      if (sel.length && AppState.view === 'checkout') {
+        window.LockManager?.heartbeat?.start?.(sel, 30000, 180000, {
+          maxMs: 180000,
+          autoUnlock: true,
+          requireActivity: true
+        });
+        console.log('[Heartbeat] Resumed for', sel.length, 'blocks');
+      }
+    } catch (e) {
+      console.warn('[Heartbeat] Resume failed', e);
+    }
+  }
+
+  // ===== VALIDATION LOCKS =====
+  function haveMyValidLocks(arr, graceMs = 2000) {
+    if (!arr || !arr.length) return false;
+    const now = Date.now() + Math.max(0, graceMs | 0);
+    for (const i of arr) {
+      const l = AppState.locks[String(i)];
+      if (!l || l.uid !== uid || !(l.until > now)) return false;
+    }
+    return true;
+  }
 
   // ===== STATE MANAGEMENT =====
   const AppState = {
@@ -71,97 +75,97 @@ function resumeHeartbeat() {
       name: '',
       linkUrl: '',
       imageUrl: null,
+      regionId: null,
       totalAmount: 0,
       unitPrice: 0
     },
     
     // Timer state
-    lockTimer: null
+    lockTimer: null,
+    lockCheckTimeout: null,
+    lockCheckInterval: null,
+    lockSecondsRemaining: 180,
+    
+    // Upload cache
+    uploadedImageCache: null
   };
 
   // ===== DOM REFERENCES =====
-  // NOTE: initialisé plus tard dans init() once DOMContentLoaded fired
   let DOM;
 
   // ===== VIEW MANAGEMENT =====
   const ViewManager = {
     switchTo(view) {
       console.log('[ViewManager] Switching to:', view);
-  console.log('[ViewManager] Current scroll position:', window.scrollY);
-  AppState.view = view;
-  DOM.mainContainer.dataset.view = view;
+      AppState.view = view;
+      DOM.mainContainer.dataset.view = view;
 
-  // Ajouter/retirer classe sur body pour masquer le header
-  if (view === 'checkout') {
-    document.body.classList.add('checkout-mode');
-  } else {
-    document.body.classList.remove('checkout-mode');
-  }
-  
-  
-  if (view === 'grid') {
-  // Masquer checkout avec transition fluide
-  DOM.checkoutView.classList.remove('active');
-  setTimeout(() => {
-    DOM.checkoutView.style.display = 'none';
-  }, 400); // attendre la fin de la transition CSS (0.4s)
-  // Afficher la grille avec transition fluide
-  DOM.gridView.style.display = 'block';
-  requestAnimationFrame(() => {
-    DOM.gridView.classList.add('active');
-  });
+      // Gestion classe body
+      if (view === 'checkout') {
+        document.body.classList.add('checkout-mode');
+      } else {
+        document.body.classList.remove('checkout-mode');
+      }
+      
+      if (view === 'grid') {
+        // Transition vers grille
+        DOM.checkoutView.classList.remove('active');
+        setTimeout(() => {
+          DOM.checkoutView.style.display = 'none';
+        }, 400);
+        
+        DOM.gridView.style.display = 'block';
+        requestAnimationFrame(() => {
+          DOM.gridView.classList.add('active');
+        });
 
-  this.stopLockTimer();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-} 
-else if (view === 'checkout') {
-  // Masquer la bulle d'info de sélection
-  if (DOM.selectionInfo) {
-    DOM.selectionInfo.classList.remove('show');
-  }
-  // Masquer la grille avec transition fluide
-  DOM.gridView.classList.remove('active');
-  setTimeout(() => {
-    DOM.gridView.style.display = 'none';
-  }, 400);
+        this.stopAllTimers();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } 
+      else if (view === 'checkout') {
+        // Masquer bulle sélection
+        if (DOM.selectionInfo) {
+          DOM.selectionInfo.classList.remove('show');
+        }
+        
+        // Transition vers checkout
+        DOM.gridView.classList.remove('active');
+        setTimeout(() => {
+          DOM.gridView.style.display = 'none';
+        }, 400);
 
-  // Afficher le checkout avec transition fluide
-  DOM.checkoutView.style.display = 'block';
-  requestAnimationFrame(() => {
-    DOM.checkoutView.classList.add('active');
-  });
+        DOM.checkoutView.style.display = 'block';
+        requestAnimationFrame(() => {
+          DOM.checkoutView.classList.add('active');
+        });
 
-  this.startLockTimer();
-  this.startLockMonitoring(1200); // Monitoring des locks
-  this.updateSummary();
-// Scroller tout en haut de la page
-// IMPORTANT : Scroller EN DERNIER, après tout le reste
-  setTimeout(() => {
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-  }, 50);
-   
-}
-
-},
+        this.startLockTimer();
+        this.startLockMonitoring(1200);
+        this.updateSummary();
+        
+        // Scroll en haut
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          document.documentElement.scrollTop = 0;
+          document.body.scrollTop = 0;
+        }, 50);
+      }
+    },
     
-clearCheckoutForm() {
-  // Vider les inputs texte si tu as ces DOM éléments
-  if (DOM.nameInput) DOM.nameInput.value = '';
-  if (DOM.linkInput) DOM.linkInput.value = '';
-
-  // Vider la preview image et réinitialiser l'input file
-  if (DOM.imageInput) DOM.imageInput.value = '';
-  if (DOM.imagePreview) {
-    DOM.imagePreview.innerHTML = '<span>Click to upload or drag & drop</span>';
-  }
-
-  // Vider l’URL de l’image dans l’état global
-  AppState.orderData.imageUrl = null;
-},
+    clearCheckoutForm() {
+      if (DOM.nameInput) DOM.nameInput.value = '';
+      if (DOM.linkInput) DOM.linkInput.value = '';
+      if (DOM.imageInput) DOM.imageInput.value = '';
+      if (DOM.imagePreview) {
+        DOM.imagePreview.innerHTML = '<span>Click to upload or drag & drop</span>';
+      }
+      AppState.orderData.imageUrl = null;
+      AppState.orderData.regionId = null;
+      AppState.uploadedImageCache = null;
+    },
 
     setCheckoutStep(step) {
+      console.log('[ViewManager] Setting checkout step:', step);
       AppState.checkoutStep = step;
       
       // Update steps visibility
@@ -175,6 +179,12 @@ clearCheckoutForm() {
         el.classList.toggle('active', stepNum <= step);
         el.classList.toggle('completed', stepNum < step);
       });
+      
+      // Au passage à step 2 (payment), redémarrer le timer visuel
+      if (step === 2) {
+        console.log('[ViewManager] Step 2: Restarting visual countdown');
+        this.startLockTimer();
+      }
     },
     
     updateSummary() {
@@ -185,7 +195,6 @@ clearCheckoutForm() {
       DOM.summaryPrice.textContent = `$${unitPrice.toFixed(2)}`;
       DOM.summaryTotal.textContent = `$${totalAmount.toFixed(2)}`;
       
-      // Update pixel preview
       this.renderPixelPreview();
     },
     
@@ -193,7 +202,6 @@ clearCheckoutForm() {
       const { blocks } = AppState.orderData;
       if (!blocks.length) return;
       
-      // Create mini grid visualization
       const minRow = Math.min(...blocks.map(i => Math.floor(i / N)));
       const maxRow = Math.max(...blocks.map(i => Math.floor(i / N)));
       const minCol = Math.min(...blocks.map(i => i % N));
@@ -214,201 +222,205 @@ clearCheckoutForm() {
       `;
     },
     
-startLockTimer() {
-  console.log('[ViewManager] Starting simple 3-minute countdown');
+    startLockTimer() {
+      console.log('[ViewManager] Starting 3-minute countdown');
 
-  // Arrêter le timer précédent
-  if (AppState.lockTimer) {
-    clearInterval(AppState.lockTimer);
-    AppState.lockTimer = null;
-  }
-
-  // Compteur simple : 180 secondes (3 minutes)
-  AppState.lockSecondsRemaining = 180;
-
-  const updateDisplay = () => {
-    const secondsRemaining = AppState.lockSecondsRemaining;
-    const minutes = Math.floor(Math.max(0, secondsRemaining) / 60);
-    const seconds = Math.max(0, secondsRemaining % 60);
-
-    if (DOM.timerValue) {
-      DOM.timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    }
-
-    // Si le timer est arrivé à zéro, on signale l'expiration côté UI (mais on laisse le monitoring décider de l'unlock défensif)
-    if (secondsRemaining <= 0) {
-      // Arrêter le compteur
+      // Arrêter timer précédent
       if (AppState.lockTimer) {
         clearInterval(AppState.lockTimer);
         AppState.lockTimer = null;
       }
-      // Mettre affichage 0:00
-      if (DOM.timerValue) DOM.timerValue.textContent = '0:00';
-      console.log('[ViewManager] Lock visual countdown reached 0');
-      // On n'appelle pas automatiquement returnToGrid ici : la logique de monitoring décidera d'unlock si besoin.
-      return;
-    }
 
-    // Décrémenter
-    AppState.lockSecondsRemaining--;
-  };
+      // Reset à 180 secondes
+      AppState.lockSecondsRemaining = 180;
 
-  // Afficher immédiatement et lancer l'intervalle
-  updateDisplay();
-  AppState.lockTimer = setInterval(updateDisplay, 1000);
+      const updateDisplay = () => {
+        const secondsRemaining = AppState.lockSecondsRemaining;
+        const minutes = Math.floor(Math.max(0, secondsRemaining) / 60);
+        const seconds = Math.max(0, secondsRemaining % 60);
 
-  console.log('[ViewManager] Simple countdown started');
-},
+        if (DOM.timerValue) {
+          DOM.timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
 
-startLockMonitoring(warmupMs = 1200) {
-  console.log('[ViewManager] Starting improved lock monitoring (defensive)');
+        if (secondsRemaining <= 0) {
+          if (AppState.lockTimer) {
+            clearInterval(AppState.lockTimer);
+            AppState.lockTimer = null;
+          }
+          if (DOM.timerValue) DOM.timerValue.textContent = '0:00';
+          console.log('[ViewManager] Visual countdown reached 0');
+          return;
+        }
 
-  // Nettoyage des anciens timers
-  if (AppState.lockCheckTimeout) { clearTimeout(AppState.lockCheckTimeout); AppState.lockCheckTimeout = null; }
-  if (AppState.lockCheckInterval) { clearInterval(AppState.lockCheckInterval); AppState.lockCheckInterval = null; }
+        AppState.lockSecondsRemaining--;
+      };
 
-  const checkLocks = async () => {
-    // Pas d'action si on est en processing
-    if (DOM.proceedToPayment && DOM.proceedToPayment.textContent === 'Processing…') return;
-
-    const blocks = AppState.orderData.blocks;
-    if (!blocks || !blocks.length) return;
-
-    // 1) Rafraîchir l'état serveur pour être sûr (source de vérité)
-    try {
-      const status = await window.CoreManager.apiCall('/status?ts=' + Date.now());
-      if (status && status.ok) {
-        AppState.locks = window.LockManager.merge(status.locks || {});
-        // Met à jour sold/regions si nécessaires
-        AppState.sold = status.sold || AppState.sold;
-        AppState.regions = status.regions || AppState.regions;
-      } else {
-        // Si /status a échoué, fallback : on garde AppState.locks tel quel
-        console.warn('[LockMonitor] /status returned not ok');
-      }
-    } catch (err) {
-      console.warn('[LockMonitor] Failed to refresh /status:', err);
-    }
-
-    // 2) Calculer si nos locks sont encore valides d'après server-side merged locks
-    const ok = haveMyValidLocks(blocks, 3000);
-    console.log('[ViewManager] Lock check result:', ok, 'secondsRemaining=', AppState.lockSecondsRemaining);
-
-    // 3) Mise à jour UI
-    if (DOM.proceedToPayment) {
-      DOM.proceedToPayment.disabled = !ok;
-      DOM.proceedToPayment.textContent = ok ? '💳 Continue to Payment' : '⏰ Reservation expired - reselect';
-    }
-    this.setPayPalEnabled(ok);
-
-    // 4) Défensive: si notre timer visuel est tombé à 0 (ou négatif) ET que le heartbeat n'est pas en cours,
-    // on force la libération côté serveur (évite les "locks fantômes").
-    const timerExpired = (typeof AppState.lockSecondsRemaining === 'number' && AppState.lockSecondsRemaining <= 0);
-
-    // Tentative de détection si heartbeat tourne : (utilise presence d'API si disponible)
-    const heartbeatObj = window.LockManager?.heartbeat;
-    const heartbeatRunning = !!(heartbeatObj && (heartbeatObj.isRunning || heartbeatObj._running || heartbeatObj._timer));
-
-if (!ok) {
-  // Cas normal : locks invalides -> stop heartbeat pour éviter renew
-  try { window.LockManager.heartbeat.stop(); } catch (e) {}
-  console.log('[ViewManager] Heartbeat stopped due to invalid locks');
-
-  // ✅ Stopper la boucle de monitoring pour éviter les logs infinis
-  if (AppState.lockCheckInterval) {
-    clearInterval(AppState.lockCheckInterval);
-    AppState.lockCheckInterval = null;
-    console.log('[ViewManager] Lock monitoring stopped (invalid locks)');
-  }
-
-  return; // <---- 🔥 empêche toute suite inutile
-}
-
-if (timerExpired && !heartbeatRunning) {
-  console.warn('[ViewManager] Defensive unlock: timer expired locally but server still reports locks. Forcing unlock.');
-  try {
-    await window.LockManager.unlock(blocks);
-  } catch (e) {
-    try {
-      await window.CoreManager.apiCall('/unlock', {
-        method: 'POST',
-        body: JSON.stringify({ blocks })
-      });
-    } catch (ex) {
-      console.error('[LockMonitor] Defensive unlock failed', ex);
-    }
-  }
-
-  // ✅ Stop le monitoring après unlock défensif
-  if (AppState.lockCheckInterval) {
-    clearInterval(AppState.lockCheckInterval);
-    AppState.lockCheckInterval = null;
-    console.log('[ViewManager] Lock monitoring stopped after defensive unlock');
-  }
-
-  AppState.locks = {};
-  if (DOM.proceedToPayment) {
-    DOM.proceedToPayment.disabled = true;
-    DOM.proceedToPayment.textContent = '⏰ Reservation expired - reselect';
-  }
-  this.setPayPalEnabled(false);
-  return; // <---- 🔥 très important : arrêter la fonction ici
-}
-
-  };
-
-  // Lancer la première vérification après warmup, puis toutes les 5 secondes
-  AppState.lockCheckTimeout = setTimeout(() => {
-    checkLocks();
-    AppState.lockCheckInterval = setInterval(checkLocks, 5000);
-  }, Math.max(0, warmupMs | 0));
-
-  console.log('[ViewManager] Lock monitoring scheduled with warmup:', warmupMs);
-},
-
-
-
-   stopLockTimer() {
-  console.log('[ViewManager] Stopping countdown'); // DEBUG
-  
-  if (AppState.lockTimer) {
-    clearInterval(AppState.lockTimer);
-    AppState.lockTimer = null;
-  }
-  
-  if (AppState.lockCheckTimeout) {
-    clearTimeout(AppState.lockCheckTimeout);
-    AppState.lockCheckTimeout = null;
-  }
-  if (AppState.lockCheckInterval) {
-    clearInterval(AppState.lockCheckInterval);
-    AppState.lockCheckInterval = null;
-  }
-},
-    
-    handleLockExpired() {
-      this.stopLockTimer();
-      // Désactiver le bouton de paiement et afficher le message
-      if (DOM.proceedToPayment) {
-        DOM.proceedToPayment.disabled = true;
-        DOM.proceedToPayment.textContent = '⏰ Reservation expired - reselect';
-      }
-      // Désactiver aussi PayPal
-      this.setPayPalEnabled(false);
+      updateDisplay();
+      AppState.lockTimer = setInterval(updateDisplay, 1000);
     },
+
+    startLockMonitoring(warmupMs = 1200) {
+      console.log('[ViewManager] Starting lock monitoring with server refresh');
+
+      // Cleanup anciens timers
+      if (AppState.lockCheckTimeout) { 
+        clearTimeout(AppState.lockCheckTimeout); 
+        AppState.lockCheckTimeout = null; 
+      }
+      if (AppState.lockCheckInterval) { 
+        clearInterval(AppState.lockCheckInterval); 
+        AppState.lockCheckInterval = null; 
+      }
+
+      const checkLocks = async () => {
+        // Skip si en processing
+        if (__processing) {
+          console.log('[LockMonitor] Skipping check (processing)');
+          return;
+        }
+
+        const blocks = AppState.orderData.blocks;
+        if (!blocks || !blocks.length) return;
+
+        // 1) Rafraîchir status serveur (source de vérité)
+        try {
+          const status = await apiCall('/status?ts=' + Date.now());
+          if (status && status.ok) {
+            AppState.locks = window.LockManager.merge(status.locks || {});
+            AppState.sold = status.sold || AppState.sold;
+            AppState.regions = status.regions || AppState.regions;
+          } else {
+            console.warn('[LockMonitor] /status returned not ok');
+          }
+        } catch (err) {
+          console.warn('[LockMonitor] Failed to refresh /status:', err);
+        }
+
+        // 2) Vérifier validité locks
+        const ok = haveMyValidLocks(blocks, 3000);
+        console.log('[LockMonitor] Check result:', ok, '| Timer:', AppState.lockSecondsRemaining, 's');
+
+        // 3) Update UI selon step
+        if (AppState.checkoutStep === 1) {
+          // Step 1: bouton "Continue to Payment"
+          if (DOM.proceedToPayment) {
+            DOM.proceedToPayment.disabled = !ok;
+            DOM.proceedToPayment.textContent = ok 
+              ? '💳 Continue to Payment' 
+              : '⏰ Reservation expired - reselect';
+          }
+        } else if (AppState.checkoutStep === 2) {
+          // Step 2: PayPal
+          this.setPayPalEnabled(ok);
+        }
+
+        // 4) Stop monitoring si locks invalides
+        if (!ok) {
+          try { window.LockManager.heartbeat.stop(); } catch (e) {}
+          console.log('[LockMonitor] Locks invalid, stopping monitoring');
+          
+          if (AppState.lockCheckInterval) {
+            clearInterval(AppState.lockCheckInterval);
+            AppState.lockCheckInterval = null;
+          }
+          return;
+        }
+
+        // 5) Unlock défensif si timer visuel expiré ET heartbeat arrêté
+        const timerExpired = AppState.lockSecondsRemaining <= 0;
+        const heartbeatObj = window.LockManager?.heartbeat;
+        const heartbeatRunning = !!(heartbeatObj && (
+          heartbeatObj.isRunning || heartbeatObj._running || heartbeatObj._timer
+        ));
+
+        if (timerExpired && !heartbeatRunning) {
+          console.warn('[LockMonitor] Defensive unlock: timer expired, heartbeat stopped');
+          
+          try {
+            await window.LockManager.unlock(blocks);
+          } catch (e) {
+            try {
+              await apiCall('/unlock', {
+                method: 'POST',
+                body: JSON.stringify({ blocks })
+              });
+            } catch (ex) {
+              console.error('[LockMonitor] Defensive unlock failed', ex);
+            }
+          }
+
+          if (AppState.lockCheckInterval) {
+            clearInterval(AppState.lockCheckInterval);
+            AppState.lockCheckInterval = null;
+          }
+
+          AppState.locks = {};
+          
+          if (DOM.proceedToPayment) {
+            DOM.proceedToPayment.disabled = true;
+            DOM.proceedToPayment.textContent = '⏰ Reservation expired - reselect';
+          }
+          this.setPayPalEnabled(false);
+          return;
+        }
+      };
+
+      // Première vérif après warmup, puis toutes les 5s
+      AppState.lockCheckTimeout = setTimeout(() => {
+        checkLocks();
+        AppState.lockCheckInterval = setInterval(checkLocks, 5000);
+      }, Math.max(0, warmupMs | 0));
+
+      console.log('[ViewManager] Lock monitoring scheduled with warmup:', warmupMs);
+    },
+
+    stopAllTimers() {
+      console.log('[ViewManager] Stopping all timers');
+      
+      if (AppState.lockTimer) {
+        clearInterval(AppState.lockTimer);
+        AppState.lockTimer = null;
+      }
+      
+      if (AppState.lockCheckTimeout) {
+        clearTimeout(AppState.lockCheckTimeout);
+        AppState.lockCheckTimeout = null;
+      }
+      
+      if (AppState.lockCheckInterval) {
+        clearInterval(AppState.lockCheckInterval);
+        AppState.lockCheckInterval = null;
+      }
+    },
+    
     setPayPalEnabled(enabled) {
-  const c = document.getElementById('paypal-button-container');
-  if (!c) return;
-  c.style.pointerEvents = enabled ? '' : 'none';
-  c.style.opacity = enabled ? '' : '0.45';
-  c.setAttribute('aria-disabled', enabled ? 'false' : 'true');
-},
+      const container = document.getElementById('paypal-button-container');
+      if (!container) return;
+      
+      container.style.pointerEvents = enabled ? '' : 'none';
+      container.style.opacity = enabled ? '' : '0.45';
+      container.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+      
+      // Update state class
+      if (enabled) {
+        container.className = 'active';
+      } else {
+        container.className = 'expired';
+      }
+    },
     
     async returnToGrid() {
-      // Unlock current blocks
+      console.log('[ViewManager] Returning to grid');
+      
+      // Stop heartbeat
+      try { window.LockManager.heartbeat.stop(); } catch (e) {}
+      
+      // Unlock blocks
       if (AppState.orderData.blocks.length) {
         try {
           await window.LockManager.unlock(AppState.orderData.blocks);
+          console.log('[ViewManager] Unlocked', AppState.orderData.blocks.length, 'blocks');
         } catch (e) {
           console.warn('[Unlock] Failed:', e);
         }
@@ -420,35 +432,37 @@ if (timerExpired && !heartbeatRunning) {
         name: '',
         linkUrl: '',
         imageUrl: null,
+        regionId: null,
         totalAmount: 0,
         unitPrice: 0
       };
       
       AppState.selected.clear();
-      GridManager.clearSelection();
+      AppState.uploadedImageCache = null;
+      AppState.currentOrder = null;
       
-      // Clear checkout form fields
+      GridManager.clearSelection();
       this.clearCheckoutForm();
-      // Réactiver le bouton de paiement
-if (DOM.proceedToPayment) {
-  DOM.proceedToPayment.disabled = false;
-  DOM.proceedToPayment.textContent = '💳 Continue to Payment';
-}
+      
+      // Réactiver boutons
+      if (DOM.proceedToPayment) {
+        DOM.proceedToPayment.disabled = false;
+        DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+      }
+      
       // Switch view
       this.switchTo('grid');
       this.setCheckoutStep(1);
       
-      // Refresh status
+      // Refresh
       await StatusManager.load();
       GridManager.paintAll();
-      window.LockManager.heartbeat.stop();
     }
   };
 
   // ===== GRID MANAGEMENT =====
   const GridManager = {
     init() {
-      // Build grid
       const frag = document.createDocumentFragment();
       for (let i = 0; i < N * N; i++) {
         const cell = document.createElement('div');
@@ -458,7 +472,6 @@ if (DOM.proceedToPayment) {
       }
       DOM.grid.appendChild(frag);
       
-      // Setup event handlers
       this.setupEvents();
     },
     
@@ -530,7 +543,7 @@ if (DOM.proceedToPayment) {
       const r0 = Math.min(sr, er), r1 = Math.max(sr, er);
       const c0 = Math.min(sc, ec), c1 = Math.max(sc, ec);
       
-      // Check for blocked cells
+      // Check blocked
       let blocked = false;
       for (let r = r0; r <= r1 && !blocked; r++) {
         for (let c = c0; c <= c1; c++) {
@@ -613,11 +626,11 @@ if (DOM.proceedToPayment) {
     },
     
     updateSelectionInfo() {
-      // Ne jamais afficher la bulle en mode checkout
-  if (AppState.view === 'checkout') {
-    DOM.selectionInfo.classList.remove('show');
-    return;
-  }
+      if (AppState.view === 'checkout') {
+        DOM.selectionInfo.classList.remove('show');
+        return;
+      }
+      
       const count = AppState.selected.size * 100;
       if (count === 0) {
         DOM.selectionInfo.classList.remove('show');
@@ -682,51 +695,58 @@ if (DOM.proceedToPayment) {
   // ===== CHECKOUT FLOW =====
   const CheckoutFlow = {
     async initiate() {
-      console.log('[CheckoutFlow] Initiate called'); // AJOUT
+      console.log('[CheckoutFlow] Initiating checkout');
+      
       const blocks = Array.from(AppState.selected);
-      console.log('[CheckoutFlow] Selected blocks:', blocks.length); // AJOUT
       if (!blocks.length) {
         this.showWarning('Please select pixels first!');
         return;
       }
       
       try {
-        console.log('[CheckoutFlow] Attempting to lock blocks...'); // AJOUT
-        // Lock blocks
+        // Lock avec retry de LockManager
         const lockResult = await window.LockManager.lock(blocks, 180000);
-        console.log('[CheckoutFlow] Lock result:', lockResult); // AJOUT
+        console.log('[CheckoutFlow] Lock result:', lockResult);
+        
         if (!lockResult.ok || lockResult.conflicts?.length) {
+          console.warn('[CheckoutFlow] Lock failed or conflicts');
           GridManager.showInvalidArea(0, 0, N-1, N-1);
           GridManager.clearSelection();
           return;
         }
         
-        // Setup order data
+        // Setup order data avec prix serveur
         AppState.orderData = {
           blocks: lockResult.locked || blocks,
           name: '',
           linkUrl: '',
           imageUrl: null,
+          regionId: lockResult.regionId || null,
           totalAmount: lockResult.totalAmount || GridManager.calculateTotal(blocks.length * 100),
           unitPrice: lockResult.unitPrice || AppState.globalPrice
         };
         
-        console.log('[CheckoutFlow] Order data set:', AppState.orderData); // AJOUT
-        // Start heartbeat
-        window.LockManager.heartbeat.start(AppState.orderData.blocks, 30000, 180000, {
-          maxMs: 180000,
-          autoUnlock: true,
-          requireActivity: true
-        });
-        // Switch to checkout view
-        console.log('[CheckoutFlow] Switching to checkout view...'); // AJOUT
+        // Exposer pour compatibilité
+        window.reservedTotal = AppState.orderData.totalAmount;
+        window.reservedPrice = AppState.orderData.unitPrice;
+        
+        console.log('[CheckoutFlow] Order data:', AppState.orderData);
+        
+        // Start heartbeat avec config complète
+        window.LockManager.heartbeat.start(
+          AppState.orderData.blocks, 
+          30000,   // interval 30s
+          180000,  // max 180s
+          {
+            maxMs: 180000,
+            autoUnlock: true,
+            requireActivity: true
+          }
+        );
+        
+        // Switch to checkout
         ViewManager.switchTo('checkout');
-        ViewManager.startLockMonitoring(1200);
-
-        // Ensure checkout is visible (helpful when grid is long)
-        //if (DOM && DOM.checkoutView && typeof DOM.checkoutView.scrollIntoView === 'function') {
-          //DOM.checkoutView.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        //}
+        
       } catch (e) {
         console.error('[Checkout] Failed:', e);
         alert('Failed to reserve pixels. Please try again.');
@@ -734,6 +754,8 @@ if (DOM.proceedToPayment) {
     },
     
     async processForm() {
+      console.log('[CheckoutFlow] Processing form');
+      
       const name = DOM.nameInput.value.trim();
       const linkUrl = this.normalizeUrl(DOM.linkInput.value);
       
@@ -742,117 +764,293 @@ if (DOM.proceedToPayment) {
         return;
       }
       
-      // Check if image is uploaded
-      if (!AppState.orderData.imageUrl) {
+      // Vérifier upload image
+      if (!AppState.uploadedImageCache || !AppState.uploadedImageCache.imageUrl) {
         this.showWarning('Please upload an image');
         return;
       }
       
-      // Save form data
-      AppState.orderData.name = name;
-      AppState.orderData.linkUrl = linkUrl;
+      // Vérifier âge upload (max 5 min)
+      const uploadAge = Date.now() - AppState.uploadedImageCache.uploadedAt;
+      if (uploadAge > 300000) {
+        this.showWarning('Image upload expired, please reselect your image');
+        AppState.uploadedImageCache = null;
+        return;
+      }
       
-      // Start order
-     // Vérifier la validité des locks
+      // Vérifier locks
       if (!haveMyValidLocks(AppState.orderData.blocks, 1000)) {
-        ViewManager.handleLockExpired();
-        alert('Your reservation expired. Please reselect your pixels.');
+        await StatusManager.load();
+        this.showWarning('Your reservation expired. Please reselect your pixels.');
+        ViewManager.returnToGrid();
         return;
       }
 
+      // Save form data
+      AppState.orderData.name = name;
+      AppState.orderData.linkUrl = linkUrl;
+      AppState.orderData.imageUrl = AppState.uploadedImageCache.imageUrl;
+      AppState.orderData.regionId = AppState.uploadedImageCache.regionId;
+
       pauseHeartbeat();
+      
       try {
-        // 🔁 Renouveler les locks avant de démarrer l’ordre
+        // Renouveler locks avant start-order
+        console.log('[CheckoutFlow] Renewing locks before start-order');
         await window.LockManager.lock(AppState.orderData.blocks, 180000, { optimistic: false });
 
-        const response = await apiCall('/start-order', {
-          method: 'POST',
-          body: JSON.stringify({
-            name,
-            linkUrl,
-            blocks: AppState.orderData.blocks,
-            imageUrl: AppState.orderData.imageUrl
-          })
-        });
+        // Paralléliser SDK PayPal + start-order
+        console.log('[CheckoutFlow] Parallel: SDK + start-order');
+        const startTime = performance.now();
+        
+        const [sdkReady, orderResult] = await Promise.all([
+          this.ensurePayPalSDK(),
+          this.startOrder()
+        ]);
+        
+        const parallelTime = ((performance.now() - startTime) / 1000).toFixed(2);
+        console.log(`[CheckoutFlow] Parallel completed in ${parallelTime}s`);
 
-        if (!response.ok) throw new Error(response.error || 'Failed to start order');
+        if (!orderResult || !orderResult.success) {
+          throw new Error(orderResult?.error || 'Failed to start order');
+        }
 
-        AppState.currentOrder = response;
+        AppState.currentOrder = {
+          orderId: orderResult.orderId,
+          regionId: orderResult.regionId,
+          currency: orderResult.currency || 'USD'
+        };
+        
+        // Extension finale locks avant PayPal
+        console.log('[CheckoutFlow] Final lock extension before PayPal');
+        await window.LockManager.lock(AppState.orderData.blocks, 180000, { optimistic: false });
+
+        // Passer au step 2 et render PayPal
         ViewManager.setCheckoutStep(2);
         await this.initializePayPal();
 
       } catch (e) {
         console.error('[Order] Failed:', e);
-        alert('Failed to process order. Please try again.');
+        alert('Failed to process order: ' + (e.message || e));
       } finally {
         resumeHeartbeat();
       }
+    },
+    
+    async ensurePayPalSDK() {
+      if (window.paypal && window.paypal.Buttons) {
+        console.log('[PayPal SDK] Already loaded');
+        return true;
+      }
 
+      if (window.PayPalIntegration && typeof window.PayPalIntegration.ensureSDK === 'function') {
+        console.log('[PayPal SDK] Loading via PayPalIntegration');
+        await window.PayPalIntegration.ensureSDK();
+        return true;
+      }
+
+      // Fallback: wait for window.paypal
+      console.log('[PayPal SDK] Waiting for window.paypal');
+      const timeout = 5000;
+      const start = Date.now();
+      while (!window.paypal || !window.paypal.Buttons) {
+        if (Date.now() - start > timeout) {
+          throw new Error('PayPal SDK load timeout');
+        }
+        await new Promise(r => setTimeout(r, 100));
+      }
+      return true;
+    },
+    
+    async startOrder() {
+      try {
+        console.log('[CheckoutFlow] Calling /start-order');
+        
+        const response = await apiCall('/start-order', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: AppState.orderData.name,
+            linkUrl: AppState.orderData.linkUrl,
+            blocks: AppState.orderData.blocks,
+            imageUrl: AppState.orderData.imageUrl,
+            regionId: AppState.orderData.regionId
+          })
+        });
+
+        if (!response || !response.ok) {
+          const message = (response && (response.error || response.message)) || 'Start order failed';
+          return { success: false, error: message };
+        }
+
+        return {
+          success: true,
+          orderId: response.orderId,
+          regionId: response.regionId,
+          currency: response.currency || 'USD'
+        };
+
+      } catch (e) {
+        console.error('[startOrder] Error:', e);
+        return { success: false, error: e.message || 'Unknown error' };
+      }
     },
     
     async initializePayPal() {
       if (!window.PayPalIntegration) {
-        console.error('PayPal not loaded');
+        console.error('[PayPal] PayPalIntegration not loaded');
         return;
       }
       
-    await window.PayPalIntegration.initAndRender({
-  orderId: AppState.currentOrder.orderId,
-  currency: AppState.currentOrder.currency || 'USD',
+      console.log('[CheckoutFlow] Rendering PayPal buttons');
+      
+      await window.PayPalIntegration.initAndRender({
+        orderId: AppState.currentOrder.orderId,
+        currency: AppState.currentOrder.currency,
 
-  onApproved: async (data, actions) => {
-    pauseHeartbeat();
-    try {
-      const res = await apiCall('/paypal-capture-finalize', {
-        method: 'POST',
-        body: JSON.stringify({
-          orderId: AppState.currentOrder.orderId,
-          paypalOrderId: data.orderID
-        })
-      });
+        onApproved: async (data, actions) => {
+          console.log('[PayPal] Payment approved');
+          pauseHeartbeat();
+          
+          try {
+            ViewManager.setPayPalEnabled(false);
+            
+            const res = await apiCall('/paypal-capture-finalize', {
+              method: 'POST',
+              body: JSON.stringify({
+                orderId: AppState.currentOrder.orderId,
+                paypalOrderId: data.orderID
+              })
+            });
 
-      if (!res.ok) throw new Error(res.error || 'Payment failed');
-      ViewManager.setCheckoutStep(3);
-      try { await window.LockManager.unlock(AppState.orderData.blocks); } catch {}
-      await StatusManager.load();
-      GridManager.paintAll();
-    } catch (e) {
-      console.error('[Payment] Failed:', e);
-      alert('Payment failed. Please contact support.');
-    } finally {
-      window.LockManager.heartbeat.stop();
-    }
-  },
+            if (!res || !res.ok) {
+              // Gérer INSTRUMENT_DECLINED
+              const name = res?.details?.name || '';
+              const issues = Array.isArray(res?.details?.details) 
+                ? res.details.details.map(d => d.issue) 
+                : [];
+              const isInstrDeclined = res?.error === 'INSTRUMENT_DECLINED' || 
+                (name === 'UNPROCESSABLE_ENTITY' && issues.includes('INSTRUMENT_DECLINED'));
 
-  onCancel: () => {
-    console.log('[PayPal] Payment cancelled');
-    resumeHeartbeat();
-    ViewManager.setCheckoutStep(2);
-  },
+              if (isInstrDeclined) {
+                console.warn('[PayPal] Instrument declined, allowing restart');
+                if (actions && typeof actions.restart === 'function') {
+                  ViewManager.setPayPalEnabled(true);
+                  await actions.restart();
+                  return;
+                }
+                ViewManager.setPayPalEnabled(true);
+                this.showWarning('Payment was declined. Please try again.');
+                return;
+              }
 
-  onError: async (err) => {
-    console.error('[PayPal] Error:', err);
-    pauseHeartbeat();
-    ViewManager.handleLockExpired();
-              if (DOM.proceedToPayment) {
-            DOM.proceedToPayment.disabled = true;
-            DOM.proceedToPayment.textContent = '❌ Payment failed - please reselect';
+              throw new Error(res?.error || res?.message || 'Capture failed');
+            }
+
+            // Attendre finalisation complète
+            console.log('[PayPal] Waiting for order completion');
+            const completed = await this.waitForCompleted(AppState.currentOrder.orderId, 60);
+            
+            if (!completed) {
+              console.warn('[PayPal] Order not completed in time');
+              this.showWarning('Payment is processing. Please check back soon.');
+              ViewManager.setCheckoutStep(3);
+              return;
+            }
+
+            // Succès complet
+            console.log('[PayPal] Order completed successfully');
+            ViewManager.setCheckoutStep(3);
+            
+            // Cleanup
+            try { window.LockManager.heartbeat.stop(); } catch (e) {}
+            try { 
+              await window.LockManager.unlock(AppState.orderData.blocks); 
+            } catch (e) {}
+            
+            // Refresh
+            await StatusManager.load();
+            GridManager.paintAll();
+
+          } catch (e) {
+            console.error('[Payment] Failed:', e);
+            alert('Payment failed: ' + (e.message || 'Unknown error'));
+            ViewManager.setPayPalEnabled(false);
+            try { window.LockManager.heartbeat.stop(); } catch (ex) {}
           }
-          ViewManager.setPayPalEnabled(false);
-    //alert('Payment error. Please try again.');
-  }
-});
+        },
 
+        onCancel: () => {
+          console.log('[PayPal] Payment cancelled by user');
+          
+          // NE PAS stopper heartbeat - permettre retry
+          ViewManager.setPayPalEnabled(true);
+          this.showWarning('Payment cancelled. You can retry or go back.');
+          
+          resumeHeartbeat();
+        },
+
+        onError: async (err) => {
+          console.error('[PayPal] Error:', err);
+          
+          pauseHeartbeat();
+          ViewManager.setPayPalEnabled(false);
+          
+          this.showWarning('Payment error occurred. Please try again or contact support.');
+          
+          // Stopper heartbeat et unlock
+          try { window.LockManager.heartbeat.stop(); } catch (e) {}
+          try { 
+            await window.LockManager.unlock(AppState.orderData.blocks); 
+          } catch (e) {}
+        }
+      });
+    },
+    
+    async waitForCompleted(orderId, maxSeconds = 120) {
+      const maxAttempts = 12;
+      let delay = 1000;
+      
+      for (let i = 0; i < maxAttempts; i++) {
+        try {
+          const status = await apiCall('/order-status?orderId=' + encodeURIComponent(orderId));
+          
+          if (status?.ok) {
+            const s = String(status.status || '').toLowerCase();
+            if (s === 'completed') return true;
+            if (['failed', 'failed_refund', 'cancelled', 'expired'].includes(s)) return false;
+            console.log('[CheckoutFlow] Order status:', s);
+          }
+        } catch (e) {
+          console.warn('[CheckoutFlow] Status check failed:', e);
+        }
+        
+        await new Promise(r => setTimeout(r, delay));
+        delay = Math.min(10000, Math.round(delay * 1.7));
+      }
+      
+      return false;
     },
     
     normalizeUrl(url) {
       url = String(url || '').trim();
       if (!url) return '';
       if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-      return url;
+      
+      try {
+        const urlObj = new URL(url);
+        urlObj.hash = '';
+        return urlObj.toString();
+      } catch {
+        return '';
+      }
     },
     
     showWarning(message) {
+      if (!DOM.warningMessage) {
+        alert(message);
+        return;
+      }
+      
       DOM.warningMessage.textContent = message;
       DOM.warningMessage.classList.add('show');
       setTimeout(() => DOM.warningMessage.classList.remove('show'), 3000);
@@ -862,100 +1060,198 @@ if (DOM.proceedToPayment) {
   // ===== IMAGE UPLOAD =====
   const ImageUpload = {
     init() {
-      // 🔹 1. Permettre de cliquer sur la zone pour ouvrir le sélecteur
-  DOM.imagePreview.addEventListener('click', () => {
-    DOM.imageInput.click();
-  });
+      // Click to upload
+      DOM.imagePreview.addEventListener('click', () => {
+        DOM.imageInput.click();
+      });
+      
       DOM.imageInput.addEventListener('change', async (e) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file) {
+          AppState.uploadedImageCache = null;
+          return;
+        }
         
-        DOM.imagePreview.innerHTML = '<div class="upload-spinner">Uploading...</div>';
+        const selectionId = (window.crypto && crypto.randomUUID) 
+          ? crypto.randomUUID() 
+          : ('sel-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
+        
+        DOM.imageInput.dataset.selectionId = selectionId;
+        const regionId = selectionId;
+        
+        // Show spinner
+        DOM.imagePreview.innerHTML = '<div class="upload-spinner">Validating...</div>';
         
         try {
-          // Validate file
+          // Validate
           await window.UploadManager.validateFile(file);
           
-          // Compress if needed
-          const compressed = await this.compressImage(file);
+          DOM.imagePreview.innerHTML = '<div class="upload-spinner">Compressing...</div>';
+          
+          // Compress
+          let fileToUpload;
+          try {
+            fileToUpload = await this.compressImage(file, {
+              maxWidth: 1600,
+              maxHeight: 1600,
+              quality: 0.82
+            });
+          } catch (err) {
+            console.warn('[Upload] Compression failed, using original:', err);
+            fileToUpload = file;
+          }
+          
+          DOM.imagePreview.innerHTML = '<div class="upload-spinner">Uploading...</div>';
           
           // Upload
-          const result = await window.UploadManager.uploadForRegion(
-            compressed, 
-            'region-' + Date.now()
-          );
+          const result = await window.UploadManager.uploadForRegion(fileToUpload, regionId);
           
-          if (!result.ok) throw new Error(result.error || 'Upload failed');
+          // Vérifier stale upload
+          if (DOM.imageInput.dataset.selectionId !== selectionId) {
+            console.log('[Upload] Stale upload, ignoring');
+            return;
+          }
+          
+          if (!result || !result.ok) {
+            throw new Error(result?.error || result?.message || 'Upload failed');
+          }
+          
+          // Cache upload
+          AppState.uploadedImageCache = {
+            imageUrl: result.imageUrl,
+            regionId: result.regionId || regionId,
+            uploadedAt: Date.now()
+          };
           
           AppState.orderData.imageUrl = result.imageUrl;
+          AppState.orderData.regionId = result.regionId || regionId;
           
           // Show preview
           DOM.imagePreview.innerHTML = `
-            <img src="${result.imageUrl}" alt="Preview" />
-            <button type="button" class="remove-image" onclick="ImageUpload.remove()">×</button>
+            <img src="${result.imageUrl}" alt="Preview" style="max-width: 100%; max-height: 100%;" />
+            <button type="button" class="remove-image" style="position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 18px; line-height: 1;">×</button>
           `;
+          
+          // Add remove handler
+          const removeBtn = DOM.imagePreview.querySelector('.remove-image');
+          if (removeBtn) {
+            removeBtn.addEventListener('click', (evt) => {
+              evt.stopPropagation();
+              this.remove();
+            });
+          }
+          
+          console.log('[Upload] Completed:', AppState.uploadedImageCache);
           
         } catch (error) {
           console.error('[Upload] Failed:', error);
-          DOM.imagePreview.innerHTML = '<span class="error">Upload failed. Please try again.</span>';
+          AppState.uploadedImageCache = null;
+          DOM.imagePreview.innerHTML = '<span class="error" style="color: #ef4444;">Upload failed. Please try again.</span>';
         }
       });
-      // Optional: Drag & drop
-DOM.imagePreview.addEventListener('dragover', e => {
-  e.preventDefault();
-  DOM.imagePreview.classList.add('dragover');
-});
-DOM.imagePreview.addEventListener('dragleave', () => {
-  DOM.imagePreview.classList.remove('dragover');
-});
-DOM.imagePreview.addEventListener('drop', e => {
-  e.preventDefault();
-  DOM.imagePreview.classList.remove('dragover');
-  const file = e.dataTransfer.files?.[0];
-  if (file) {
-    DOM.imageInput.files = e.dataTransfer.files;
-    const event = new Event('change');
-    DOM.imageInput.dispatchEvent(event);
-  }
-});
-
+      
+      // Drag & drop
+      DOM.imagePreview.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        DOM.imagePreview.classList.add('dragover');
+      });
+      
+      DOM.imagePreview.addEventListener('dragleave', () => {
+        DOM.imagePreview.classList.remove('dragover');
+      });
+      
+      DOM.imagePreview.addEventListener('drop', (e) => {
+        e.preventDefault();
+        DOM.imagePreview.classList.remove('dragover');
+        
+        const file = e.dataTransfer.files?.[0];
+        if (file) {
+          DOM.imageInput.files = e.dataTransfer.files;
+          const event = new Event('change');
+          DOM.imageInput.dispatchEvent(event);
+        }
+      });
     },
     
-    async compressImage(file) {
+    async compressImage(file, { maxWidth = 1200, maxHeight = 1200, quality = 0.80 } = {}) {
       if (file.size < 50 * 1024) return file;
       
       try {
         const bitmap = await createImageBitmap(file);
-        const canvas = document.createElement('canvas');
-        const maxSize = 1200;
         
         let { width, height } = bitmap;
-        if (width > maxSize || height > maxSize) {
-          const ratio = Math.min(maxSize / width, maxSize / height);
-          width *= ratio;
-          height *= ratio;
+        const ratio = Math.min(1, maxWidth / width, maxHeight / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+        
+        let canvas;
+        if (typeof OffscreenCanvas !== 'undefined') {
+          canvas = new OffscreenCanvas(width, height);
+        } else {
+          canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
         }
         
-        canvas.width = width;
-        canvas.height = height;
-        
         const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(bitmap, 0, 0, width, height);
         
-        const blob = await new Promise(resolve => 
-          canvas.toBlob(resolve, 'image/webp', 0.8)
-        );
+        // Detect alpha
+        let hasAlpha = false;
+        try {
+          const imageData = ctx.getImageData(0, 0, 1, 1).data;
+          hasAlpha = imageData[3] !== 255;
+        } catch (e) {
+          hasAlpha = false;
+        }
         
-        return new File([blob], 'image.webp', { type: 'image/webp' });
+        // Choose format
+        const supportsWebP = (() => {
+          try {
+            const c = document.createElement('canvas');
+            return !!(c.getContext && c.getContext('2d') && 
+              c.toDataURL('image/webp').indexOf('data:image/webp') === 0);
+          } catch { return false; }
+        })();
+        
+        let outType = 'image/jpeg';
+        if (supportsWebP) outType = 'image/webp';
+        else if (hasAlpha) outType = 'image/png';
+        
+        // Convert to blob
+        let outBlob;
+        if (canvas.convertToBlob) {
+          outBlob = await canvas.convertToBlob({ type: outType, quality });
+        } else {
+          outBlob = await new Promise((res) => canvas.toBlob(res, outType, quality));
+        }
+        
+        if (!outBlob) return file;
+        
+        const ext = outBlob.type.includes('webp') ? '.webp' 
+          : outBlob.type.includes('jpeg') ? '.jpg' 
+          : '.png';
+        const newName = file.name.replace(/\.[^/.]+$/, '') + ext;
+        const newFile = new File([outBlob], newName, { 
+          type: outBlob.type, 
+          lastModified: Date.now() 
+        });
+        
+        console.log(`[Compression] ${file.name}: ${(file.size/1024).toFixed(0)}KB → ${(newFile.size/1024).toFixed(0)}KB`);
+        return newFile;
         
       } catch (e) {
-        console.warn('[Compress] Failed, using original:', e);
+        console.warn('[Compression] Failed:', e);
         return file;
       }
     },
     
     remove() {
+      AppState.uploadedImageCache = null;
       AppState.orderData.imageUrl = null;
+      AppState.orderData.regionId = null;
       DOM.imageInput.value = '';
       DOM.imagePreview.innerHTML = '<span>Click to upload or drag & drop</span>';
     }
@@ -967,22 +1263,48 @@ DOM.imagePreview.addEventListener('drop', e => {
     
     async load() {
       try {
-        const response = await apiCall('/status?ts=' + Date.now());
-        if (!response.ok) return;
+        const sinceParam = this.lastUpdate 
+          ? '?since=' + encodeURIComponent(this.lastUpdate)
+          : '?ts=' + Date.now();
         
-        AppState.sold = response.sold || {};
-        AppState.locks = window.LockManager.merge(response.locks || {});
-        AppState.regions = response.regions || {};
+        const response = await apiCall('/status' + sinceParam);
+        if (!response || !response.ok) return;
         
-        if (response.currentPrice) {
+        // Update price
+        if (typeof response.currentPrice === 'number') {
           AppState.globalPrice = response.currentPrice;
         }
         
-        this.lastUpdate = Date.now();
+        // Diff-based update
+        const newSold = response.sold || {};
+        const newLocks = response.locks || {};
+        const changed = new Set();
         
-        // Update regions display
+        for (const k of Object.keys(AppState.sold || {})) changed.add(k);
+        for (const k of Object.keys(newSold)) changed.add(k);
+        for (const k of Object.keys(AppState.locks || {})) changed.add(k);
+        for (const k of Object.keys(newLocks)) changed.add(k);
+        
+        AppState.sold = newSold;
+        AppState.locks = window.LockManager.merge(newLocks);
+        AppState.regions = response.regions || AppState.regions;
+        
+        // Paint only changed
+        for (const k of changed) {
+          const idx = parseInt(k, 10);
+          if (!Number.isNaN(idx) && DOM.grid.children[idx]) {
+            GridManager.paintCell(idx);
+          }
+        }
+        
         if (window.renderRegions) {
           window.renderRegions();
+        }
+        
+        GridManager.updateTopbar();
+        
+        if (typeof response.ts === 'number') {
+          this.lastUpdate = response.ts;
         }
         
       } catch (e) {
@@ -993,174 +1315,77 @@ DOM.imagePreview.addEventListener('drop', e => {
     startPolling() {
       setInterval(async () => {
         await this.load();
-        GridManager.paintAll();
-      }, 4000);
+      }, 3500); // 3.5s optimisé
     }
   };
 
   // ===== EVENT HANDLERS =====
-  // ===== EVENT HANDLERS =====
-const EventHandlers = {
-  init() {
-    console.log('[EventHandlers] Initializing...'); // AJOUT
-    console.log('[EventHandlers] DOM.buyBtn:', DOM.buyBtn); // AJOUT
-    
-    // Buy button
-    if (DOM.buyBtn) {
-      DOM.buyBtn.addEventListener('click', async (e) => {
-        console.log('[EventHandlers] Buy button clicked!'); // AJOUT
-        console.log('[EventHandlers] Selected pixels:', AppState.selected.size); // AJOUT
-        e.preventDefault(); // AJOUT
-        await CheckoutFlow.initiate();
-      });
-      console.log('[EventHandlers] Buy button listener attached'); // AJOUT
-    } else {
-      console.error('[EventHandlers] Buy button NOT FOUND!'); // AJOUT
-    }
-    
-    // Back button
-   // Back button
-if (DOM.backToGrid) {
-  DOM.backToGrid.addEventListener('click', () => {
-    // Vérifier si les locks sont toujours valides et qu'il n'y a pas d'erreur
-    const isExpiredOrError = DOM.proceedToPayment && DOM.proceedToPayment.disabled;
-    
-    if (isExpiredOrError) {
-      // Pas de confirmation si expiré ou erreur, retour direct
-      ViewManager.returnToGrid();
-    } else {
-      // Demander confirmation seulement si les locks sont actifs
-      if (confirm('Are you sure? Your selection will be lost.')) {
-        ViewManager.returnToGrid();
+  const EventHandlers = {
+    init() {
+      console.log('[EventHandlers] Initializing');
+      
+      // Buy button
+      if (DOM.buyBtn) {
+        DOM.buyBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          console.log('[EventHandlers] Buy clicked');
+          await CheckoutFlow.initiate();
+        });
       }
-    }
-  });
-  console.log('[EventHandlers] Back button listener attached');
-}
-    
-    // Form submit
-    if (DOM.checkoutForm) {
-      DOM.checkoutForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await CheckoutFlow.processForm();
-      });
-      console.log('[EventHandlers] Form submit listener attached'); // AJOUT
-    }
-    // ⭐ AJOUTER ICI - Continue to Payment button
-if (DOM.proceedToPayment) {
-  DOM.proceedToPayment.addEventListener('click', () => {
-   // Réinitialiser SEULEMENT le compteur visuel
-    if (AppState.checkoutStep === 1) {
-      console.log('[EventHandlers] Resetting countdown on payment button click');
-      ViewManager.startLockTimer(); // Redémarre à 3:00
-    }
-  });
-  console.log('[EventHandlers] Continue to Payment button listener attached');
-}
-    
-    // View success pixels
-    const viewPixelsBtn = document.getElementById('viewMyPixels');
-    if (viewPixelsBtn) {
-      viewPixelsBtn.addEventListener('click', () => {
-        ViewManager.returnToGrid();
-      });
-      console.log('[EventHandlers] View pixels button listener attached'); // AJOUT
-    }
-    
-    // Escape key
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && AppState.view === 'checkout') {
-        if (confirm('Exit checkout? Your reservation will be cancelled.')) {
+      
+      // Back button
+      if (DOM.backToGrid) {
+        DOM.backToGrid.addEventListener('click', () => {
+          const isExpired = DOM.proceedToPayment?.disabled;
+          
+          if (isExpired) {
+            ViewManager.returnToGrid();
+          } else {
+            if (confirm('Are you sure? Your selection will be lost.')) {
+              ViewManager.returnToGrid();
+            }
+          }
+        });
+      }
+      
+      // Form submit
+      if (DOM.checkoutForm) {
+        DOM.checkoutForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          await CheckoutFlow.processForm();
+        });
+      }
+      
+      // Continue to Payment - redémarre le timer visuel
+      if (DOM.proceedToPayment) {
+        DOM.proceedToPayment.addEventListener('click', () => {
+          if (AppState.checkoutStep === 1) {
+            console.log('[EventHandlers] Resetting countdown on payment transition');
+            // Le timer sera redémarré automatiquement par setCheckoutStep(2)
+          }
+        });
+      }
+      
+      // View pixels button
+      const viewPixelsBtn = document.getElementById('viewMyPixels');
+      if (viewPixelsBtn) {
+        viewPixelsBtn.addEventListener('click', () => {
           ViewManager.returnToGrid();
-        }
+        });
       }
-    });
-    console.log('[EventHandlers] Keyboard listener attached'); // AJOUT
-    
-    console.log('[EventHandlers] All listeners initialized'); // AJOUT
-  }
-};
-
-  // ===== INITIALIZATION =====
-// ===== INITIALIZATION =====
-async function init() {
-  console.log('[App] Initializing refactored version...');
-  
-  // Initialiser DOM ici quand le document est prêt
-  // assign to shared DOM object so all modules use the same references
-  DOM = {
-    // Views
-    mainContainer: document.getElementById('mainContainer'),
-    gridView: document.getElementById('gridView'),
-    checkoutView: document.getElementById('checkoutView'),
-    
-    // Grid
-    grid: document.getElementById('grid'),
-    buyBtn: document.getElementById('buyBtn'),
-    priceLine: document.getElementById('priceLine'),
-    pixelsLeft: document.getElementById('pixelsLeft'),
-    selectionInfo: document.getElementById('selectionInfo'),
-    warningMessage: document.getElementById('warningMessage'),
-    
-    // Checkout
-    checkoutForm: document.getElementById('checkoutForm'),
-    nameInput: document.getElementById('name'),
-    linkInput: document.getElementById('link'),
-    imageInput: document.getElementById('image'),
-    imagePreview: document.getElementById('imagePreview'),
-    
-    // Summary
-    summaryPixels: document.getElementById('summaryPixels'),
-    summaryPrice: document.getElementById('summaryPrice'),
-    summaryTotal: document.getElementById('summaryTotal'),
-    timerValue: document.getElementById('timerValue'),
-    pixelPreview: document.getElementById('pixelPreview'),
-    
-    // Buttons
-    backToGrid: document.getElementById('backToGrid'),
-    proceedToPayment: document.getElementById('proceedToPayment'),
-    
-    // Steps
-    steps: {
-      1: document.getElementById('step1'),
-      2: document.getElementById('step2'),
-      3: document.getElementById('step3')
-    },
-    progressSteps: document.querySelectorAll('.progress-step')
+      
+      // Escape key
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && AppState.view === 'checkout') {
+          if (confirm('Exit checkout? Your reservation will be cancelled.')) {
+            ViewManager.returnToGrid();
+          }
+        }
+      });
+      
+      console.log('[EventHandlers] All listeners initialized');
+    }
   };
-  console.log('[App] DOM.checkoutView:', DOM.checkoutView); // DEBUG
-  // Initialize grid
-  GridManager.init();
-  
-  // Initialize image upload
-  ImageUpload.init();
-  
-  // Initialize event handlers
-  EventHandlers.init();
-  
-  // Load initial status
-  await StatusManager.load();
-  GridManager.paintAll();
-  
-  // Start polling
-  StatusManager.startPolling();
-  
-  // Expose global functions for compatibility et débogage
-  window.ImageUpload = ImageUpload;
-  window.getSelectedIndices = () => Array.from(AppState.selected);
-  window.renderRegions = renderRegions;
-  
-  // AJOUT pour débogage
-  window.AppDebug = {
-    AppState,
-    ViewManager,
-    GridManager,
-    CheckoutFlow,
-    StatusManager
-  };
-  
-  console.log('[App] Initialization complete');
-}
 
   // ===== REGIONS RENDERING =====
   function renderRegions() {
@@ -1217,11 +1442,90 @@ async function init() {
     gridEl.style.zIndex = 2;
   }
 
+  // ===== INITIALIZATION =====
+  async function init() {
+    console.log('[App] Initializing unified version with full lock logic');
+    
+    // Initialize DOM references
+    DOM = {
+      // Views
+      mainContainer: document.getElementById('mainContainer'),
+      gridView: document.getElementById('gridView'),
+      checkoutView: document.getElementById('checkoutView'),
+      
+      // Grid
+      grid: document.getElementById('grid'),
+      buyBtn: document.getElementById('buyBtn'),
+      priceLine: document.getElementById('priceLine'),
+      pixelsLeft: document.getElementById('pixelsLeft'),
+      selectionInfo: document.getElementById('selectionInfo'),
+      warningMessage: document.getElementById('warningMessage'),
+      
+      // Checkout
+      checkoutForm: document.getElementById('checkoutForm'),
+      nameInput: document.getElementById('name'),
+      linkInput: document.getElementById('link'),
+      imageInput: document.getElementById('image'),
+      imagePreview: document.getElementById('imagePreview'),
+      
+      // Summary
+      summaryPixels: document.getElementById('summaryPixels'),
+      summaryPrice: document.getElementById('summaryPrice'),
+      summaryTotal: document.getElementById('summaryTotal'),
+      timerValue: document.getElementById('timerValue'),
+      pixelPreview: document.getElementById('pixelPreview'),
+      
+      // Buttons
+      backToGrid: document.getElementById('backToGrid'),
+      proceedToPayment: document.getElementById('proceedToPayment'),
+      
+      // Steps
+      steps: {
+        1: document.getElementById('step1'),
+        2: document.getElementById('step2'),
+        3: document.getElementById('step3')
+      },
+      progressSteps: document.querySelectorAll('.progress-step')
+    };
+    
+    // Initialize modules
+    GridManager.init();
+    ImageUpload.init();
+    EventHandlers.init();
+    
+    // Load status
+    await StatusManager.load();
+    GridManager.paintAll();
+    
+    // Start polling
+    StatusManager.startPolling();
+    
+    // Expose global APIs
+    window.ImageUpload = ImageUpload;
+    window.getSelectedIndices = () => Array.from(AppState.selected);
+    window.renderRegions = renderRegions;
+    window.reservedTotal = 0; // Compat
+    window.reservedPrice = 0; // Compat
+    
+    // Debug API
+    window.AppDebug = {
+      AppState,
+      ViewManager,
+      GridManager,
+      CheckoutFlow,
+      StatusManager,
+      pauseHeartbeat,
+      resumeHeartbeat,
+      haveMyValidLocks
+    };
+    
+    console.log('[App] Initialization complete');
+  }
+
   // Start app
-  //init();
   if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();
