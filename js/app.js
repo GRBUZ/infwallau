@@ -47,8 +47,7 @@ function haveMyValidLocks(arr, graceMs = 2000) {
     },
     
     // Timer state
-    lockTimer: null,
-    lockExpiry: null
+    lockTimer: null
   };
 
   // ===== DOM REFERENCES =====
@@ -104,6 +103,7 @@ else if (view === 'checkout') {
   });
 
   this.startLockTimer();
+  this.startLockMonitoring(1200); // Monitoring des locks
   this.updateSummary();
 // Scroller tout en haut de la page
 // IMPORTANT : Scroller EN DERNIER, après tout le reste
@@ -185,40 +185,47 @@ clearCheckoutForm() {
       `;
     },
     
-startLockTimer(warmupMs = 1200) {
-  console.log('[ViewManager] Starting lock timer'); // DEBUG
+startLockTimer() {
+  console.log('[ViewManager] Starting simple 3-minute countdown'); // DEBUG
   
-  // TOUJOURS arrêter l'ancien timer d'abord
-  this.stopLockTimer();
-  
-  // Définir la nouvelle expiration (3 minutes)
-  AppState.lockExpiry = Date.now() + 180000;
-  
-  // Réinitialiser le bouton
-  if (DOM.proceedToPayment) {
-    DOM.proceedToPayment.disabled = false;
-    DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+  // Arrêter le timer précédent
+  if (AppState.lockTimer) {
+    clearInterval(AppState.lockTimer);
+    AppState.lockTimer = null;
   }
-  this.setPayPalEnabled(true);
   
-  // ===== TIMER VISUEL SIMPLE (juste un décompte, rien d'autre) =====
-  const updateVisualTimer = () => {
-    if (!AppState.lockExpiry) return; // Sécurité
-    
-    const remaining = Math.max(0, AppState.lockExpiry - Date.now());
-    const minutes = Math.floor(remaining / 60000);
-    const seconds = Math.floor((remaining % 60000) / 1000);
+  // Compteur simple : 180 secondes (3 minutes)
+  let secondsRemaining = 180;
+  
+  // Fonction pour afficher le temps
+  const updateDisplay = () => {
+    const minutes = Math.floor(secondsRemaining / 60);
+    const seconds = secondsRemaining % 60;
     
     if (DOM.timerValue) {
       DOM.timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
+    
+    // Décrémenter
+    secondsRemaining--;
+    
+    // Arrêter quand on arrive à 0
+    if (secondsRemaining < 0) {
+      clearInterval(AppState.lockTimer);
+      AppState.lockTimer = null;
+      if (DOM.timerValue) {
+        DOM.timerValue.textContent = '0:00';
+      }
+    }
   };
   
-  // Démarrer le timer visuel immédiatement (chaque seconde)
-  updateVisualTimer();
-  AppState.lockTimer = setInterval(updateVisualTimer, 1000);
+  // Afficher immédiatement
+  updateDisplay();
   
-  console.log('[ViewManager] Visual timer started'); // DEBUG
+  // Mettre à jour chaque seconde
+  AppState.lockTimer = setInterval(updateDisplay, 1000);
+  
+  console.log('[ViewManager] Simple countdown started'); // DEBUG
 },
 
 updateLockTimerDisplay() {
@@ -251,11 +258,58 @@ updateLockTimerDisplay() {
   DOM.timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 },
     
+startLockMonitoring(warmupMs = 1200) {
+  console.log('[ViewManager] Starting lock monitoring'); // DEBUG
+  
+  // Arrêter le monitoring précédent
+  if (AppState.lockCheckTimeout) {
+    clearTimeout(AppState.lockCheckTimeout);
+    AppState.lockCheckTimeout = null;
+  }
+  if (AppState.lockCheckInterval) {
+    clearInterval(AppState.lockCheckInterval);
+    AppState.lockCheckInterval = null;
+  }
+  
+  const checkLocks = () => {
+    // Ne pas vérifier si on est en train de processer un paiement
+    if (DOM.proceedToPayment && DOM.proceedToPayment.textContent === 'Processing…') {
+      return;
+    }
+    
+    const blocks = AppState.orderData.blocks;
+    if (!blocks || !blocks.length) return;
+    
+    const ok = haveMyValidLocks(blocks, 5000);
+    
+    if (DOM.proceedToPayment) {
+      DOM.proceedToPayment.disabled = !ok;
+      if (!ok) {
+        DOM.proceedToPayment.textContent = '⏰ Reservation expired - reselect';
+      }
+    }
+    this.setPayPalEnabled(ok);
+    
+    if (!ok && blocks && blocks.length) {
+      window.LockManager.heartbeat.stop();
+    }
+  };
+  
+  AppState.lockCheckTimeout = setTimeout(() => {
+    checkLocks();
+    AppState.lockCheckInterval = setInterval(checkLocks, 5000);
+  }, Math.max(0, warmupMs | 0));
+  
+  console.log('[ViewManager] Lock monitoring started'); // DEBUG
+},
    stopLockTimer() {
+  console.log('[ViewManager] Stopping countdown'); // DEBUG
+  
   if (AppState.lockTimer) {
     clearInterval(AppState.lockTimer);
     AppState.lockTimer = null;
   }
+  
   if (AppState.lockCheckTimeout) {
     clearTimeout(AppState.lockCheckTimeout);
     AppState.lockCheckTimeout = null;
@@ -918,10 +972,10 @@ if (DOM.backToGrid) {
     // ⭐ AJOUTER ICI - Continue to Payment button
 if (DOM.proceedToPayment) {
   DOM.proceedToPayment.addEventListener('click', () => {
-    // Réinitialiser le timer à 3 minutes quand on clique sur "Continue to Payment"
+   // Réinitialiser SEULEMENT le compteur visuel
     if (AppState.checkoutStep === 1) {
-      console.log('[EventHandlers] Resetting timer on payment button click');
-      ViewManager.startLockTimer(0); // Redémarrer à 3 minutes
+      console.log('[EventHandlers] Resetting countdown on payment button click');
+      ViewManager.startLockTimer(); // Redémarre à 3:00
     }
   });
   console.log('[EventHandlers] Continue to Payment button listener attached');
