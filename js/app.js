@@ -58,6 +58,8 @@ function haveMyValidLocks(arr, graceMs = 2000) {
   // ===== VIEW MANAGEMENT =====
   const ViewManager = {
     switchTo(view) {
+      console.log('[ViewManager] Switching to:', view);
+  console.log('[ViewManager] Current scroll position:', window.scrollY);
   AppState.view = view;
   DOM.mainContainer.dataset.view = view;
 
@@ -85,10 +87,14 @@ function haveMyValidLocks(arr, graceMs = 2000) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 } 
 else if (view === 'checkout') {
-  // IMPORTANT : Scroller IMMÉDIATEMENT avant tout changement de DOM
-  window.scrollTo(0, 0);
-  document.documentElement.scrollTop = 0;
-  document.body.scrollTop = 0;
+  // 1. Scroller AVANT tout changement
+  const scrollToTop = () => {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  };
+  
+  scrollToTop();
   // Masquer la bulle d'info de sélection
   if (DOM.selectionInfo) {
     DOM.selectionInfo.classList.remove('show');
