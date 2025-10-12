@@ -1366,7 +1366,13 @@ highlightAndScrollToPurchasedPixels(blocks) {
   
   const cellSize = cell.getBoundingClientRect().width;
   
-  // ⭐ CALCULER LA POSITION ABSOLUE DANS LE DOCUMENT
+  // ⭐ RÉCUPÉRER LA HAUTEUR DU HEADER
+  const header = document.querySelector('header') || document.querySelector('.header') || document.getElementById('header');
+  const headerHeight = header ? header.offsetHeight : 0;
+  
+  console.log('[Highlight] Header height:', headerHeight);
+  
+  // Calculer la position absolue dans le document
   const gridRect = DOM.grid.getBoundingClientRect();
   const gridTopInDocument = window.scrollY + gridRect.top;
   
@@ -1376,16 +1382,19 @@ highlightAndScrollToPurchasedPixels(blocks) {
   const highlightTopInDocument = gridTopInDocument + highlightTopInGrid;
   const highlightCenterInDocument = highlightTopInDocument + (highlightHeight / 2);
   
-  // Position de scroll pour centrer le highlight
-  const targetScroll = highlightCenterInDocument - (window.innerHeight / 2);
+  // ⭐ Position de scroll pour centrer le highlight EN TENANT COMPTE DU HEADER
+  const viewportCenter = (window.innerHeight - headerHeight) / 2;
+  const targetScroll = highlightCenterInDocument - viewportCenter - headerHeight;
   
   console.log('[Highlight] Scroll calculation:', {
     minRow,
     maxRow,
     cellSize,
+    headerHeight,
     gridTopInDocument,
     highlightTopInDocument,
     highlightCenterInDocument,
+    viewportCenter,
     targetScroll,
     currentScroll: window.scrollY,
     windowHeight: window.innerHeight
