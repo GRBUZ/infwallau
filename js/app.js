@@ -228,7 +228,7 @@ startLockTimer() {
   console.log('[ViewManager] Simple countdown started'); // DEBUG
 },
     
-startLockMonitoring(warmupMs = 1200) {
+/*startLockMonitoring(warmupMs = 1200) {
   console.log('[ViewManager] Starting lock monitoring'); // DEBUG
   
   // Arrêter le monitoring précédent
@@ -271,7 +271,65 @@ startLockMonitoring(warmupMs = 1200) {
   }, Math.max(0, warmupMs | 0));
   
   console.log('[ViewManager] Lock monitoring started'); // DEBUG
+},*/
+
+startLockMonitoring(warmupMs = 1200) {
+  console.log('[ViewManager] Starting lock monitoring'); // DEBUG
+  
+  // Arrêter le monitoring précédent
+  if (AppState.lockCheckTimeout) {
+    clearTimeout(AppState.lockCheckTimeout);
+    AppState.lockCheckTimeout = null;
+  }
+  if (AppState.lockCheckInterval) {
+    clearInterval(AppState.lockCheckInterval);
+    AppState.lockCheckInterval = null;
+  }
+  
+  const checkLocks = () => {
+    // Ne pas vérifier si on est en train de processer un paiement
+    if (DOM.proceedToPayment && DOM.proceedToPayment.textContent === 'Processing…') {
+      return;
+    }
+    
+    const blocks = AppState.orderData.blocks;
+    if (!blocks || !blocks.length) return;
+    
+    const ok = haveMyValidLocks(blocks, 5000);
+    
+    console.log('[ViewManager] Lock check result:', ok); // DEBUG
+    
+    if (DOM.proceedToPayment) {
+      DOM.proceedToPayment.disabled = !ok;
+      if (!ok) {
+        DOM.proceedToPayment.textContent = '⏰ Reservation expired - reselect';
+        console.log('[ViewManager] Button updated to expired'); // DEBUG
+      } else {
+        // Remettre le texte normal si les locks redeviennent valides
+        if (DOM.proceedToPayment.textContent !== '💳 Continue to Payment') {
+          DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+        }
+      }
+    }
+    this.setPayPalEnabled(ok);
+    
+    if (!ok && blocks && blocks.length) {
+      window.LockManager.heartbeat.stop();
+      console.log('[ViewManager] Heartbeat stopped due to invalid locks'); // DEBUG
+    }
+  };
+  
+  // Démarrer la vérification après warmup, puis toutes les 5 secondes
+  AppState.lockCheckTimeout = setTimeout(() => {
+    console.log('[ViewManager] Lock monitoring warmup complete, starting checks'); // DEBUG
+    checkLocks(); // Premier check
+    AppState.lockCheckInterval = setInterval(checkLocks, 5000); // Checks répétés
+  }, Math.max(0, warmupMs | 0));
+  
+  console.log('[ViewManager] Lock monitoring scheduled with warmup:', warmupMs); // DEBUG
 },
+
+
    stopLockTimer() {
   console.log('[ViewManager] Stopping countdown'); // DEBUG
   
