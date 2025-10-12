@@ -827,7 +827,7 @@ if (DOM.proceedToPayment) {
   onCancel: () => {
     console.log('[PayPal] Payment cancelled');
     resumeHeartbeat();
-    ViewManager.setCheckoutStep(1);
+    ViewManager.setCheckoutStep(2);
   },
 
   onError: async (err) => {
