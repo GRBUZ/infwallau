@@ -85,6 +85,10 @@ function haveMyValidLocks(arr, graceMs = 2000) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 } 
 else if (view === 'checkout') {
+  // IMPORTANT : Scroller IMMÉDIATEMENT avant tout changement de DOM
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
   // Masquer la bulle d'info de sélection
   if (DOM.selectionInfo) {
     DOM.selectionInfo.classList.remove('show');
