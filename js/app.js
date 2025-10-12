@@ -227,36 +227,6 @@ startLockTimer() {
   
   console.log('[ViewManager] Simple countdown started'); // DEBUG
 },
-
-updateLockTimerDisplay() {
-  if (!DOM.timerValue) return;
-  
-  const blocks = AppState.orderData.blocks;
-  if (!blocks || !blocks.length) {
-    DOM.timerValue.textContent = '0:00';
-    return;
-  }
-  
-  // Trouver le lock qui expire le plus tôt
-  let minExpiry = Infinity;
-  for (const idx of blocks) {
-    const lock = AppState.locks[String(idx)];
-    if (lock && lock.uid === uid && lock.until) {
-      minExpiry = Math.min(minExpiry, lock.until);
-    }
-  }
-  
-  if (!isFinite(minExpiry)) {
-    DOM.timerValue.textContent = '0:00';
-    return;
-  }
-  
-  const remaining = Math.max(0, minExpiry - Date.now());
-  const minutes = Math.floor(remaining / 60000);
-  const seconds = Math.floor((remaining % 60000) / 1000);
-  
-  DOM.timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-},
     
 startLockMonitoring(warmupMs = 1200) {
   console.log('[ViewManager] Starting lock monitoring'); // DEBUG
@@ -891,10 +861,6 @@ DOM.imagePreview.addEventListener('drop', e => {
         
         AppState.sold = response.sold || {};
         AppState.locks = window.LockManager.merge(response.locks || {});
-        // Mettre à jour l'affichage du timer si on est en checkout
-if (AppState.view === 'checkout' && ViewManager.updateLockTimerDisplay) {
-  ViewManager.updateLockTimerDisplay();
-}
         AppState.regions = response.regions || {};
         
         if (response.currentPrice) {
