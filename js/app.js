@@ -1606,13 +1606,12 @@
           if (isExpired) {
             ViewManager.returnToGrid();
           } else {
-            const confirmed = await Modal.confirm(
+            Modal.confirm(
               'Your reservation will be cancelled and pixels will be released.',
               'Exit checkout?'
-            );
-            if (confirmed) {
-              ViewManager.returnToGrid();
-            }
+            ).then(confirmed => {
+              if (confirmed) { ViewManager.returnToGrid();}
+            });
           }
         });
       }
