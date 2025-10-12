@@ -55,6 +55,262 @@
     }
     return true;
   }
+   // ===== TOAST NOTIFICATION SYSTEM =====
+  const Toast = {
+    container: null,
+    
+    init() {
+      if (this.container) return;
+      
+      this.container = document.createElement('div');
+      this.container.id = 'toast-container';
+      this.container.style.cssText = `
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        pointer-events: none;
+      `;
+      document.body.appendChild(this.container);
+    },
+    
+    show(message, type = 'info', duration = 4000) {
+      this.init();
+      
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      
+      const icons = {
+        success: '✓',
+        error: '✕',
+        warning: '⚠',
+        info: 'ℹ'
+      };
+      
+      const colors = {
+        success: { bg: '#10b981', border: '#059669' },
+        error: { bg: '#ef4444', border: '#dc2626' },
+        warning: { bg: '#f59e0b', border: '#d97706' },
+        info: { bg: '#3b82f6', border: '#2563eb' }
+      };
+      
+      const color = colors[type] || colors.info;
+      
+      toast.style.cssText = `
+        background: ${color.bg};
+        color: white;
+        padding: 16px 20px;
+        border-radius: 12px;
+        border-left: 4px solid ${color.border};
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2), 0 4px 10px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 320px;
+        max-width: 500px;
+        font-size: 14px;
+        font-weight: 500;
+        pointer-events: auto;
+        cursor: pointer;
+        transform: translateX(400px);
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      `;
+      
+      toast.innerHTML = `
+        <span style="font-size: 20px; font-weight: 600; flex-shrink: 0;">${icons[type]}</span>
+        <span style="flex: 1; line-height: 1.4;">${message}</span>
+        <button style="
+          background: rgba(255,255,255,0.2);
+          border: none;
+          color: white;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18px;
+          flex-shrink: 0;
+          transition: background 0.2s;
+        " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">×</button>
+      `;
+      
+      const closeBtn = toast.querySelector('button');
+      const close = () => {
+        toast.style.transform = 'translateX(400px)';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      };
+      
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        close();
+      });
+      
+      toast.addEventListener('click', close);
+      
+      this.container.appendChild(toast);
+      
+      // Animate in
+      requestAnimationFrame(() => {
+        toast.style.transform = 'translateX(0)';
+        toast.style.opacity = '1';
+      });
+      
+      // Auto remove
+      if (duration > 0) {
+        setTimeout(close, duration);
+      }
+    },
+    
+    success(message, duration) {
+      this.show(message, 'success', duration);
+    },
+    
+    error(message, duration) {
+      this.show(message, 'error', duration);
+    },
+    
+    warning(message, duration) {
+      this.show(message, 'warning', duration);
+    },
+    
+    info(message, duration) {
+      this.show(message, 'info', duration);
+    }
+  };
+
+  // ===== MODAL CONFIRMATION SYSTEM =====
+  const Modal = {
+    show(options) {
+      return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.6);
+          backdrop-filter: blur(4px);
+          z-index: 9999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          transition: opacity 0.2s;
+        `;
+        
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+          background: white;
+          border-radius: 16px;
+          padding: 28px;
+          max-width: 440px;
+          width: 90%;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+          transform: scale(0.9);
+          transition: transform 0.2s;
+        `;
+        
+        const title = options.title || 'Confirm';
+        const message = options.message || 'Are you sure?';
+        const confirmText = options.confirmText || 'Confirm';
+        const cancelText = options.cancelText || 'Cancel';
+        const type = options.type || 'warning'; // 'warning' | 'danger' | 'info'
+        
+        const colors = {
+          warning: '#f59e0b',
+          danger: '#ef4444',
+          info: '#3b82f6'
+        };
+        
+        modal.innerHTML = `
+          <h3 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 600; color: #111827;">${title}</h3>
+          <p style="margin: 0 0 24px 0; color: #6b7280; line-height: 1.6; font-size: 15px;">${message}</p>
+          <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button id="modal-cancel" style="
+              padding: 10px 20px;
+              border: 2px solid #e5e7eb;
+              background: white;
+              color: #374151;
+              border-radius: 8px;
+              font-size: 14px;
+              font-weight: 600;
+              cursor: pointer;
+              transition: all 0.2s;
+            ">${cancelText}</button>
+            <button id="modal-confirm" style="
+              padding: 10px 20px;
+              border: none;
+              background: ${colors[type]};
+              color: white;
+              border-radius: 8px;
+              font-size: 14px;
+              font-weight: 600;
+              cursor: pointer;
+              transition: all 0.2s;
+            ">${confirmText}</button>
+          </div>
+        `;
+        
+        const confirmBtn = modal.querySelector('#modal-confirm');
+        const cancelBtn = modal.querySelector('#modal-cancel');
+        
+        confirmBtn.addEventListener('mouseover', () => {
+          confirmBtn.style.transform = 'translateY(-2px)';
+          confirmBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        });
+        confirmBtn.addEventListener('mouseout', () => {
+          confirmBtn.style.transform = '';
+          confirmBtn.style.boxShadow = '';
+        });
+        
+        cancelBtn.addEventListener('mouseover', () => {
+          cancelBtn.style.background = '#f3f4f6';
+        });
+        cancelBtn.addEventListener('mouseout', () => {
+          cancelBtn.style.background = 'white';
+        });
+        
+        const close = (result) => {
+          overlay.style.opacity = '0';
+          modal.style.transform = 'scale(0.9)';
+          setTimeout(() => {
+            overlay.remove();
+            resolve(result);
+          }, 200);
+        };
+        
+        confirmBtn.addEventListener('click', () => close(true));
+        cancelBtn.addEventListener('click', () => close(false));
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) close(false);
+        });
+        
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        
+        requestAnimationFrame(() => {
+          overlay.style.opacity = '1';
+          modal.style.transform = 'scale(1)';
+        });
+      });
+    },
+    
+    confirm(message, title = 'Confirm') {
+      return this.show({ message, title, type: 'warning' });
+    },
+    
+    danger(message, title = 'Warning') {
+      return this.show({ message, title, type: 'danger', confirmText: 'Yes, continue' });
+    }
+  };
 
   // ===== STATE MANAGEMENT =====
   const AppState = {
@@ -240,7 +496,11 @@
         const seconds = Math.max(0, secondsRemaining % 60);
 
         if (DOM.timerValue) {
-          DOM.timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+          if (secondsRemaining > 0) {
+            DOM.timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+          } else {
+            DOM.timerValue.textContent = 'Reservation expired 😱';
+          }
         }
 
         if (secondsRemaining <= 0) {
@@ -699,7 +959,8 @@
       
       const blocks = Array.from(AppState.selected);
       if (!blocks.length) {
-        this.showWarning('Please select pixels first!');
+        //this.showWarning('Please select pixels first!');
+        Toast.warning('Please select pixels first!');
         return;
       }
       
@@ -749,7 +1010,7 @@
         
       } catch (e) {
         console.error('[Checkout] Failed:', e);
-        alert('Failed to reserve pixels. Please try again.');
+        Toast.error('Failed to reserve pixels. Please try again.');
       }
     },
     
@@ -760,13 +1021,15 @@
       const linkUrl = this.normalizeUrl(DOM.linkInput.value);
       
       if (!name || !linkUrl) {
-        this.showWarning('Please fill in all required fields');
+        //this.showWarning('Please fill in all required fields');
+        Toast.warning('Please fill in all required fields');
         return;
       }
       
       // Vérifier upload image
       if (!AppState.uploadedImageCache || !AppState.uploadedImageCache.imageUrl) {
-        this.showWarning('Please upload an image');
+        //this.showWarning('Please upload an image');
+        Toast.warning('Please upload an image');
         return;
       }
       
@@ -831,7 +1094,7 @@
 
       } catch (e) {
         console.error('[Order] Failed:', e);
-        alert('Failed to process order: ' + (e.message || e));
+        Toast.error('Failed to process order: ' + (e.message || e));
       } finally {
         resumeHeartbeat();
       }
@@ -959,6 +1222,7 @@
 
             // Succès complet
             console.log('[PayPal] Order completed successfully');
+            Toast.success('Payment successful! Your spot is now live! 🎉', 5000);
             ViewManager.setCheckoutStep(3);
             
             // Cleanup
@@ -973,7 +1237,7 @@
 
           } catch (e) {
             console.error('[Payment] Failed:', e);
-            alert('Payment failed: ' + (e.message || 'Unknown error'));
+            Toast.error('Payment failed: ' + (e.message || 'Unknown error'));
             ViewManager.setPayPalEnabled(false);
             try { window.LockManager.heartbeat.stop(); } catch (ex) {}
           }
@@ -984,8 +1248,8 @@
           
           // NE PAS stopper heartbeat - permettre retry
           ViewManager.setPayPalEnabled(true);
-          this.showWarning('Payment cancelled. You can retry or go back.');
-          
+          //this.showWarning('Payment cancelled. You can retry or go back.');
+          Toast.info('Payment cancelled. You can retry or go back.');
           resumeHeartbeat();
         },
 
@@ -995,8 +1259,8 @@
           pauseHeartbeat();
           ViewManager.setPayPalEnabled(false);
           
-          this.showWarning('Payment error occurred. Please try again or contact support.');
-          
+          //this.showWarning('Payment error occurred. Please try again or contact support.');
+          Toast.error('Payment error occurred. Please try again.');
           // Stopper heartbeat et unlock
           try { window.LockManager.heartbeat.stop(); } catch (e) {}
           try { 
@@ -1147,6 +1411,7 @@
           console.error('[Upload] Failed:', error);
           AppState.uploadedImageCache = null;
           DOM.imagePreview.innerHTML = '<span class="error" style="color: #ef4444;">Upload failed. Please try again.</span>';
+          Toast.error('Image upload failed: ' + (error.message || 'Unknown error'));
         }
       });
       
