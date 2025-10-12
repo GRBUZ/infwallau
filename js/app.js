@@ -1333,7 +1333,7 @@
   // ⭐ HIGHLIGHT les pixels achetés
   setTimeout(() => {
     this.highlightPurchasedPixels(purchasedBlocks);
-  }, 600); // Attendre la transition de vue
+  }, 1000); // Attendre la transition de vue
 },
 
 highlightPurchasedPixels(blocks) {
@@ -1344,7 +1344,8 @@ highlightPurchasedPixels(blocks) {
   const maxRow = Math.max(...blocks.map(i => Math.floor(i / 100)));
   const minCol = Math.min(...blocks.map(i => i % 100));
   const maxCol = Math.max(...blocks.map(i => i % 100));
-  
+  // ⭐ FORCER UN REFLOW avant de lire les positions
+  DOM.grid.offsetHeight;
   const cell = DOM.grid.children[0];
   const cellSize = cell.getBoundingClientRect().width;
   
