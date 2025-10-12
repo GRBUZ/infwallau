@@ -1366,55 +1366,43 @@ highlightAndScrollToPurchasedPixels(blocks) {
   
   const cellSize = cell.getBoundingClientRect().width;
   
-  // ⭐ RÉCUPÉRER LA HAUTEUR DU HEADER
-  const header = document.querySelector('header') || document.querySelector('.header') || document.getElementById('header');
-  const headerHeight = header ? header.offsetHeight : 0;
+  // ⭐ MÉTHODE ULTRA SIMPLE : Position absolue du premier pixel acheté
+  const firstPurchasedCell = DOM.grid.children[blocks[0]];
+  if (!firstPurchasedCell) {
+    console.error('[Highlight] First purchased cell not found!');
+    return;
+  }
   
-  console.log('[Highlight] Header height:', headerHeight);
+  // Position absolue dans le document
+  const cellRect = firstPurchasedCell.getBoundingClientRect();
+  const cellTopInDocument = window.scrollY + cellRect.top;
   
-  // Calculer la position absolue dans le document
-  const gridRect = DOM.grid.getBoundingClientRect();
-  const gridTopInDocument = window.scrollY + gridRect.top;
+  // Scroll avec un offset de 150px pour voir le highlight au-dessus
+  const targetScroll = cellTopInDocument - 150;
   
-  const highlightTopInGrid = minRow * cellSize;
-  const highlightHeight = (maxRow - minRow + 1) * cellSize;
-  
-  const highlightTopInDocument = gridTopInDocument + highlightTopInGrid;
-  const highlightCenterInDocument = highlightTopInDocument + (highlightHeight / 2);
-  
-  // ⭐ Position de scroll pour centrer le highlight EN TENANT COMPTE DU HEADER
-  const viewportCenter = (window.innerHeight - headerHeight) / 2;
-  const targetScroll = highlightCenterInDocument - viewportCenter - headerHeight;
-  
-  console.log('[Highlight] Scroll calculation:', {
+  console.log('[Highlight] SIMPLE scroll calculation:', {
+    firstBlock: blocks[0],
     minRow,
-    maxRow,
-    cellSize,
-    headerHeight,
-    gridTopInDocument,
-    highlightTopInDocument,
-    highlightCenterInDocument,
-    viewportCenter,
+    cellTopInDocument,
     targetScroll,
-    currentScroll: window.scrollY,
-    windowHeight: window.innerHeight
+    currentScroll: window.scrollY
   });
   
-  // ⭐ SCROLL D'ABORD
+  // Scroll
   window.scrollTo({
     top: Math.max(0, targetScroll),
     behavior: 'smooth'
   });
   
-  // ⭐ CRÉER LE HIGHLIGHT APRÈS LE SCROLL (500ms)
+  // Créer le highlight après 500ms
   setTimeout(() => {
     const highlight = document.createElement('div');
     highlight.style.cssText = `
       position: absolute;
       left: ${minCol * cellSize}px;
-      top: ${highlightTopInGrid}px;
+      top: ${minRow * cellSize}px;
       width: ${(maxCol - minCol + 1) * cellSize}px;
-      height: ${highlightHeight}px;
+      height: ${(maxRow - minRow + 1) * cellSize}px;
       border: 4px solid #10b981;
       background: rgba(16, 185, 129, 0.15);
       box-shadow: 0 0 30px rgba(16, 185, 129, 0.6), inset 0 0 30px rgba(16, 185, 129, 0.2);
@@ -1424,7 +1412,6 @@ highlightAndScrollToPurchasedPixels(blocks) {
       animation: highlightPulse 2s ease-in-out 3;
     `;
     
-    // Ajouter l'animation CSS
     if (!document.getElementById('highlight-pulse-style')) {
       const style = document.createElement('style');
       style.id = 'highlight-pulse-style';
@@ -1446,7 +1433,6 @@ highlightAndScrollToPurchasedPixels(blocks) {
     DOM.grid.appendChild(highlight);
     console.log('[Highlight] Overlay created!');
     
-    // Retirer après 6 secondes
     setTimeout(() => {
       highlight.style.opacity = '0';
       highlight.style.transition = 'opacity 0.5s';
