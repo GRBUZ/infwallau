@@ -1346,10 +1346,42 @@ highlightPurchasedPixels(blocks) {
   const maxCol = Math.max(...blocks.map(i => i % 100));
   // ⭐ FORCER UN REFLOW avant de lire les positions
   DOM.grid.offsetHeight;
+
   const cell = DOM.grid.children[0];
-  const cellSize = cell.getBoundingClientRect().width;
+  if (!cell) {
+    console.error('[Highlight] No cell found');
+    return;
+  }
   
+  const cellSize = cell.getBoundingClientRect().width;
+  console.log('[Highlight] Cell size:', cellSize);
+  
+  // ⭐ SCROLL EN PREMIER, avant de créer le highlight
+  const gridRect = DOM.grid.getBoundingClientRect();
+  const gridTop = window.scrollY + gridRect.top;
+  
+  const highlightAbsoluteTop = gridTop + (minRow * cellSize);
+  const highlightHeight = (maxRow - minRow + 1) * cellSize;
+  const highlightCenter = highlightAbsoluteTop + (highlightHeight / 2);
+  const targetScroll = highlightCenter - (window.innerHeight / 2);
+
+  const highlightAbsoluteBottom = gridTop + ((maxRow + 1) * cellSize);
+
+  console.log('[Highlight] Scrolling to purchased pixels:', {
+    minRow, maxRow,
+    gridTop,
+    highlightTop: highlightAbsoluteTop,
+    targetScroll
+  });
+  
+  window.scrollTo({
+    top: Math.max(0, targetScroll),
+    behavior: 'smooth'
+  });
+
   // Créer l'overlay de highlight
+  // ⭐ CRÉER LE HIGHLIGHT APRÈS UN PETIT DÉLAI (après le début du scroll)
+  setTimeout(() => {
   const highlight = document.createElement('div');
   highlight.style.cssText = `
     position: absolute;
@@ -1387,38 +1419,13 @@ highlightPurchasedPixels(blocks) {
   
   DOM.grid.appendChild(highlight);
   
-  // ⭐ SCROLL AMÉLIORÉ : utiliser la position absolue de la grille
-  const gridRect = DOM.grid.getBoundingClientRect();
-  const gridTop = window.scrollY + gridRect.top;
-  
-  const highlightAbsoluteTop = gridTop + (minRow * cellSize);
-  const highlightAbsoluteBottom = gridTop + ((maxRow + 1) * cellSize);
-  const highlightHeight = (maxRow - minRow + 1) * cellSize;
-  
-  // Calculer le centre du highlight
-  const highlightCenter = highlightAbsoluteTop + (highlightHeight / 2);
-  
-  // Scroll pour centrer le highlight dans le viewport
-  const targetScroll = highlightCenter - (window.innerHeight / 2);
-  
-  console.log('[Highlight] Scrolling to purchased pixels:', {
-    minRow, maxRow,
-    gridTop,
-    highlightTop: highlightAbsoluteTop,
-    targetScroll
-  });
-  
-  window.scrollTo({
-    top: Math.max(0, targetScroll),
-    behavior: 'smooth'
-  });
-  
   // Retirer après 6 secondes (3 pulses × 2s)
   setTimeout(() => {
     highlight.style.opacity = '0';
     highlight.style.transition = 'opacity 0.5s';
     setTimeout(() => highlight.remove(), 500);
   }, 6000);
+  }, 300);
 },
     normalizeUrl(url) {
       url = String(url || '').trim();
