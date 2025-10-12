@@ -1606,7 +1606,11 @@
           if (isExpired) {
             ViewManager.returnToGrid();
           } else {
-            if (confirm('Are you sure? Your selection will be lost.')) {
+            const confirmed = await Modal.confirm(
+              'Your reservation will be cancelled and pixels will be released.',
+              'Exit checkout?'
+            );
+            if (confirmed) {
               ViewManager.returnToGrid();
             }
           }
