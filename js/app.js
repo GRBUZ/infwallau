@@ -22,6 +22,35 @@ function haveMyValidLocks(arr, graceMs = 2000) {
   }
   return true;
 }
+// ===== HEARTBEAT CONTROL =====
+let __processing = false;
+
+function pauseHeartbeat() {
+  if (__processing) return;
+  __processing = true;
+  try { window.LockManager?.heartbeat?.stop?.(); } catch (e) {
+    console.warn('[Heartbeat] pause failed', e);
+  }
+}
+
+function resumeHeartbeat() {
+  if (!__processing) return;
+  __processing = false;
+  try {
+    const sel = AppState.orderData?.blocks || [];
+    if (sel.length) {
+      window.LockManager?.heartbeat?.start?.(sel, 30000, 180000, {
+        maxMs: 180000,
+        autoUnlock: true,
+        requireActivity: true
+      });
+      console.log('[Heartbeat] resumed for', sel.length, 'blocks');
+    }
+  } catch (e) {
+    console.warn('[Heartbeat] resume failed', e);
+  }
+}
+
 
   // ===== STATE MANAGEMENT =====
   const AppState = {
@@ -316,7 +345,10 @@ startLockMonitoring(warmupMs = 1200) {
     if (!ok && blocks && blocks.length) {
       window.LockManager.heartbeat.stop();
       console.log('[ViewManager] Heartbeat stopped due to invalid locks'); // DEBUG
-    }
+    } else if (ok && !__processing) {
+      // si tout est redevenu valide (ex: retour après erreur)
+      resumeHeartbeat();
+}
   };
   
   // Démarrer la vérification après warmup, puis toutes les 5 secondes
@@ -403,6 +435,7 @@ if (DOM.proceedToPayment) {
       // Refresh status
       await StatusManager.load();
       GridManager.paintAll();
+      window.LockManager.heartbeat.stop();
     }
   };
 
@@ -674,11 +707,16 @@ if (DOM.proceedToPayment) {
         
         console.log('[CheckoutFlow] Order data set:', AppState.orderData); // AJOUT
         // Start heartbeat
-        window.LockManager.heartbeat.start(AppState.orderData.blocks, 30000, 180000);
-        
+        window.LockManager.heartbeat.start(AppState.orderData.blocks, 30000, 180000, {
+          maxMs: 180000,
+          autoUnlock: true,
+          requireActivity: true
+        });
         // Switch to checkout view
         console.log('[CheckoutFlow] Switching to checkout view...'); // AJOUT
         ViewManager.switchTo('checkout');
+        ViewManager.startLockMonitoring(1200);
+
         // Ensure checkout is visible (helpful when grid is long)
         //if (DOM && DOM.checkoutView && typeof DOM.checkoutView.scrollIntoView === 'function') {
           //DOM.checkoutView.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -709,7 +747,18 @@ if (DOM.proceedToPayment) {
       AppState.orderData.linkUrl = linkUrl;
       
       // Start order
+     // Vérifier la validité des locks
+      if (!haveMyValidLocks(AppState.orderData.blocks, 1000)) {
+        ViewManager.handleLockExpired();
+        alert('Your reservation expired. Please reselect your pixels.');
+        return;
+      }
+
+      pauseHeartbeat();
       try {
+        // 🔁 Renouveler les locks avant de démarrer l’ordre
+        await window.LockManager.lock(AppState.orderData.blocks, 180000, { optimistic: false });
+
         const response = await apiCall('/start-order', {
           method: 'POST',
           body: JSON.stringify({
@@ -719,23 +768,20 @@ if (DOM.proceedToPayment) {
             imageUrl: AppState.orderData.imageUrl
           })
         });
-        
+
         if (!response.ok) throw new Error(response.error || 'Failed to start order');
-        
+
         AppState.currentOrder = response;
-        
-        // Move to payment step
         ViewManager.setCheckoutStep(2);
-        // Réinitialiser le timer de 3 minutes pour l'étape de paiement
-        //ViewManager.startLockTimer(0); // Pas de warmup, restart immédiat
-        
-        // Initialize PayPal
         await this.initializePayPal();
-        
+
       } catch (e) {
         console.error('[Order] Failed:', e);
         alert('Failed to process order. Please try again.');
+      } finally {
+        resumeHeartbeat();
       }
+
     },
     
     async initializePayPal() {
@@ -744,52 +790,53 @@ if (DOM.proceedToPayment) {
         return;
       }
       
-      await window.PayPalIntegration.initAndRender({
-        orderId: AppState.currentOrder.orderId,
-        currency: AppState.currentOrder.currency || 'USD',
-        
-        onApproved: async (data, actions) => {
-          try {
-            const response = await apiCall('/paypal-capture-finalize', {
-              method: 'POST',
-              body: JSON.stringify({
-                orderId: AppState.currentOrder.orderId,
-                paypalOrderId: data.orderID
-              })
-            });
-            
-            if (!response.ok) throw new Error(response.error || 'Payment failed');
-            
-            // Success!
-            ViewManager.setCheckoutStep(3);
-            window.LockManager.heartbeat.stop();
-            
-            // Refresh grid
-            setTimeout(async () => {
-              await StatusManager.load();
-              GridManager.paintAll();
-            }, 1000);
-            
-          } catch (e) {
-            console.error('[Payment] Failed:', e);
-            alert('Payment processing failed. Please contact support.');
-          }
-        },
-        
-        onCancel: () => {
-          console.log('Payment cancelled');
-        },
-        
-        onError: (err) => {
-          console.error('Payment error:', err);
-          // Désactiver le bouton au lieu d'afficher une alerte
-          if (DOM.proceedToPayment) {
+    await window.PayPalIntegration.initAndRender({
+  orderId: AppState.currentOrder.orderId,
+  currency: AppState.currentOrder.currency || 'USD',
+
+  onApproved: async (data, actions) => {
+    pauseHeartbeat();
+    try {
+      const res = await apiCall('/paypal-capture-finalize', {
+        method: 'POST',
+        body: JSON.stringify({
+          orderId: AppState.currentOrder.orderId,
+          paypalOrderId: data.orderID
+        })
+      });
+
+      if (!res.ok) throw new Error(res.error || 'Payment failed');
+      ViewManager.setCheckoutStep(3);
+      try { await window.LockManager.unlock(AppState.orderData.blocks); } catch {}
+      await StatusManager.load();
+      GridManager.paintAll();
+    } catch (e) {
+      console.error('[Payment] Failed:', e);
+      alert('Payment failed. Please contact support.');
+    } finally {
+      window.LockManager.heartbeat.stop();
+    }
+  },
+
+  onCancel: () => {
+    console.log('[PayPal] Payment cancelled');
+    resumeHeartbeat();
+    ViewManager.setCheckoutStep(1);
+  },
+
+  onError: async (err) => {
+    console.error('[PayPal] Error:', err);
+    pauseHeartbeat();
+    ViewManager.handleLockExpired();
+              if (DOM.proceedToPayment) {
             DOM.proceedToPayment.disabled = true;
             DOM.proceedToPayment.textContent = '❌ Payment failed - please reselect';
           }
           ViewManager.setPayPalEnabled(false);
-        }
-      });
+    //alert('Payment error. Please try again.');
+  }
+});
+
     },
     
     normalizeUrl(url) {
