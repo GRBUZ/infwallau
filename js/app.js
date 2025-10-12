@@ -1386,18 +1386,31 @@ highlightPurchasedPixels(blocks) {
   
   DOM.grid.appendChild(highlight);
   
-  // Scroll vers les pixels (si hors vue)
+  // ⭐ SCROLL AMÉLIORÉ : utiliser la position absolue de la grille
   const gridRect = DOM.grid.getBoundingClientRect();
-  const highlightTop = minRow * cellSize;
-  const highlightBottom = (maxRow + 1) * cellSize;
+  const gridTop = window.scrollY + gridRect.top;
   
-  if (highlightTop < window.scrollY || highlightBottom > window.scrollY + window.innerHeight) {
-    const scrollTarget = highlightTop - (window.innerHeight / 2) + ((maxRow - minRow + 1) * cellSize / 2);
-    window.scrollTo({
-      top: Math.max(0, scrollTarget),
-      behavior: 'smooth'
-    });
-  }
+  const highlightAbsoluteTop = gridTop + (minRow * cellSize);
+  const highlightAbsoluteBottom = gridTop + ((maxRow + 1) * cellSize);
+  const highlightHeight = (maxRow - minRow + 1) * cellSize;
+  
+  // Calculer le centre du highlight
+  const highlightCenter = highlightAbsoluteTop + (highlightHeight / 2);
+  
+  // Scroll pour centrer le highlight dans le viewport
+  const targetScroll = highlightCenter - (window.innerHeight / 2);
+  
+  console.log('[Highlight] Scrolling to purchased pixels:', {
+    minRow, maxRow,
+    gridTop,
+    highlightTop: highlightAbsoluteTop,
+    targetScroll
+  });
+  
+  window.scrollTo({
+    top: Math.max(0, targetScroll),
+    behavior: 'smooth'
+  });
   
   // Retirer après 6 secondes (3 pulses × 2s)
   setTimeout(() => {
