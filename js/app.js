@@ -376,7 +376,11 @@
         });
 
         this.stopAllTimers();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // ⭐ NE PAS scroller en haut si on demande de garder la position
+        if (!options.keepScroll) {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        //window.scrollTo({ top: 0, behavior: 'smooth' });
       } 
       else if (view === 'checkout') {
         // Masquer bulle sélection
