@@ -1312,11 +1312,11 @@
   // Refresh status
   await StatusManager.load();
   
-  // Switch to grid
-  ViewManager.switchTo('grid');
+  // ⭐ Switch to grid SANS scroller en haut
+  ViewManager.switchTo('grid', { keepScroll: true });
   ViewManager.setCheckoutStep(1);
   ViewManager.clearCheckoutForm();
-  
+
   // Reset state
   AppState.orderData = {
     blocks: [],
@@ -1337,55 +1337,26 @@
   // ⭐ HIGHLIGHT les pixels achetés
   setTimeout(() => {
     this.highlightPurchasedPixels(purchasedBlocks);
-  }, 1000); // Attendre la transition de vue
+  }, 500); // Attendre la transition de vue
 },
 
 highlightPurchasedPixels(blocks) {
   if (!blocks || !blocks.length) return;
+  
+  console.log('[Highlight] Starting highlight for blocks:', blocks);
   
   // Calculer le rectangle englobant
   const minRow = Math.min(...blocks.map(i => Math.floor(i / 100)));
   const maxRow = Math.max(...blocks.map(i => Math.floor(i / 100)));
   const minCol = Math.min(...blocks.map(i => i % 100));
   const maxCol = Math.max(...blocks.map(i => i % 100));
-  // ⭐ FORCER UN REFLOW avant de lire les positions
-  DOM.grid.offsetHeight;
-
+  
   const cell = DOM.grid.children[0];
-  if (!cell) {
-    console.error('[Highlight] No cell found');
-    return;
-  }
+  if (!cell) return;
   
   const cellSize = cell.getBoundingClientRect().width;
-  console.log('[Highlight] Cell size:', cellSize);
   
-  // ⭐ SCROLL EN PREMIER, avant de créer le highlight
-  const gridRect = DOM.grid.getBoundingClientRect();
-  const gridTop = window.scrollY + gridRect.top;
-  
-  const highlightAbsoluteTop = gridTop + (minRow * cellSize);
-  const highlightHeight = (maxRow - minRow + 1) * cellSize;
-  const highlightCenter = highlightAbsoluteTop + (highlightHeight / 2);
-  const targetScroll = highlightCenter - (window.innerHeight / 2);
-
-  const highlightAbsoluteBottom = gridTop + ((maxRow + 1) * cellSize);
-
-  console.log('[Highlight] Scrolling to purchased pixels:', {
-    minRow, maxRow,
-    gridTop,
-    highlightTop: highlightAbsoluteTop,
-    targetScroll
-  });
-  
-  window.scrollTo({
-    top: Math.max(0, targetScroll),
-    behavior: 'smooth'
-  });
-
-  // Créer l'overlay de highlight
-  // ⭐ CRÉER LE HIGHLIGHT APRÈS UN PETIT DÉLAI (après le début du scroll)
-  setTimeout(() => {
+  // Créer le highlight
   const highlight = document.createElement('div');
   highlight.style.cssText = `
     position: absolute;
@@ -1402,7 +1373,7 @@ highlightPurchasedPixels(blocks) {
     animation: highlightPulse 2s ease-in-out 3;
   `;
   
-  // Ajouter l'animation CSS si pas déjà présente
+  // Ajouter l'animation CSS
   if (!document.getElementById('highlight-pulse-style')) {
     const style = document.createElement('style');
     style.id = 'highlight-pulse-style';
@@ -1423,13 +1394,29 @@ highlightPurchasedPixels(blocks) {
   
   DOM.grid.appendChild(highlight);
   
-  // Retirer après 6 secondes (3 pulses × 2s)
+  // ⭐ SCROLL vers le highlight (après un micro-délai)
+  setTimeout(() => {
+    const gridRect = DOM.grid.getBoundingClientRect();
+    const gridTop = window.scrollY + gridRect.top;
+    const highlightTop = gridTop + (minRow * cellSize);
+    const highlightHeight = (maxRow - minRow + 1) * cellSize;
+    const highlightCenter = highlightTop + (highlightHeight / 2);
+    const targetScroll = highlightCenter - (window.innerHeight / 2);
+    
+    console.log('[Highlight] Scrolling to:', targetScroll);
+    
+    window.scrollTo({
+      top: Math.max(0, targetScroll),
+      behavior: 'smooth'
+    });
+  }, 100);
+  
+  // Retirer après 6 secondes
   setTimeout(() => {
     highlight.style.opacity = '0';
     highlight.style.transition = 'opacity 0.5s';
     setTimeout(() => highlight.remove(), 500);
   }, 6000);
-  }, 300);
 },
     normalizeUrl(url) {
       url = String(url || '').trim();
