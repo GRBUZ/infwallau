@@ -351,7 +351,7 @@
 
   // ===== VIEW MANAGEMENT =====
   const ViewManager = {
-    switchTo(view) {
+    switchTo(view, options = {}) {
       console.log('[ViewManager] Switching to:', view);
       AppState.view = view;
       DOM.mainContainer.dataset.view = view;
