@@ -1319,7 +1319,7 @@
   // Refresh status
   await StatusManager.load();
   
-  // ⭐ Switch to grid SANS scroller en haut
+  // Switch to grid SANS scroll
   ViewManager.switchTo('grid', { keepScroll: true });
   ViewManager.setCheckoutStep(1);
   ViewManager.clearCheckoutForm();
@@ -1341,16 +1341,16 @@
   // Paint all
   GridManager.paintAll();
   
-  // ⭐ HIGHLIGHT les pixels achetés
+  // ⭐ ATTENDRE QUE LA GRILLE SOIT VISIBLE (800ms au lieu de 500ms)
   setTimeout(() => {
-    this.highlightPurchasedPixels(purchasedBlocks);
-  }, 500); // Attendre la transition de vue
+    this.highlightAndScrollToPurchasedPixels(purchasedBlocks);
+  }, 800);
 },
 
-highlightPurchasedPixels(blocks) {
+highlightAndScrollToPurchasedPixels(blocks) {
   if (!blocks || !blocks.length) return;
   
-  console.log('[Highlight] Starting highlight for blocks:', blocks);
+  console.log('[Highlight] Starting highlight for', blocks.length, 'blocks');
   
   // Calculer le rectangle englobant
   const minRow = Math.min(...blocks.map(i => Math.floor(i / 100)));
@@ -1359,80 +1359,92 @@ highlightPurchasedPixels(blocks) {
   const maxCol = Math.max(...blocks.map(i => i % 100));
   
   const cell = DOM.grid.children[0];
-  if (!cell) return;
+  if (!cell) {
+    console.error('[Highlight] No cell found!');
+    return;
+  }
   
   const cellSize = cell.getBoundingClientRect().width;
   
-  // Créer le highlight
-  const highlight = document.createElement('div');
-  highlight.style.cssText = `
-    position: absolute;
-    left: ${minCol * cellSize}px;
-    top: ${minRow * cellSize}px;
-    width: ${(maxCol - minCol + 1) * cellSize}px;
-    height: ${(maxRow - minRow + 1) * cellSize}px;
-    border: 4px solid #10b981;
-    background: rgba(16, 185, 129, 0.15);
-    box-shadow: 0 0 30px rgba(16, 185, 129, 0.6), inset 0 0 30px rgba(16, 185, 129, 0.2);
-    pointer-events: none;
-    z-index: 1001;
-    border-radius: 4px;
-    animation: highlightPulse 2s ease-in-out 3;
-  `;
+  // ⭐ CALCULER LA POSITION ABSOLUE DANS LE DOCUMENT
+  const gridRect = DOM.grid.getBoundingClientRect();
+  const gridTopInDocument = window.scrollY + gridRect.top;
   
-  // Ajouter l'animation CSS
-  if (!document.getElementById('highlight-pulse-style')) {
-    const style = document.createElement('style');
-    style.id = 'highlight-pulse-style';
-    style.textContent = `
-      @keyframes highlightPulse {
-        0%, 100% { 
-          opacity: 1; 
-          transform: scale(1);
-        }
-        50% { 
-          opacity: 0.6; 
-          transform: scale(1.02);
-        }
-      }
-    `;
-    document.head.appendChild(style);
-  }
+  const highlightTopInGrid = minRow * cellSize;
+  const highlightHeight = (maxRow - minRow + 1) * cellSize;
   
-  DOM.grid.appendChild(highlight);
+  const highlightTopInDocument = gridTopInDocument + highlightTopInGrid;
+  const highlightCenterInDocument = highlightTopInDocument + (highlightHeight / 2);
   
-  // ⭐ SCROLL MULTIPLE FOIS pour être sûr (combat les autres scrolls)
-  const doScroll = () => {
-    const gridRect = DOM.grid.getBoundingClientRect();
-    const gridTop = window.scrollY + gridRect.top;
-    const highlightTop = gridTop + (minRow * cellSize);
-    const highlightHeight = (maxRow - minRow + 1) * cellSize;
-    const highlightCenter = highlightTop + (highlightHeight / 2);
-    const targetScroll = Math.max(0, highlightCenter - (window.innerHeight / 2));
-    
-    console.log('[Highlight] Scrolling to:', targetScroll, 'current:', window.scrollY);
-    
-    window.scrollTo({
-      top: targetScroll,
-      behavior: 'smooth'
-    });
-  };
+  // Position de scroll pour centrer le highlight
+  const targetScroll = highlightCenterInDocument - (window.innerHeight / 2);
   
-  // Scroll immédiat
-  doScroll();
+  console.log('[Highlight] Scroll calculation:', {
+    minRow,
+    maxRow,
+    cellSize,
+    gridTopInDocument,
+    highlightTopInDocument,
+    highlightCenterInDocument,
+    targetScroll,
+    currentScroll: window.scrollY,
+    windowHeight: window.innerHeight
+  });
   
-  // Re-scroll après 100ms (au cas où)
-  setTimeout(doScroll, 100);
+  // ⭐ SCROLL D'ABORD
+  window.scrollTo({
+    top: Math.max(0, targetScroll),
+    behavior: 'smooth'
+  });
   
-  // Re-scroll après 300ms (sécurité)
-  setTimeout(doScroll, 300);
-  
-  // Retirer après 6 secondes
+  // ⭐ CRÉER LE HIGHLIGHT APRÈS LE SCROLL (500ms)
   setTimeout(() => {
-    highlight.style.opacity = '0';
-    highlight.style.transition = 'opacity 0.5s';
-    setTimeout(() => highlight.remove(), 500);
-  }, 6000);
+    const highlight = document.createElement('div');
+    highlight.style.cssText = `
+      position: absolute;
+      left: ${minCol * cellSize}px;
+      top: ${highlightTopInGrid}px;
+      width: ${(maxCol - minCol + 1) * cellSize}px;
+      height: ${highlightHeight}px;
+      border: 4px solid #10b981;
+      background: rgba(16, 185, 129, 0.15);
+      box-shadow: 0 0 30px rgba(16, 185, 129, 0.6), inset 0 0 30px rgba(16, 185, 129, 0.2);
+      pointer-events: none;
+      z-index: 1001;
+      border-radius: 4px;
+      animation: highlightPulse 2s ease-in-out 3;
+    `;
+    
+    // Ajouter l'animation CSS
+    if (!document.getElementById('highlight-pulse-style')) {
+      const style = document.createElement('style');
+      style.id = 'highlight-pulse-style';
+      style.textContent = `
+        @keyframes highlightPulse {
+          0%, 100% { 
+            opacity: 1; 
+            transform: scale(1);
+          }
+          50% { 
+            opacity: 0.6; 
+            transform: scale(1.02);
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    DOM.grid.appendChild(highlight);
+    console.log('[Highlight] Overlay created!');
+    
+    // Retirer après 6 secondes
+    setTimeout(() => {
+      highlight.style.opacity = '0';
+      highlight.style.transition = 'opacity 0.5s';
+      setTimeout(() => highlight.remove(), 500);
+    }, 6000);
+    
+  }, 500);
 },
     normalizeUrl(url) {
       url = String(url || '').trim();
