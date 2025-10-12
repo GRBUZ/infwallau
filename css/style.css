@@ -812,4 +812,241 @@ html, body {
     padding: 16px;
   }
 }
+/* Masquer le header en mode checkout */
+#mainContainer[data-view="checkout"] ~ .masthead,
+body[data-view="checkout"] .masthead {
+  display: none;
+}
+
+/* Alternative si la structure est différente : cibler directement */
+.masthead {
+  transition: all 0.3s ease;
+}
+
+body.checkout-mode .masthead {
+  display: none;
+}
+
+/* Réduire drastiquement le padding quand le header est caché */
+#mainContainer[data-view="checkout"] {
+  padding-top: 0 !important;
+}
 /*new*/
+/*tout compact*/
+/* === MODE CHECKOUT ULTRA-COMPACT === */
+body.checkout-mode .masthead {
+  display: none;
+}
+
+body.checkout-mode #mainContainer {
+  padding-top: 0 !important;
+  padding-bottom: 0;
+}
+
+/* Checkout progress très compact */
+body.checkout-mode .checkout-progress {
+  padding: 12px 0;
+  margin-bottom: 20px;
+  gap: 40px;
+}
+
+body.checkout-mode .step-number {
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+}
+
+body.checkout-mode .step-label {
+  font-size: 12px;
+}
+
+body.checkout-mode .progress-step:not(:last-child)::after {
+  width: 40px;
+  left: 45px;
+}
+
+/* Checkout content très compact */
+body.checkout-mode .checkout-content {
+  max-width: 1400px;
+  padding: 0 20px;
+  gap: 24px;
+  grid-template-columns: 280px 1fr;
+}
+
+/* Sidebar ultra-compacte */
+body.checkout-mode .order-summary-sidebar {
+  position: sticky;
+  top: 20px;
+}
+
+body.checkout-mode .summary-card {
+  padding: 16px;
+  border-radius: 8px;
+}
+
+body.checkout-mode .summary-card h3 {
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+body.checkout-mode .summary-preview {
+  padding: 12px;
+  margin-bottom: 16px;
+  min-height: 80px;
+}
+
+body.checkout-mode .summary-details {
+  padding-top: 12px;
+  margin-bottom: 16px;
+}
+
+body.checkout-mode .detail-row {
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+body.checkout-mode .detail-row.total {
+  font-size: 15px;
+  padding-top: 10px;
+  margin-top: 6px;
+}
+
+body.checkout-mode .lock-timer {
+  padding: 10px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+/* Main checkout ultra-compact */
+body.checkout-mode .checkout-main {
+  padding: 20px;
+  border-radius: 8px;
+}
+
+body.checkout-mode .checkout-step h2 {
+  font-size: 20px;
+  margin-bottom: 20px;
+}
+
+/* Form groups compacts */
+body.checkout-mode .form-group {
+  margin-bottom: 16px;
+}
+
+body.checkout-mode .form-group label {
+  margin-bottom: 5px;
+  font-size: 13px;
+}
+
+body.checkout-mode .form-group input {
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+body.checkout-mode .file-upload-wrapper {
+  height: 140px;
+}
+
+body.checkout-mode .form-hint {
+  font-size: 11px;
+  margin-top: 3px;
+}
+
+/* Boutons compacts */
+body.checkout-mode .btn-primary {
+  padding: 11px 18px;
+  font-size: 15px;
+  margin-top: 20px;
+}
+
+body.checkout-mode .btn-secondary {
+  padding: 10px;
+  font-size: 13px;
+}
+
+/* Footer compact en checkout */
+body.checkout-mode .site-footer {
+  margin-top: 30px;
+  opacity: 0.6;
+}
+
+body.checkout-mode .footer-inner {
+  padding: 14px 20px;
+}
+
+body.checkout-mode .footer-links {
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+body.checkout-mode .footer-links a {
+  font-size: 13px;
+  padding: 6px 12px;
+}
+@media (max-width: 768px) {
+  body.checkout-mode #mainContainer {
+    padding-top: 0 !important;
+  }
+  
+  body.checkout-mode .checkout-progress {
+    padding: 10px 0;
+    margin-bottom: 16px;
+    gap: 25px;
+  }
+  
+  body.checkout-mode .step-number {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  body.checkout-mode .step-label {
+    font-size: 11px;
+  }
+  
+  body.checkout-mode .checkout-content {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 0 12px;
+  }
+  
+  body.checkout-mode .checkout-main {
+    padding: 16px;
+  }
+  
+  body.checkout-mode .order-summary-sidebar {
+    position: relative;
+    top: 0;
+    margin-bottom: 16px;
+  }
+  
+  body.checkout-mode .summary-card {
+    padding: 14px;
+  }
+  
+  body.checkout-mode .checkout-step h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+}
+body.checkout-mode .checkout-header {
+  text-align: center;
+  padding: 20px 0 10px;
+  background: linear-gradient(135deg, #d946ef 0%, #a21caf 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+body.checkout-mode .checkout-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+body.checkout-mode .checkout-header p {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+/*tout compact*/

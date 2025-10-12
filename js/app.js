@@ -60,6 +60,13 @@ function haveMyValidLocks(arr, graceMs = 2000) {
     switchTo(view) {
   AppState.view = view;
   DOM.mainContainer.dataset.view = view;
+
+  // Ajouter/retirer classe sur body pour masquer le header
+  if (view === 'checkout') {
+    document.body.classList.add('checkout-mode');
+  } else {
+    document.body.classList.remove('checkout-mode');
+  }
   
   
   if (view === 'grid') {
@@ -96,9 +103,10 @@ else if (view === 'checkout') {
 
   this.startLockTimer();
   this.updateSummary();
-
+// Scroller tout en haut de la page
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   // S'assurer que la vue checkout s'affiche bien en haut
-  DOM.checkoutView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  //DOM.checkoutView.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 },
