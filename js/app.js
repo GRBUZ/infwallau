@@ -215,151 +215,143 @@ clearCheckoutForm() {
     },
     
 startLockTimer() {
-  console.log('[ViewManager] Starting simple 3-minute countdown'); // DEBUG
-  
+  console.log('[ViewManager] Starting simple 3-minute countdown');
+
   // Arrêter le timer précédent
   if (AppState.lockTimer) {
     clearInterval(AppState.lockTimer);
     AppState.lockTimer = null;
   }
-  
+
   // Compteur simple : 180 secondes (3 minutes)
-  let secondsRemaining = 180;
-  
-  // Fonction pour afficher le temps
+  AppState.lockSecondsRemaining = 180;
+
   const updateDisplay = () => {
-    const minutes = Math.floor(secondsRemaining / 60);
-    const seconds = secondsRemaining % 60;
-    
+    const secondsRemaining = AppState.lockSecondsRemaining;
+    const minutes = Math.floor(Math.max(0, secondsRemaining) / 60);
+    const seconds = Math.max(0, secondsRemaining % 60);
+
     if (DOM.timerValue) {
       DOM.timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
-    
-    // Décrémenter
-    secondsRemaining--;
-    
-    // Arrêter quand on arrive à 0
-    if (secondsRemaining < 0) {
-      clearInterval(AppState.lockTimer);
-      AppState.lockTimer = null;
-      if (DOM.timerValue) {
-        DOM.timerValue.textContent = '0:00';
+
+    // Si le timer est arrivé à zéro, on signale l'expiration côté UI (mais on laisse le monitoring décider de l'unlock défensif)
+    if (secondsRemaining <= 0) {
+      // Arrêter le compteur
+      if (AppState.lockTimer) {
+        clearInterval(AppState.lockTimer);
+        AppState.lockTimer = null;
       }
-    }
-  };
-  
-  // Afficher immédiatement
-  updateDisplay();
-  
-  // Mettre à jour chaque seconde
-  AppState.lockTimer = setInterval(updateDisplay, 1000);
-  
-  console.log('[ViewManager] Simple countdown started'); // DEBUG
-},
-    
-/*startLockMonitoring(warmupMs = 1200) {
-  console.log('[ViewManager] Starting lock monitoring'); // DEBUG
-  
-  // Arrêter le monitoring précédent
-  if (AppState.lockCheckTimeout) {
-    clearTimeout(AppState.lockCheckTimeout);
-    AppState.lockCheckTimeout = null;
-  }
-  if (AppState.lockCheckInterval) {
-    clearInterval(AppState.lockCheckInterval);
-    AppState.lockCheckInterval = null;
-  }
-  
-  const checkLocks = () => {
-    // Ne pas vérifier si on est en train de processer un paiement
-    if (DOM.proceedToPayment && DOM.proceedToPayment.textContent === 'Processing…') {
+      // Mettre affichage 0:00
+      if (DOM.timerValue) DOM.timerValue.textContent = '0:00';
+      console.log('[ViewManager] Lock visual countdown reached 0');
+      // On n'appelle pas automatiquement returnToGrid ici : la logique de monitoring décidera d'unlock si besoin.
       return;
     }
-    
+
+    // Décrémenter
+    AppState.lockSecondsRemaining--;
+  };
+
+  // Afficher immédiatement et lancer l'intervalle
+  updateDisplay();
+  AppState.lockTimer = setInterval(updateDisplay, 1000);
+
+  console.log('[ViewManager] Simple countdown started');
+},
+
+startLockMonitoring(warmupMs = 1200) {
+  console.log('[ViewManager] Starting improved lock monitoring (defensive)');
+
+  // Nettoyage des anciens timers
+  if (AppState.lockCheckTimeout) { clearTimeout(AppState.lockCheckTimeout); AppState.lockCheckTimeout = null; }
+  if (AppState.lockCheckInterval) { clearInterval(AppState.lockCheckInterval); AppState.lockCheckInterval = null; }
+
+  const checkLocks = async () => {
+    // Pas d'action si on est en processing
+    if (DOM.proceedToPayment && DOM.proceedToPayment.textContent === 'Processing…') return;
+
     const blocks = AppState.orderData.blocks;
     if (!blocks || !blocks.length) return;
-    
-    const ok = haveMyValidLocks(blocks, 5000);
-    
+
+    // 1) Rafraîchir l'état serveur pour être sûr (source de vérité)
+    try {
+      const status = await window.CoreManager.apiCall('/status?ts=' + Date.now());
+      if (status && status.ok) {
+        AppState.locks = window.LockManager.merge(status.locks || {});
+        // Met à jour sold/regions si nécessaires
+        AppState.sold = status.sold || AppState.sold;
+        AppState.regions = status.regions || AppState.regions;
+      } else {
+        // Si /status a échoué, fallback : on garde AppState.locks tel quel
+        console.warn('[LockMonitor] /status returned not ok');
+      }
+    } catch (err) {
+      console.warn('[LockMonitor] Failed to refresh /status:', err);
+    }
+
+    // 2) Calculer si nos locks sont encore valides d'après server-side merged locks
+    const ok = haveMyValidLocks(blocks, 3000);
+    console.log('[ViewManager] Lock check result:', ok, 'secondsRemaining=', AppState.lockSecondsRemaining);
+
+    // 3) Mise à jour UI
     if (DOM.proceedToPayment) {
       DOM.proceedToPayment.disabled = !ok;
-      if (!ok) {
-        DOM.proceedToPayment.textContent = '⏰ Reservation expired - reselect';
-      }
+      DOM.proceedToPayment.textContent = ok ? '💳 Continue to Payment' : '⏰ Reservation expired - reselect';
     }
     this.setPayPalEnabled(ok);
-    
-    if (!ok && blocks && blocks.length) {
-      window.LockManager.heartbeat.stop();
+
+    // 4) Défensive: si notre timer visuel est tombé à 0 (ou négatif) ET que le heartbeat n'est pas en cours,
+    // on force la libération côté serveur (évite les "locks fantômes").
+    const timerExpired = (typeof AppState.lockSecondsRemaining === 'number' && AppState.lockSecondsRemaining <= 0);
+
+    // Tentative de détection si heartbeat tourne : (utilise presence d'API si disponible)
+    const heartbeatObj = window.LockManager?.heartbeat;
+    const heartbeatRunning = !!(heartbeatObj && (heartbeatObj.isRunning || heartbeatObj._running || heartbeatObj._timer));
+
+    if (!ok) {
+      // Cas normal : locks invalides -> stop heartbeat pour éviter renew
+      try { window.LockManager.heartbeat.stop(); } catch (e) {}
+      console.log('[ViewManager] Heartbeat stopped due to invalid locks');
+    } else if (timerExpired && !heartbeatRunning) {
+      // Cas pathologique : server still shows locks valid but our local timer expired & heartbeat stopped
+      console.warn('[ViewManager] Defensive unlock: timer expired locally but server still reports locks. Forcing unlock.');
+      try {
+        // Essayer d'utiliser LockManager.unlock() si présent
+        await window.LockManager.unlock(blocks);
+      } catch (e) {
+        // fallback: appeler endpoint /unlock
+        try {
+          await window.CoreManager.apiCall('/unlock', {
+            method: 'POST',
+            body: JSON.stringify({ blocks })
+          });
+        } catch (ex) {
+          console.error('[LockMonitor] Defensive unlock failed', ex);
+        }
+      }
+      // Après forcage -> mise à jour UI
+      AppState.locks = window.LockManager.getLocalLocks ? window.LockManager.getLocalLocks() : (AppState.locks || {});
+      if (DOM.proceedToPayment) {
+        DOM.proceedToPayment.disabled = true;
+        DOM.proceedToPayment.textContent = '⏰ Reservation expired - reselect';
+      }
+      this.setPayPalEnabled(false);
+    } else {
+      // cas OK, on laisse tourner
+      // rien à faire
     }
   };
-  
+
+  // Lancer la première vérification après warmup, puis toutes les 5 secondes
   AppState.lockCheckTimeout = setTimeout(() => {
     checkLocks();
     AppState.lockCheckInterval = setInterval(checkLocks, 5000);
   }, Math.max(0, warmupMs | 0));
-  
-  console.log('[ViewManager] Lock monitoring started'); // DEBUG
-},*/
 
-startLockMonitoring(warmupMs = 1200) {
-  console.log('[ViewManager] Starting lock monitoring'); // DEBUG
-  
-  // Arrêter le monitoring précédent
-  if (AppState.lockCheckTimeout) {
-    clearTimeout(AppState.lockCheckTimeout);
-    AppState.lockCheckTimeout = null;
-  }
-  if (AppState.lockCheckInterval) {
-    clearInterval(AppState.lockCheckInterval);
-    AppState.lockCheckInterval = null;
-  }
-  
-  const checkLocks = () => {
-    // Ne pas vérifier si on est en train de processer un paiement
-    if (DOM.proceedToPayment && DOM.proceedToPayment.textContent === 'Processing…') {
-      return;
-    }
-    
-    const blocks = AppState.orderData.blocks;
-    if (!blocks || !blocks.length) return;
-    
-    const ok = haveMyValidLocks(blocks, 5000);
-    
-    console.log('[ViewManager] Lock check result:', ok); // DEBUG
-    
-    if (DOM.proceedToPayment) {
-      DOM.proceedToPayment.disabled = !ok;
-      if (!ok) {
-        DOM.proceedToPayment.textContent = '⏰ Reservation expired - reselect';
-        console.log('[ViewManager] Button updated to expired'); // DEBUG
-      } else {
-        // Remettre le texte normal si les locks redeviennent valides
-        if (DOM.proceedToPayment.textContent !== '💳 Continue to Payment') {
-          DOM.proceedToPayment.textContent = '💳 Continue to Payment';
-        }
-      }
-    }
-    this.setPayPalEnabled(ok);
-    
-    if (!ok && blocks && blocks.length) {
-      window.LockManager.heartbeat.stop();
-      console.log('[ViewManager] Heartbeat stopped due to invalid locks'); // DEBUG
-    } else if (ok && !__processing) {
-      // si tout est redevenu valide (ex: retour après erreur)
-      resumeHeartbeat();
-}
-  };
-  
-  // Démarrer la vérification après warmup, puis toutes les 5 secondes
-  AppState.lockCheckTimeout = setTimeout(() => {
-    console.log('[ViewManager] Lock monitoring warmup complete, starting checks'); // DEBUG
-    checkLocks(); // Premier check
-    AppState.lockCheckInterval = setInterval(checkLocks, 5000); // Checks répétés
-  }, Math.max(0, warmupMs | 0));
-  
-  console.log('[ViewManager] Lock monitoring scheduled with warmup:', warmupMs); // DEBUG
+  console.log('[ViewManager] Lock monitoring scheduled with warmup:', warmupMs);
 },
+
 
 
    stopLockTimer() {
