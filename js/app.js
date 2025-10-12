@@ -201,7 +201,7 @@ startLockTimer(warmupMs = 1200) {
   }
   this.setPayPalEnabled(true);
   
-  // ===== TIMER VISUEL (décompte simple de 3 minutes) =====
+  // ===== TIMER VISUEL SIMPLE (juste un décompte, rien d'autre) =====
   const updateVisualTimer = () => {
     if (!AppState.lockExpiry) return; // Sécurité
     
@@ -214,41 +214,11 @@ startLockTimer(warmupMs = 1200) {
     }
   };
   
-  // ===== VÉRIFICATION DES LOCKS (indépendante du timer visuel) =====
-  const checkLocks = () => {
-    // Ne pas vérifier si on est en train de processer un paiement
-    if (DOM.proceedToPayment && DOM.proceedToPayment.textContent === 'Processing…') {
-      return;
-    }
-    
-    const blocks = AppState.orderData.blocks;
-    if (!blocks || !blocks.length) return;
-    
-    const ok = haveMyValidLocks(blocks, 5000);
-    
-    if (DOM.proceedToPayment) {
-      DOM.proceedToPayment.disabled = !ok;
-      DOM.proceedToPayment.textContent = ok ? '💳 Continue to Payment' : '⏰ Reservation expired - reselect';
-    }
-    this.setPayPalEnabled(ok);
-    
-    // Arrêter le heartbeat si les locks ne sont plus valides
-    if (!ok && blocks && blocks.length) {
-      window.LockManager.heartbeat.stop();
-    }
-  };
-  
   // Démarrer le timer visuel immédiatement (chaque seconde)
   updateVisualTimer();
   AppState.lockTimer = setInterval(updateVisualTimer, 1000);
   
-  // Démarrer la vérification des locks après warmup (toutes les 5 secondes)
-  AppState.lockCheckTimeout = setTimeout(() => {
-    checkLocks();
-    AppState.lockCheckInterval = setInterval(checkLocks, 5000);
-  }, Math.max(0, warmupMs | 0));
-  
-  console.log('[ViewManager] Lock timer started'); // DEBUG
+  console.log('[ViewManager] Visual timer started'); // DEBUG
 },
 
 updateLockTimerDisplay() {
