@@ -1223,17 +1223,18 @@
             // Succès complet
             console.log('[PayPal] Order completed successfully');
             Toast.success('Payment successful! Your spot is now live! 🎉', 5000);
-            ViewManager.setCheckoutStep(3);
-            
+            //ViewManager.setCheckoutStep(3);
+            // ⭐ NOUVEAU : Retourner à la grille avec highlight
+            await this.returnToGridWithHighlight();
             // Cleanup
-            try { window.LockManager.heartbeat.stop(); } catch (e) {}
-            try { 
-              await window.LockManager.unlock(AppState.orderData.blocks); 
-            } catch (e) {}
+            //try { window.LockManager.heartbeat.stop(); } catch (e) {}
+            //try { 
+              //await window.LockManager.unlock(AppState.orderData.blocks); 
+            //} catch (e) {}
             
             // Refresh
-            await StatusManager.load();
-            GridManager.paintAll();
+            //await StatusManager.load();
+            //GridManager.paintAll();
 
           } catch (e) {
             console.error('[Payment] Failed:', e);
@@ -1295,6 +1296,116 @@
       return false;
     },
     
+    async returnToGridWithHighlight() {
+  const purchasedBlocks = AppState.orderData.blocks.slice();
+  
+  // Cleanup
+  try { window.LockManager.heartbeat.stop(); } catch (e) {}
+  try { 
+    await window.LockManager.unlock(purchasedBlocks); 
+  } catch (e) {}
+  
+  // Refresh status
+  await StatusManager.load();
+  
+  // Switch to grid
+  ViewManager.switchTo('grid');
+  ViewManager.setCheckoutStep(1);
+  ViewManager.clearCheckoutForm();
+  
+  // Reset state
+  AppState.orderData = {
+    blocks: [],
+    name: '',
+    linkUrl: '',
+    imageUrl: null,
+    regionId: null,
+    totalAmount: 0,
+    unitPrice: 0
+  };
+  AppState.selected.clear();
+  AppState.uploadedImageCache = null;
+  AppState.currentOrder = null;
+  
+  // Paint all
+  GridManager.paintAll();
+  
+  // ⭐ HIGHLIGHT les pixels achetés
+  setTimeout(() => {
+    this.highlightPurchasedPixels(purchasedBlocks);
+  }, 600); // Attendre la transition de vue
+},
+
+highlightPurchasedPixels(blocks) {
+  if (!blocks || !blocks.length) return;
+  
+  // Calculer le rectangle englobant
+  const minRow = Math.min(...blocks.map(i => Math.floor(i / 100)));
+  const maxRow = Math.max(...blocks.map(i => Math.floor(i / 100)));
+  const minCol = Math.min(...blocks.map(i => i % 100));
+  const maxCol = Math.max(...blocks.map(i => i % 100));
+  
+  const cell = DOM.grid.children[0];
+  const cellSize = cell.getBoundingClientRect().width;
+  
+  // Créer l'overlay de highlight
+  const highlight = document.createElement('div');
+  highlight.style.cssText = `
+    position: absolute;
+    left: ${minCol * cellSize}px;
+    top: ${minRow * cellSize}px;
+    width: ${(maxCol - minCol + 1) * cellSize}px;
+    height: ${(maxRow - minRow + 1) * cellSize}px;
+    border: 4px solid #10b981;
+    background: rgba(16, 185, 129, 0.15);
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.6), inset 0 0 30px rgba(16, 185, 129, 0.2);
+    pointer-events: none;
+    z-index: 1001;
+    border-radius: 4px;
+    animation: highlightPulse 2s ease-in-out 3;
+  `;
+  
+  // Ajouter l'animation CSS si pas déjà présente
+  if (!document.getElementById('highlight-pulse-style')) {
+    const style = document.createElement('style');
+    style.id = 'highlight-pulse-style';
+    style.textContent = `
+      @keyframes highlightPulse {
+        0%, 100% { 
+          opacity: 1; 
+          transform: scale(1);
+        }
+        50% { 
+          opacity: 0.6; 
+          transform: scale(1.02);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  DOM.grid.appendChild(highlight);
+  
+  // Scroll vers les pixels (si hors vue)
+  const gridRect = DOM.grid.getBoundingClientRect();
+  const highlightTop = minRow * cellSize;
+  const highlightBottom = (maxRow + 1) * cellSize;
+  
+  if (highlightTop < window.scrollY || highlightBottom > window.scrollY + window.innerHeight) {
+    const scrollTarget = highlightTop - (window.innerHeight / 2) + ((maxRow - minRow + 1) * cellSize / 2);
+    window.scrollTo({
+      top: Math.max(0, scrollTarget),
+      behavior: 'smooth'
+    });
+  }
+  
+  // Retirer après 6 secondes (3 pulses × 2s)
+  setTimeout(() => {
+    highlight.style.opacity = '0';
+    highlight.style.transition = 'opacity 0.5s';
+    setTimeout(() => highlight.remove(), 500);
+  }, 6000);
+}
     normalizeUrl(url) {
       url = String(url || '').trim();
       if (!url) return '';
