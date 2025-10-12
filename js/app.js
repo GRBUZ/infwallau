@@ -1405,7 +1405,7 @@ highlightPurchasedPixels(blocks) {
     highlight.style.transition = 'opacity 0.5s';
     setTimeout(() => highlight.remove(), 500);
   }, 6000);
-}
+},
     normalizeUrl(url) {
       url = String(url || '').trim();
       if (!url) return '';
