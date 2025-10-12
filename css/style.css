@@ -1050,20 +1050,3 @@ body.checkout-mode .checkout-header p {
   margin: 0;
 }
 /*tout compact*/
-/*scroll haut checkout*/
-/* Forcer le checkout à commencer en haut */
-#checkoutView {
-  scroll-margin-top: 0;
-  position: relative;
-}
-
-/* S'assurer que le body ne garde pas une position de scroll */
-body.checkout-mode {
-  scroll-behavior: auto;
-}
-
-/* Réinitialiser le scroll du mainContainer */
-#mainContainer[data-view="checkout"] {
-  scroll-margin-top: 0;
-}
-/*scroll haut checkout*/

@@ -1,4 +1,4 @@
-// app-refactored.js - Version unifiée sans modal
+// app.js - Version unifiée sans modal
 (function() {
   'use strict';
 
@@ -87,14 +87,6 @@ function haveMyValidLocks(arr, graceMs = 2000) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 } 
 else if (view === 'checkout') {
-  // 1. Scroller AVANT tout changement
-  const scrollToTop = () => {
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-  };
-  
-  scrollToTop();
   // Masquer la bulle d'info de sélection
   if (DOM.selectionInfo) {
     DOM.selectionInfo.classList.remove('show');
@@ -114,9 +106,13 @@ else if (view === 'checkout') {
   this.startLockTimer();
   this.updateSummary();
 // Scroller tout en haut de la page
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  // S'assurer que la vue checkout s'affiche bien en haut
-  //DOM.checkoutView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+// IMPORTANT : Scroller EN DERNIER, après tout le reste
+  setTimeout(() => {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, 50);
+   
 }
 
 },
@@ -628,9 +624,9 @@ if (DOM.proceedToPayment) {
         console.log('[CheckoutFlow] Switching to checkout view...'); // AJOUT
         ViewManager.switchTo('checkout');
         // Ensure checkout is visible (helpful when grid is long)
-        if (DOM && DOM.checkoutView && typeof DOM.checkoutView.scrollIntoView === 'function') {
-          DOM.checkoutView.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        //if (DOM && DOM.checkoutView && typeof DOM.checkoutView.scrollIntoView === 'function') {
+          //DOM.checkoutView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        //}
       } catch (e) {
         console.error('[Checkout] Failed:', e);
         alert('Failed to reserve pixels. Please try again.');
