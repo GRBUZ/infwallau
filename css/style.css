@@ -768,7 +768,7 @@ html, body {
 .view-container {
   opacity: 0;
   transform: translateY(20px);
-  pointer-events: none;
+  /* pointer-events: none; ← VIRE ÇA ! */
   transition: opacity 0.4s ease, transform 0.4s ease;
   display: none; /* Par défaut caché */
 }
