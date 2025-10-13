@@ -1342,9 +1342,20 @@
   GridManager.paintAll();
   
   // ⭐ ATTENDRE QUE LA GRILLE SOIT VISIBLE (800ms au lieu de 500ms)
-  setTimeout(() => {
-    this.highlightAndScrollToPurchasedPixels(purchasedBlocks);
-  }, 800);
+  //setTimeout(() => {
+   // this.highlightAndScrollToPurchasedPixels(purchasedBlocks);
+  //}, 800);
+  // ⭐ Remplace le setTimeout actuel par ceci :
+const waitUntilVisible = async () => {
+  const start = performance.now();
+  while (DOM.grid.offsetHeight < 500 && performance.now() - start < 5000) {
+    // attendre que la grille soit rendue (max 5s)
+    await new Promise(r => requestAnimationFrame(r));
+  }
+  this.highlightAndScrollToPurchasedPixels(purchasedBlocks);
+};
+waitUntilVisible();
+
 },
 
 highlightAndScrollToPurchasedPixels(blocks) {
