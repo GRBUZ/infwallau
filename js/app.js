@@ -1342,19 +1342,9 @@
   GridManager.paintAll();
   
   // ⭐ ATTENDRE QUE LA GRILLE SOIT VISIBLE (800ms au lieu de 500ms)
-  //setTimeout(() => {
-   // this.highlightAndScrollToPurchasedPixels(purchasedBlocks);
-  //}, 800);
-  // ⭐ Remplace le setTimeout actuel par ceci :
-const waitUntilVisible = async () => {
-  const start = performance.now();
-  while (DOM.grid.offsetHeight < 500 && performance.now() - start < 5000) {
-    // attendre que la grille soit rendue (max 5s)
-    await new Promise(r => requestAnimationFrame(r));
-  }
-  this.highlightAndScrollToPurchasedPixels(purchasedBlocks);
-};
-waitUntilVisible();
+  setTimeout(() => {
+    this.highlightAndScrollToPurchasedPixels(purchasedBlocks);
+  }, 800);
 
 },
 
@@ -1363,49 +1353,63 @@ highlightAndScrollToPurchasedPixels(blocks) {
   
   console.log('[Highlight] Starting highlight for', blocks.length, 'blocks');
   
-  // Calculer le rectangle englobant
+  // ⭐ DEBUG TOTAL : Vérifier ce qui empêche le scroll
+  console.log('[Highlight] Body overflow:', document.body.style.overflow);
+  console.log('[Highlight] HTML overflow:', document.documentElement.style.overflow);
+  console.log('[Highlight] Body computed overflow:', getComputedStyle(document.body).overflow);
+  console.log('[Highlight] HTML computed overflow:', getComputedStyle(document.documentElement).overflow);
+  console.log('[Highlight] Body height:', document.body.scrollHeight);
+  console.log('[Highlight] Window height:', window.innerHeight);
+  console.log('[Highlight] Can scroll?', document.body.scrollHeight > window.innerHeight);
+  
+  // ⭐ FORCER LE DÉBLOCAGE TOTAL
+  document.body.style.overflow = 'auto';
+  document.documentElement.style.overflow = 'auto';
+  document.body.style.position = '';
+  document.documentElement.style.position = '';
+  
+  // Calculer
   const minRow = Math.min(...blocks.map(i => Math.floor(i / 100)));
   const maxRow = Math.max(...blocks.map(i => Math.floor(i / 100)));
   const minCol = Math.min(...blocks.map(i => i % 100));
   const maxCol = Math.max(...blocks.map(i => i % 100));
   
   const cell = DOM.grid.children[0];
-  if (!cell) {
-    console.error('[Highlight] No cell found!');
-    return;
-  }
+  if (!cell) return;
   
   const cellSize = cell.getBoundingClientRect().width;
-  
-  // ⭐ MÉTHODE ULTRA SIMPLE : Position absolue du premier pixel acheté
   const firstPurchasedCell = DOM.grid.children[blocks[0]];
-  if (!firstPurchasedCell) {
-    console.error('[Highlight] First purchased cell not found!');
-    return;
-  }
+  if (!firstPurchasedCell) return;
   
-  // Position absolue dans le document
   const cellRect = firstPurchasedCell.getBoundingClientRect();
   const cellTopInDocument = window.scrollY + cellRect.top;
-  
-  // Scroll avec un offset de 150px pour voir le highlight au-dessus
   const targetScroll = cellTopInDocument - 150;
   
-  console.log('[Highlight] SIMPLE scroll calculation:', {
-    firstBlock: blocks[0],
-    minRow,
-    cellTopInDocument,
-    targetScroll,
-    currentScroll: window.scrollY
-  });
+  console.log('[Highlight] Target scroll:', targetScroll);
+  console.log('[Highlight] Current scroll BEFORE:', window.scrollY);
   
-  // Scroll
-  window.scrollTo({
-    top: Math.max(0, targetScroll),
-    behavior: 'smooth'
-  });
+  // ⭐ TRIPLE TENTATIVE DE SCROLL
+  window.scrollTo(0, targetScroll);
   
-  // Créer le highlight après 500ms
+  setTimeout(() => {
+    console.log('[Highlight] Current scroll AFTER 100ms:', window.scrollY);
+    if (window.scrollY < 50) {
+      console.warn('[Highlight] Scroll BLOCKED! Forcing...');
+      document.documentElement.scrollTop = targetScroll;
+      document.body.scrollTop = targetScroll;
+      window.scroll(0, targetScroll);
+    }
+  }, 100);
+  
+  setTimeout(() => {
+    console.log('[Highlight] Current scroll AFTER 300ms:', window.scrollY);
+    if (window.scrollY < 50) {
+      console.error('[Highlight] SCROLL IMPOSSIBLE!');
+      alert('DEBUG: Scroll is blocked! Check console.');
+    }
+  }, 300);
+  
+  // Créer highlight
   setTimeout(() => {
     const highlight = document.createElement('div');
     highlight.style.cssText = `
@@ -1428,28 +1432,21 @@ highlightAndScrollToPurchasedPixels(blocks) {
       style.id = 'highlight-pulse-style';
       style.textContent = `
         @keyframes highlightPulse {
-          0%, 100% { 
-            opacity: 1; 
-            transform: scale(1);
-          }
-          50% { 
-            opacity: 0.6; 
-            transform: scale(1.02);
-          }
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(1.02); }
         }
       `;
       document.head.appendChild(style);
     }
     
     DOM.grid.appendChild(highlight);
-    console.log('[Highlight] Overlay created!');
+    console.log('[Highlight] Overlay created');
     
     setTimeout(() => {
       highlight.style.opacity = '0';
       highlight.style.transition = 'opacity 0.5s';
       setTimeout(() => highlight.remove(), 500);
     }, 6000);
-    
   }, 500);
 },
     normalizeUrl(url) {
