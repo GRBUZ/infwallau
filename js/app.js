@@ -1016,32 +1016,45 @@ const Toast = {
       }
     },
     
-    async processForm() {
-      console.log('[CheckoutFlow] Processing form');
-      
-      const name = DOM.nameInput.value.trim();
-      const linkUrl = this.normalizeUrl(DOM.linkInput.value);
-      
-      if (!name || !linkUrl) {
-        //this.showWarning('Please fill in all required fields');
-        Toast.warning('Please fill in all required fields');
-        return;
-      }
-      
-      // Vérifier upload image
-      if (!AppState.uploadedImageCache || !AppState.uploadedImageCache.imageUrl) {
-        //this.showWarning('Please upload an image');
-        Toast.warning('Please upload an image');
-        return;
-      }
-      
-      // Vérifier âge upload (max 5 min)
-      const uploadAge = Date.now() - AppState.uploadedImageCache.uploadedAt;
-      if (uploadAge > 300000) {
-        this.showWarning('Image upload expired, please reselect your image');
-        AppState.uploadedImageCache = null;
-        return;
-      }
+async processForm() {
+  console.log('[CheckoutFlow] Processing form');
+  
+  // Reset toutes les erreurs
+  document.querySelectorAll('.field-error').forEach(el => el.classList.remove('show'));
+  document.querySelectorAll('.form-input').forEach(el => el.classList.remove('error'));
+  
+  const name = DOM.nameInput.value.trim();
+  const linkUrl = this.normalizeUrl(DOM.linkInput.value);
+  
+  let hasError = false;
+  
+  // Validation name
+  if (!name) {
+    this.showFieldError('name', 'This field is required.');
+    hasError = true;
+  }
+  
+  // Validation URL (juste vérifier qu'il y a quelque chose)
+  if (!linkUrl) {
+    this.showFieldError('link', 'This field is required.');
+    hasError = true;
+  }
+  
+  // Vérifier upload image
+  if (!AppState.uploadedImageCache || !AppState.uploadedImageCache.imageUrl) {
+    this.showFieldError('image', 'Please upload an image.');
+    hasError = true;
+  }
+  
+  if (hasError) return;
+  
+  // Vérifier âge upload (max 5 min)
+  const uploadAge = Date.now() - AppState.uploadedImageCache.uploadedAt;
+  if (uploadAge > 300000) {
+    Toast.warning('Image upload expired, please reselect your image');
+    AppState.uploadedImageCache = null;
+    return;
+  }
       
       // Vérifier locks
       if (!haveMyValidLocks(AppState.orderData.blocks, 1000)) {
@@ -1101,6 +1114,33 @@ const Toast = {
         resumeHeartbeat();
       }
     },
+
+    showFieldError(fieldName, message) {
+  const input = document.getElementById(fieldName);
+  const error = document.getElementById(`${fieldName}-error`);
+  
+  if (input) {
+    input.classList.add('error');
+    // Focus seulement sur le premier champ en erreur
+    if (!document.querySelector('.form-input.error:focus')) {
+      input.focus();
+    }
+  }
+  
+  if (error) {
+    error.textContent = message;
+    error.classList.add('show');
+  }
+},
+
+isValidUrl(string) {
+  try {
+    const url = new URL(string);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch (_) {
+    return false;
+  }
+},
     
     async ensurePayPalSDK() {
       if (window.paypal && window.paypal.Buttons) {

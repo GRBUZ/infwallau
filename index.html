@@ -139,63 +139,67 @@
         <!-- Main checkout form -->
         <div class="checkout-main">
           
-          <!-- Step 1: Form -->
-          <div class="checkout-step active" id="step1">
-            <h2>Complete your purchase</h2>
-            <form id="checkoutForm">
-              <div class="form-group">
-                <label for="name">
-                  <span class="label-icon">🏷️</span>
-                  Display Name
-                </label>
-                <input 
-                  type="text" 
-                  id="name" 
-                  name="name" 
-                  placeholder="@yourname" 
-                  maxlength="40" 
-                  required 
-                />
-              </div>
+         <!-- Step 1: Form -->
+<div class="checkout-step active" id="step1">
+  <h2>Complete your purchase</h2>
+  <form id="checkoutForm">
+    <div class="form-group">
+      <label for="name">
+        <span class="label-icon">🏷️</span>
+        Display Name
+      </label>
+      <input 
+        type="text" 
+        id="name" 
+        name="name" 
+        placeholder="@yourname" 
+        maxlength="40" 
+        required
+        class="form-input"
+      />
+      <span class="field-error" id="name-error"></span>
+    </div>
 
-              <div class="form-group">
-                <label for="link">
-                  <span class="label-icon">🔗</span>
-                  Profile URL
-                </label>
-                <input 
-                  type="url" 
-                  id="link" 
-                  name="link" 
-                  placeholder="https://instagram.com/your-handle" 
-                  required 
-                />
-              </div>
+    <div class="form-group">
+      <label for="link">
+        <span class="label-icon">🔗</span>
+        Profile URL
+      </label>
+      <input 
+        type="url" 
+        id="link" 
+        name="link" 
+        placeholder="https://instagram.com/your-handle" 
+        required
+        class="form-input"
+      />
+      <span class="field-error" id="link-error"></span>
+    </div>
 
-              <div class="form-group">
-                <label for="image">
-                  <span class="label-icon">📸</span>
-                  Profile Photo
-                </label>
-                <div class="file-upload-wrapper">
-                  <input 
-                    type="file" 
-                    id="image" 
-                    accept="image/*" 
-                  />
-                  <div class="file-upload-preview" id="imagePreview">
-                    <span>Click to upload or drag & drop</span>
-                  </div>
-                </div>
-                <small class="form-hint">Max ~1.5 MB. JPG, PNG, GIF accepted.</small>
-              </div>
+    <div class="form-group">
+      <label for="image">
+        <span class="label-icon">📸</span>
+        Profile Photo
+      </label>
+      <div class="file-upload-wrapper">
+        <input 
+          type="file" 
+          id="image" 
+          accept="image/*" 
+        />
+        <div class="file-upload-preview" id="imagePreview">
+          <span>Click to upload or drag & drop</span>
+        </div>
+      </div>
+      <small class="form-hint">Max ~1.5 MB. JPG, PNG, GIF accepted.</small>
+      <span class="field-error" id="image-error"></span>
+    </div>
 
-              <button type="submit" class="btn-primary" id="proceedToPayment">
-                Continue to Payment →
-              </button>
-            </form>
-          </div>
-
+    <button type="submit" class="btn-primary" id="proceedToPayment">
+      💳 Continue to Payment
+    </button>
+  </form>
+</div>
           <!-- Step 2: Payment -->
           <div class="checkout-step" id="step2">
             <h2>Choose payment method</h2>

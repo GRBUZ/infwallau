@@ -1050,3 +1050,46 @@ body.checkout-mode .checkout-header p {
   margin: 0;
 }
 /*tout compact*/
+
+/*erreurs inline formulaire*/
+/* Champ en erreur */
+.form-input.error {
+  border-color: #dc2626 !important;
+  background: #fef2f2;
+}
+
+.form-input.error:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+}
+
+/* Message d'erreur */
+.field-error {
+  display: none;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 500;
+  margin-top: 6px;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-error.show {
+  display: flex;
+}
+
+.field-error::before {
+  content: '!';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #dc2626;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+/*erreurs inline formulaire*/
