@@ -1020,8 +1020,9 @@ async processForm() {
   console.log('[CheckoutFlow] Processing form');
   
   // Reset toutes les erreurs
-  document.querySelectorAll('.field-error').forEach(el => el.classList.remove('show'));
-  document.querySelectorAll('.form-input').forEach(el => el.classList.remove('error'));
+  // Reset toutes les erreurs
+document.querySelectorAll('.field-error').forEach(el => el.classList.remove('show'));
+document.querySelectorAll('input').forEach(el => el.classList.remove('error'));
   
   const name = DOM.nameInput.value.trim();
   const linkUrl = this.normalizeUrl(DOM.linkInput.value);
@@ -1121,10 +1122,7 @@ async processForm() {
   
   if (input) {
     input.classList.add('error');
-    // Focus seulement sur le premier champ en erreur
-    if (!document.querySelector('.form-input.error:focus')) {
-      input.focus();
-    }
+    input.focus();
   }
   
   if (error) {

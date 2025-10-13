@@ -1053,12 +1053,13 @@ body.checkout-mode .checkout-header p {
 
 /*erreurs inline formulaire*/
 /* Champ en erreur */
-.form-input.error {
+.form-group input.error,
+.form-group .file-upload-wrapper.error {
   border-color: #dc2626 !important;
-  background: #fef2f2;
+  background: #fef2f2 !important;
 }
 
-.form-input.error:focus {
+.form-group input.error:focus {
   border-color: #dc2626 !important;
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
 }
