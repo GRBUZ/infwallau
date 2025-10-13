@@ -194,19 +194,16 @@ html, body {
   position: relative;
 }
 
-.cell {
+.cell{
   width: 10px;
   height: 10px;
   background: #fff;
   border: 1px solid #f0f0f0;
-  cursor: pointer;
-  transition: all 0.1s ease;
 }
 
 .cell.sold {
   background: #ddd;
   border-color: #ddd;
-  cursor: default;
 }
 
 .cell.pending {
@@ -215,12 +212,10 @@ html, body {
   cursor: not-allowed;
 }
 
-.cell.sel {
-  background: #f5f3ff;
-  border-color: #8b5cf6;
+.cell.sel{
   outline: 1px solid #8b5cf6;
+  background: #f5f3ff;
 }
-
 /* ===== CHECKOUT VIEW ===== */
 .checkout-progress {
   background: #f8f9fa;
@@ -765,10 +760,6 @@ html, body {
   font-size: 14px;
 }
 
-.selection-guide {
-  display: none;
-}
-
 .region-overlay {
   pointer-events: auto;
 }
@@ -1159,3 +1150,58 @@ body.checkout-mode .checkout-header p {
   background: #fefefe;
 }
 /*new*/
+
+/* ====== INSTRUCTION SÉLECTION ====== */
+/* Guide qui suit le curseur */
+.selection-guide {
+  position: fixed; /* Fixed pour suivre globalement */
+  background: rgba(139, 92, 246, 0.9);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transform: translate(-50%, -120%); /* Centré au-dessus du curseur */
+  white-space: nowrap;
+}
+
+/* Flèche pointant vers le curseur */
+.selection-guide::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -4px;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid rgba(139, 92, 246, 0.9);
+}
+
+.selection-guide.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.selection-guide.dismissed {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .selection-guide {
+    font-size: 11px;
+    padding: 6px 10px;
+    transform: translate(-50%, -130%); /* Un peu plus haut sur mobile */
+  }
+}
+/* instruction selection */
