@@ -1351,24 +1351,11 @@
 highlightAndScrollToPurchasedPixels(blocks) {
   if (!blocks || !blocks.length) return;
   
-  console.log('[Highlight] Starting highlight for', blocks.length, 'blocks');
-  
-  // ⭐ DEBUG TOTAL : Vérifier ce qui empêche le scroll
-  console.log('[Highlight] Body overflow:', document.body.style.overflow);
-  console.log('[Highlight] HTML overflow:', document.documentElement.style.overflow);
-  console.log('[Highlight] Body computed overflow:', getComputedStyle(document.body).overflow);
-  console.log('[Highlight] HTML computed overflow:', getComputedStyle(document.documentElement).overflow);
-  console.log('[Highlight] Body height:', document.body.scrollHeight);
-  console.log('[Highlight] Window height:', window.innerHeight);
-  console.log('[Highlight] Can scroll?', document.body.scrollHeight > window.innerHeight);
-  
-  // ⭐ FORCER LE DÉBLOCAGE TOTAL
+  // Débloquer overflow
   document.body.style.overflow = 'auto';
   document.documentElement.style.overflow = 'auto';
-  document.body.style.position = '';
-  document.documentElement.style.position = '';
   
-  // Calculer
+  // Calculer position
   const minRow = Math.min(...blocks.map(i => Math.floor(i / 100)));
   const maxRow = Math.max(...blocks.map(i => Math.floor(i / 100)));
   const minCol = Math.min(...blocks.map(i => i % 100));
@@ -1385,31 +1372,20 @@ highlightAndScrollToPurchasedPixels(blocks) {
   const cellTopInDocument = window.scrollY + cellRect.top;
   const targetScroll = cellTopInDocument - 150;
   
-  console.log('[Highlight] Target scroll:', targetScroll);
-  console.log('[Highlight] Current scroll BEFORE:', window.scrollY);
+  console.log('[Highlight] Scrolling to:', targetScroll);
   
-  // ⭐ TRIPLE TENTATIVE DE SCROLL
+  // Scroll direct
   window.scrollTo(0, targetScroll);
   
+  // Force après 100ms
   setTimeout(() => {
-    console.log('[Highlight] Current scroll AFTER 100ms:', window.scrollY);
     if (window.scrollY < 50) {
-      console.warn('[Highlight] Scroll BLOCKED! Forcing...');
       document.documentElement.scrollTop = targetScroll;
       document.body.scrollTop = targetScroll;
-      window.scroll(0, targetScroll);
     }
   }, 100);
   
-  setTimeout(() => {
-    console.log('[Highlight] Current scroll AFTER 300ms:', window.scrollY);
-    if (window.scrollY < 50) {
-      console.error('[Highlight] SCROLL IMPOSSIBLE!');
-      alert('DEBUG: Scroll is blocked! Check console.');
-    }
-  }, 300);
-  
-  // Créer highlight
+  // Créer highlight après 500ms
   setTimeout(() => {
     const highlight = document.createElement('div');
     highlight.style.cssText = `
@@ -1440,7 +1416,6 @@ highlightAndScrollToPurchasedPixels(blocks) {
     }
     
     DOM.grid.appendChild(highlight);
-    console.log('[Highlight] Overlay created');
     
     setTimeout(() => {
       highlight.style.opacity = '0';
