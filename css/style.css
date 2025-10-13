@@ -1094,3 +1094,102 @@ body.checkout-mode .checkout-header p {
   flex-shrink: 0;
 }
 /*erreurs inline formulaire*/
+
+/*refonte header*/
+/* === BANDE VIOLETTE ULTRA-COMPACTE === */
+.masthead-strip {
+  background: linear-gradient(135deg, #d946ef 0%, #c026d3 25%, #a21caf 75%, #86198f 100%);
+  position: relative;
+  padding: 16px 24px 32px; /* Réduit de 28px à 16px en haut */
+}
+
+.masthead-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0; /* Vire le padding interne */
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 32px; /* Réduit de 48px à 32px */
+}
+
+.masthead-tagline > div:first-child {
+  font-size: 26px; /* Réduit de 32px à 26px */
+  font-weight: 700;
+  margin-bottom: 6px; /* Réduit de 10px à 6px */
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.masthead-tagline > div:last-child {
+  font-size: 14px; /* Réduit de 16px à 14px */
+  line-height: 1.5;
+  opacity: 0.92;
+}
+
+.masthead-meta {
+  display: flex;
+  gap: 24px; /* Réduit de 32px à 24px */
+  align-items: center;
+}
+
+.masthead-meta .pixels-left,
+.masthead-meta .price-line {
+  font-size: 22px; /* Réduit de 28px à 22px */
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 3px;
+}
+
+.masthead-meta .note {
+  font-size: 10px; /* Réduit de 11px à 10px */
+  opacity: 0.75;
+  margin-top: 4px; /* Réduit de 8px à 4px */
+}
+
+/* Bouton réduit aussi */
+.masthead-actions {
+  position: absolute;
+  bottom: -18px; /* Ajusté pour coller au bord */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+
+.pill-primary {
+  padding: 11px 28px; /* Réduit de 14px/36px à 11px/28px */
+  font-size: 14px; /* Réduit de 15px à 14px */
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .masthead-strip {
+    padding: 12px 16px 28px;
+  }
+  
+  .masthead-inner {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    text-align: center;
+  }
+  
+  .masthead-tagline > div:first-child {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+  
+  .masthead-tagline > div:last-child {
+    font-size: 13px;
+  }
+  
+  .masthead-meta {
+    justify-content: center;
+    gap: 20px;
+  }
+  
+  .masthead-meta .pixels-left,
+  .masthead-meta .price-line {
+    font-size: 18px;
+  }
+}
+/*refonte header*/
