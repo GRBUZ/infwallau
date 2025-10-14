@@ -964,23 +964,47 @@ updateSelectionInfo() {
   
   const count = AppState.selected.size * 100;
   
-  // 🔥 SI AUCUNE SÉLECTION : MASQUER TOUT
   if (count === 0) {
     DOM.selectionInfo.classList.remove('show');
     return;
   }
   
-  // 🔥 CALCULER LE TOTAL
   const total = this.calculateTotal(AppState.selected.size * 100);
   
-  // 🔥 METTRE À JOUR LE TEXTE
+  // 🔥 METTRE À JOUR LE CONTENU
   const detailsEl = DOM.selectionInfo.querySelector('.selection-details');
   if (detailsEl) {
     detailsEl.innerHTML = 
       `<span class="count">${count.toLocaleString(locale)}</span> pixels • $${total.toFixed(2)}`;
   }
   
-  // 🔥 AFFICHER LA BULLE (qui contient maintenant le bouton)
+  // 🔥 CALCULER LA POSITION (sous la sélection)
+  const blocks = Array.from(AppState.selected);
+  const minRow = Math.min(...blocks.map(i => Math.floor(i / N)));
+  const maxRow = Math.max(...blocks.map(i => Math.floor(i / N)));
+  const minCol = Math.min(...blocks.map(i => i % N));
+  const maxCol = Math.max(...blocks.map(i => i % N));
+  
+  // Prendre la première cellule comme référence
+  const firstCell = DOM.grid.children[blocks[0]];
+  if (!firstCell) return;
+  
+  const cellSize = firstCell.getBoundingClientRect().width;
+  const gridRect = DOM.grid.getBoundingClientRect();
+  
+  // Centre horizontal de la sélection
+  const selectionCenterCol = (minCol + maxCol) / 2;
+  const selectionLeft = selectionCenterCol * cellSize;
+  
+  // Bas de la sélection + offset
+  const selectionBottom = (maxRow + 1) * cellSize;
+  
+  // Positionner la bulle
+  DOM.selectionInfo.style.left = `${selectionLeft}px`;
+  DOM.selectionInfo.style.top = `${selectionBottom + 12}px`;
+  DOM.selectionInfo.style.transform = 'translateX(-50%)'; // Centrer horizontalement
+  
+  // Afficher
   DOM.selectionInfo.classList.add('show');
 },
     

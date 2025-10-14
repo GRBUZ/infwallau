@@ -1156,25 +1156,7 @@ body.checkout-mode .checkout-header p {
 }
 /* instruction selection */
 
-/* === DYNAMIC CLAIM BUTTON === */
-
-.selection-details {
-  position: fixed;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(139, 92, 246, 0.95);
-  color: white;
-  padding: 16px 24px;
-  border-radius: 50px;
-  font-weight: 700;
-  font-size: 14px;
-  z-index: 100;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateX(-50%) translateY(20px);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
+/* === warning === */
 
 .warning-message {
   position: fixed;
@@ -1200,58 +1182,64 @@ body.checkout-mode .checkout-header p {
   visibility: visible;
   transform: translateX(-50%) translateY(0);
 }
+
 /* === DYNAMIC CLAIM BUTTON === */
+/* === BULLE FLOTTANTE DE SÉLECTION === */
 .selection-info {
-  display: flex;
+  position: absolute;
+  display: none;
   flex-direction: column;
   gap: 12px;
   align-items: center;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(12px);
+  padding: 16px 24px;
+  border-radius: 16px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  z-index: 10000;
+  pointer-events: all;
+  transform: translateY(10px);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.selection-info.show {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .selection-details {
   font-size: 15px;
   font-weight: 600;
+  color: #1f2937;
+  white-space: nowrap;
+}
+
+.selection-details .count {
+  color: #a21caf;
+  font-weight: 700;
 }
 
 .claim-action-btn {
-  display: none; /* 🔥 CACHÉ PAR DÉFAUT */
   background: linear-gradient(135deg, #a21caf 0%, #7c3aed 100%);
   color: white;
   border: none;
-  padding: 14px 32px;
-  border-radius: 12px;
-  font-size: 16px;
+  padding: 12px 28px;
+  border-radius: 10px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 
     0 4px 15px rgba(162, 28, 175, 0.4),
     0 0 0 0 rgba(162, 28, 175, 0.6);
-  backdrop-filter: blur(10px);
   animation: claimPulse 2s ease-in-out infinite;
   position: relative;
   overflow: hidden;
-}
-
-/* 🔥 AFFICHÉ QUAND .selection-info a la classe .show */
-.selection-info.show .claim-action-btn {
-  display: block;
-  animation: claimSlideUp 0.3s ease;
-}
-
-.selection-info.show .selection-details {
-  display: block;
-}
-
-@keyframes claimSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  white-space: nowrap;
 }
 
 .claim-action-btn::before {
@@ -1295,8 +1283,16 @@ body.checkout-mode .checkout-header p {
 }
 
 @media (max-width: 640px) {
+  .selection-info {
+    padding: 12px 18px;
+  }
+  
+  .selection-details {
+    font-size: 14px;
+  }
+  
   .claim-action-btn {
-    padding: 12px 24px;
+    padding: 10px 22px;
     font-size: 14px;
   }
 }
