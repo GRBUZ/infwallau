@@ -1185,11 +1185,12 @@ body.checkout-mode .checkout-header p {
 
 /* === DYNAMIC CLAIM BUTTON === */
 /* === BULLE FIXE DANS LE HEADER === */
+/* === BULLE AU CENTRE DU HEADER === */
 .selection-info {
   position: fixed;
-  top: 50%;
+  top: 20px;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%) translateY(-10px);
   display: none;
   flex-direction: column;
   gap: 12px;
@@ -1210,6 +1211,7 @@ body.checkout-mode .checkout-header p {
 .selection-info.show {
   display: flex;
   opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .selection-details {
@@ -1283,17 +1285,18 @@ body.checkout-mode .checkout-header p {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .selection-info {
+    top: 10px;
     padding: 12px 18px;
   }
   
   .selection-details {
-    font-size: 14px;
+    font-size: 13px;
   }
   
   .claim-action-btn {
-    padding: 10px 22px;
-    font-size: 14px;
+    padding: 10px 20px;
+    font-size: 13px;
   }
 }
