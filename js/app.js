@@ -765,14 +765,9 @@ const Toast = {
         DOM.proceedToPayment.textContent = '💳 Continue to Payment';
       }
       
-      // 🔥 FIX CRITIQUE : Nettoyer TOUS les styles inline
-  document.body.style.overflow = '';
-  document.body.style.position = '';
-  document.body.style.width = '';
-  document.body.style.margin = '';
-  document.body.style.padding = '';
-  document.documentElement.style.overflow = '';
-  document.documentElement.style.scrollBehavior = '';
+      // 🔥 Nettoyer les styles qui peuvent rester
+      document.body.removeAttribute('style');
+      document.documentElement.removeAttribute('style');
       // Switch view
       this.switchTo('grid');
       this.setCheckoutStep(1);
@@ -1455,10 +1450,10 @@ isValidUrl(string) {
 highlightAndScrollToPurchasedPixels(blocks) {
   if (!blocks || !blocks.length) return;
   
-  // Débloquer overflow
-  document.body.style.overflow = 'auto';
-  document.documentElement.style.overflow = 'auto';
-  
+    // Débloquer overflow (sera nettoyé automatiquement au retour)
+  document.body.style.overflow = '';
+  document.documentElement.style.overflow = '';
+    
   // Calculer position
   const minRow = Math.min(...blocks.map(i => Math.floor(i / 100)));
   const maxRow = Math.max(...blocks.map(i => Math.floor(i / 100)));
