@@ -1368,7 +1368,7 @@ body.checkout-mode .checkout-header p {
   align-items: center;
   gap: 16px;
   font-family: 'Inter', sans-serif;
-  font-size: 15px;  /* Taille de base pour .note */
+  font-size: 14px;  /* Taille de base pour .note */
   font-weight: 600;
   color: #666;
 }
@@ -1387,18 +1387,11 @@ body.checkout-mode .checkout-header p {
 .stat.hot {
   color: #fbbf24;  /* Or */
   font-weight: 800;  /* Extra bold */
-  font-size: 16px;  /* Grande taille */
+  font-size: 15px;  /* Grande taille */
 }
 
 .stat.hot {
   position: relative;
-}
-
-.stat.hot::before {
-  content: '🔥';
-  margin-right: 6px;
-  font-size: 16px;
-  animation: fire 1.5s infinite;
 }
 
 @keyframes fire {
