@@ -1368,7 +1368,7 @@ body.checkout-mode .checkout-header p {
   align-items: center;
   gap: 16px;
   font-family: 'Inter', sans-serif;
-  font-size: 14px;
+  font-size: 15px;  /* Taille de base pour .note */
   font-weight: 600;
   color: #666;
 }
@@ -1382,15 +1382,22 @@ body.checkout-mode .checkout-header p {
   color: #999;
 }
 
+/* 1M pixels ET Prix - MÊME STYLE */
+.stat:first-child,
 .stat.hot {
-  color: #fbbf24;
-  font-weight: 700;
+  color: #fbbf24;  /* Or */
+  font-weight: 800;  /* Extra bold */
+  font-size: 16px;  /* Grande taille */
+}
+
+.stat.hot {
   position: relative;
 }
 
 .stat.hot::before {
   content: '🔥';
-  margin-right: 4px;
+  margin-right: 6px;
+  font-size: 16px;
   animation: fire 1.5s infinite;
 }
 
@@ -1500,6 +1507,7 @@ body.checkout-mode #mainContainer {
   color: rgba(255, 255, 255, 0.5);
   margin: 0;
   letter-spacing: 0.5px;
+  text-transform: uppercase;
   text-align: center;
   line-height: 1;
 }
