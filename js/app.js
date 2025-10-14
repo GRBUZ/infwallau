@@ -767,7 +767,12 @@ const Toast = {
       // Switch view
       this.switchTo('grid');
       this.setCheckoutStep(1);
-      
+      // 🔥 FIX : Nettoyer les styles qui peuvent décentrer
+  document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.width = '';
+  document.documentElement.style.overflow = '';
+  document.documentElement.style.scrollBehavior = '';
       // Refresh
       await StatusManager.load();
       GridManager.paintAll();
