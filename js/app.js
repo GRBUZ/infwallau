@@ -939,7 +939,7 @@ const Toast = {
       this.updateTopbar();
     },
     
-    updateSelectionInfo() {
+    /*updateSelectionInfo() {
       if (AppState.view === 'checkout') {
         DOM.selectionInfo.classList.remove('show');
         return;
@@ -955,7 +955,30 @@ const Toast = {
       DOM.selectionInfo.innerHTML = 
         `<span class="count">${count.toLocaleString(locale)}</span> pixels • $${total.toFixed(2)}`;
       DOM.selectionInfo.classList.add('show');
-    },
+    },*/
+updateSelectionInfo() {
+  if (AppState.view === 'checkout') {
+    DOM.selectionInfo.classList.remove('show');
+    return;
+  }
+  
+  const count = AppState.selected.size * 100;
+  if (count === 0) {
+    DOM.selectionInfo.classList.remove('show');
+    return;
+  }
+  
+  const total = this.calculateTotal(AppState.selected.size * 100);
+  
+  // Mettre à jour le texte des détails
+  const detailsEl = DOM.selectionInfo.querySelector('.selection-details');
+  if (detailsEl) {
+    detailsEl.innerHTML = 
+      `<span class="count">${count.toLocaleString(locale)}</span> pixels • $${total.toFixed(2)}`;
+  }
+  
+  DOM.selectionInfo.classList.add('show');
+},
     
     updateTopbar() {
       DOM.priceLine.textContent = `1 pixel = $${AppState.globalPrice.toFixed(2)}`;
@@ -1308,25 +1331,14 @@ isValidUrl(string) {
             if (!completed) {
               console.warn('[PayPal] Order not completed in time');
               this.showWarning('Payment is processing. Please check back soon.');
-              ViewManager.setCheckoutStep(3);
               return;
             }
 
             // Succès complet
             console.log('[PayPal] Order completed successfully');
             Toast.success('Payment successful! Your spot is now live! 🎉', 5000);
-            //ViewManager.setCheckoutStep(3);
             // ⭐ NOUVEAU : Retourner à la grille avec highlight
             await this.returnToGridWithHighlight();
-            // Cleanup
-            //try { window.LockManager.heartbeat.stop(); } catch (e) {}
-            //try { 
-              //await window.LockManager.unlock(AppState.orderData.blocks); 
-            //} catch (e) {}
-            
-            // Refresh
-            //await StatusManager.load();
-            //GridManager.paintAll();
 
           } catch (e) {
             console.error('[Payment] Failed:', e);
@@ -1800,10 +1812,10 @@ highlightAndScrollToPurchasedPixels(blocks) {
       console.log('[EventHandlers] Initializing');
       
       // Buy button
-      if (DOM.buyBtn) {
-        DOM.buyBtn.addEventListener('click', async (e) => {
+      if (DOM.claimBtn) {
+        DOM.claimBtn.addEventListener('click', async (e) => {
           e.preventDefault();
-          console.log('[EventHandlers] Buy clicked');
+          console.log('[EventHandlers] Claim clicked');
           await CheckoutFlow.initiate();
         });
       }
@@ -1933,7 +1945,8 @@ highlightAndScrollToPurchasedPixels(blocks) {
       
       // Grid
       grid: document.getElementById('grid'),
-      buyBtn: document.getElementById('buyBtn'),
+      //buyBtn: document.getElementById('buyBtn'),
+      claimBtn: document.getElementById('claimBtn'),
       priceLine: document.getElementById('priceLine'),
       pixelsLeft: document.getElementById('pixelsLeft'),
       selectionInfo: document.getElementById('selectionInfo'),
@@ -1960,8 +1973,7 @@ highlightAndScrollToPurchasedPixels(blocks) {
       // Steps
       steps: {
         1: document.getElementById('step1'),
-        2: document.getElementById('step2'),
-        3: document.getElementById('step3')
+        2: document.getElementById('step2')
       },
       progressSteps: document.querySelectorAll('.progress-step')
     };
