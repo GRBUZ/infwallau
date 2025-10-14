@@ -147,7 +147,7 @@ html, body {
 
 /* ===== MAIN CONTAINER ===== */
 #mainContainer {
-  padding-top: 165px;
+  padding-top: 45px;
   min-height: 100vh;
   transition: all 0.3s ease;
 }
@@ -1387,7 +1387,7 @@ body.checkout-mode .checkout-header p {
 .stat.hot {
   color: #fbbf24;  /* Or */
   font-weight: 800;  /* Extra bold */
-  font-size: 15px;  /* Grande taille */
+  font-size: 14px;  /* Grande taille */
 }
 
 .stat.hot {
@@ -1401,11 +1401,11 @@ body.checkout-mode .checkout-header p {
 
 .stat.note {
   font-size: 13px;
-  color: #555;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .dot {
-  color: #333;
+  color: rgba(255, 255, 255, 0.5);
   font-size: 8px;
 }
 
