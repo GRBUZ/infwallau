@@ -978,30 +978,7 @@ updateSelectionInfo() {
       `<span class="count">${count.toLocaleString(locale)}</span> pixels • $${total.toFixed(2)}`;
   }
   
-  // 🔥 POSITION SIMPLE : AU-DESSUS DE LA SÉLECTION
-  const blocks = Array.from(AppState.selected);
-  const minRow = Math.min(...blocks.map(i => Math.floor(i / N)));
-  const minCol = Math.min(...blocks.map(i => i % N));
-  const maxCol = Math.max(...blocks.map(i => i % N));
-  
-  const firstCell = DOM.grid.children[blocks[0]];
-  if (!firstCell) return;
-  
-  const cellSize = firstCell.getBoundingClientRect().width;
-  
-  // Centre horizontal de la sélection
-  const selectionCenterCol = (minCol + maxCol) / 2;
-  const centerX = selectionCenterCol * cellSize;
-  
-  // 2-3 lignes AU-DESSUS de la sélection
-  const topY = (minRow * cellSize) - (cellSize * 2.5);
-  
-  // Positionner
-  DOM.selectionInfo.style.left = `${centerX}px`;
-  DOM.selectionInfo.style.top = `${Math.max(10, topY)}px`; // Min 10px du haut
-  DOM.selectionInfo.style.transform = 'translateX(-50%)';
-  
-  // Afficher
+  // 🔥 PAS DE CALCUL DE POSITION - FIXE EN CSS !
   DOM.selectionInfo.classList.add('show');
 },
     
