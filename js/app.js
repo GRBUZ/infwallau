@@ -978,31 +978,28 @@ updateSelectionInfo() {
       `<span class="count">${count.toLocaleString(locale)}</span> pixels • $${total.toFixed(2)}`;
   }
   
-  // 🔥 CALCULER LA POSITION (sous la sélection)
+  // 🔥 POSITION SIMPLE : AU-DESSUS DE LA SÉLECTION
   const blocks = Array.from(AppState.selected);
   const minRow = Math.min(...blocks.map(i => Math.floor(i / N)));
-  const maxRow = Math.max(...blocks.map(i => Math.floor(i / N)));
   const minCol = Math.min(...blocks.map(i => i % N));
   const maxCol = Math.max(...blocks.map(i => i % N));
   
-  // Prendre la première cellule comme référence
   const firstCell = DOM.grid.children[blocks[0]];
   if (!firstCell) return;
   
   const cellSize = firstCell.getBoundingClientRect().width;
-  const gridRect = DOM.grid.getBoundingClientRect();
   
   // Centre horizontal de la sélection
   const selectionCenterCol = (minCol + maxCol) / 2;
-  const selectionLeft = selectionCenterCol * cellSize;
+  const centerX = selectionCenterCol * cellSize;
   
-  // Bas de la sélection + offset
-  const selectionBottom = (maxRow + 1) * cellSize;
+  // 2-3 lignes AU-DESSUS de la sélection
+  const topY = (minRow * cellSize) - (cellSize * 2.5);
   
-  // Positionner la bulle
-  DOM.selectionInfo.style.left = `${selectionLeft}px`;
-  DOM.selectionInfo.style.top = `${selectionBottom + 12}px`;
-  DOM.selectionInfo.style.transform = 'translateX(-50%)'; // Centrer horizontalement
+  // Positionner
+  DOM.selectionInfo.style.left = `${centerX}px`;
+  DOM.selectionInfo.style.top = `${Math.max(10, topY)}px`; // Min 10px du haut
+  DOM.selectionInfo.style.transform = 'translateX(-50%)';
   
   // Afficher
   DOM.selectionInfo.classList.add('show');
