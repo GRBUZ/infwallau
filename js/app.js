@@ -373,11 +373,7 @@ const Toast = {
         });
 
         this.stopAllTimers();
-        // 🔥 FIX : Nettoyer overflow/position
-        document.body.style.overflow = '';
-        document.body.style.position = '';
-        document.body.style.width = '';
-        document.documentElement.style.overflow = '';
+        
         // ⭐ NE PAS scroller en haut si on demande de garder la position
         if (!options.keepScroll) {
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -769,6 +765,14 @@ const Toast = {
         DOM.proceedToPayment.textContent = '💳 Continue to Payment';
       }
       
+      // 🔥 FIX CRITIQUE : Nettoyer TOUS les styles inline
+  document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.width = '';
+  document.body.style.margin = '';
+  document.body.style.padding = '';
+  document.documentElement.style.overflow = '';
+  document.documentElement.style.scrollBehavior = '';
       // Switch view
       this.switchTo('grid');
       this.setCheckoutStep(1);
