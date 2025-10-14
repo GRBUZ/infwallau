@@ -765,9 +765,14 @@ const Toast = {
         DOM.proceedToPayment.textContent = '💳 Continue to Payment';
       }
       
-      // 🔥 Nettoyer les styles qui peuvent rester
-      document.body.removeAttribute('style');
-      document.documentElement.removeAttribute('style');
+
+      const grid = document.querySelector('.grid') || document.getElementById('grid');
+      if (grid) {
+        grid.style.margin = '0 auto';
+        grid.style.left = '0';
+        grid.style.transform = 'none';
+      }
+
       // Switch view
       this.switchTo('grid');
       this.setCheckoutStep(1);
@@ -1417,7 +1422,14 @@ isValidUrl(string) {
   
   // Refresh status
   await StatusManager.load();
-  
+
+  const grid = document.querySelector('.grid') || document.getElementById('grid');
+if (grid) {
+  grid.style.margin = '0 auto';
+  grid.style.left = '0';
+  grid.style.transform = 'none';
+}
+
   // Switch to grid SANS scroll
   ViewManager.switchTo('grid', { keepScroll: true });
   ViewManager.setCheckoutStep(1);
