@@ -963,20 +963,24 @@ updateSelectionInfo() {
   }
   
   const count = AppState.selected.size * 100;
+  
+  // 🔥 SI AUCUNE SÉLECTION : MASQUER TOUT
   if (count === 0) {
     DOM.selectionInfo.classList.remove('show');
     return;
   }
   
+  // 🔥 CALCULER LE TOTAL
   const total = this.calculateTotal(AppState.selected.size * 100);
   
-  // Mettre à jour le texte des détails
+  // 🔥 METTRE À JOUR LE TEXTE
   const detailsEl = DOM.selectionInfo.querySelector('.selection-details');
   if (detailsEl) {
     detailsEl.innerHTML = 
       `<span class="count">${count.toLocaleString(locale)}</span> pixels • $${total.toFixed(2)}`;
   }
   
+  // 🔥 AFFICHER LA BULLE (qui contient maintenant le bouton)
   DOM.selectionInfo.classList.add('show');
 },
     

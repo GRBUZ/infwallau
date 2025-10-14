@@ -1157,12 +1157,6 @@ body.checkout-mode .checkout-header p {
 /* instruction selection */
 
 /* === DYNAMIC CLAIM BUTTON === */
-.selection-info {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  align-items: center;
-}
 
 .selection-details {
   position: fixed;
@@ -1180,11 +1174,6 @@ body.checkout-mode .checkout-header p {
   visibility: hidden;
   transform: translateX(-50%) translateY(20px);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.selection-info.show {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(-50%) translateY(0);
 }
 
 .warning-message {
@@ -1211,8 +1200,21 @@ body.checkout-mode .checkout-header p {
   visibility: visible;
   transform: translateX(-50%) translateY(0);
 }
+/* === DYNAMIC CLAIM BUTTON === */
+.selection-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.selection-details {
+  font-size: 15px;
+  font-weight: 600;
+}
 
 .claim-action-btn {
+  display: none; /* 🔥 CACHÉ PAR DÉFAUT */
   background: linear-gradient(135deg, #a21caf 0%, #7c3aed 100%);
   color: white;
   border: none;
@@ -1229,6 +1231,27 @@ body.checkout-mode .checkout-header p {
   animation: claimPulse 2s ease-in-out infinite;
   position: relative;
   overflow: hidden;
+}
+
+/* 🔥 AFFICHÉ QUAND .selection-info a la classe .show */
+.selection-info.show .claim-action-btn {
+  display: block;
+  animation: claimSlideUp 0.3s ease;
+}
+
+.selection-info.show .selection-details {
+  display: block;
+}
+
+@keyframes claimSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .claim-action-btn::before {
@@ -1271,7 +1294,6 @@ body.checkout-mode .checkout-header p {
   }
 }
 
-/* Responsive */
 @media (max-width: 640px) {
   .claim-action-btn {
     padding: 12px 24px;
