@@ -993,7 +993,7 @@ updateSelectionInfo() {
     
     updateTopbar() {
       DOM.priceLine.textContent = `1 pixel = $${AppState.globalPrice.toFixed(2)}`;
-      DOM.pixelsLeft.textContent = `${TOTAL_PIXELS.toLocaleString(locale)} pixels`;
+      DOM.pixelsLeft.textContent = '1M pixels';
       this.updateSelectionInfo();
     },
     
