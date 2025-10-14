@@ -422,7 +422,7 @@ const Toast = {
       AppState.uploadedImageCache = null;
     },
 
-    setCheckoutStep(step) {
+    /*setCheckoutStep(step) {
       console.log('[ViewManager] Setting checkout step:', step);
       AppState.checkoutStep = step;
       
@@ -443,8 +443,44 @@ const Toast = {
         console.log('[ViewManager] Step 2: Restarting visual countdown');
         this.startLockTimer();
       }
-    },
-    
+    },*/
+    setCheckoutStep(step) {
+  console.log('[ViewManager] Setting checkout step:', step);
+  AppState.checkoutStep = step;
+
+  // Defensive guards: exit early if DOM not ready
+  if (!DOM || !DOM.steps) {
+    console.warn('[ViewManager] DOM.steps not ready yet.');
+    return;
+  }
+
+  // Update steps visibility (skip null elements)
+  Object.entries(DOM.steps).forEach(([num, el]) => {
+    if (!el) {
+      console.warn(`[ViewManager] Missing step element for step ${num}`);
+      return;
+    }
+    el.classList.toggle('active', parseInt(num, 10) === step);
+  });
+
+  // Update progress bar (guard for NodeList)
+  if (DOM.progressSteps && DOM.progressSteps.forEach) {
+    DOM.progressSteps.forEach((el, i) => {
+      if (!el) return;
+      const stepNum = i + 1;
+      el.classList.toggle('active', stepNum <= step);
+      el.classList.toggle('completed', stepNum < step);
+    });
+  } else {
+    console.warn('[ViewManager] progressSteps not ready or empty');
+  }
+
+  // rest unchanged...
+  if (step === 2) {
+    console.log('[ViewManager] Step 2: Restarting visual countdown');
+    this.startLockTimer();
+  }
+},
     updateSummary() {
       const { blocks, totalAmount, unitPrice } = AppState.orderData;
       const pixels = blocks.length * 100;
@@ -483,6 +519,22 @@ const Toast = {
     startLockTimer() {
       console.log('[ViewManager] Starting 3-minute countdown');
 
+      // Defensive guard: don't start if locks are known invalid
+  // Consider heartbeat as proxy : si le heartbeat n'existe pas ou n'est pas running, ne démarre pas.
+  const hb = window.LockManager?.heartbeat;
+  const heartbeatRunning = !!(hb && (hb.isRunning || hb._running || hb._timer));
+  // Si on a un flag explicite
+  if (AppState.locksValid === false) {
+    console.log('[ViewManager] Not starting visual countdown: locks marked invalid');
+    if (DOM.timerValue) DOM.timerValue.textContent = 'Reservation expired 😱';
+    return;
+  }
+  // Si heartbeat existe et n'est pas running => ne pas démarrer
+  if (hb && !heartbeatRunning) {
+    console.log('[ViewManager] Not starting visual countdown: heartbeat not running');
+    if (DOM.timerValue) DOM.timerValue.textContent = 'Reservation expired 😱';
+    return;
+  }
       // Arrêter timer précédent
       if (AppState.lockTimer) {
         clearInterval(AppState.lockTimer);
