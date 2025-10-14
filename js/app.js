@@ -373,6 +373,11 @@ const Toast = {
         });
 
         this.stopAllTimers();
+        // 🔥 FIX : Nettoyer overflow/position
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.documentElement.style.overflow = '';
         // ⭐ NE PAS scroller en haut si on demande de garder la position
         if (!options.keepScroll) {
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -767,12 +772,7 @@ const Toast = {
       // Switch view
       this.switchTo('grid');
       this.setCheckoutStep(1);
-      // 🔥 FIX : Nettoyer les styles qui peuvent décentrer
-  document.body.style.overflow = '';
-  document.body.style.position = '';
-  document.body.style.width = '';
-  document.documentElement.style.overflow = '';
-  document.documentElement.style.scrollBehavior = '';
+      
       // Refresh
       await StatusManager.load();
       GridManager.paintAll();
