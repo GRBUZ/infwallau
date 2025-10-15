@@ -1642,3 +1642,29 @@ body.checkout-mode #mainContainer {
     right: 20px;
   }
 }
+
+/* === SPACING PRÉCIS === */
+#mainContainer {
+  padding: 0;  /* Reset tout */
+}
+
+#mainContainer[data-view="grid"] {
+  padding: 0;
+}
+
+/* Vue grille : 5px entre header et grille */
+#gridView {
+  padding-top: 5px;
+  padding-bottom: 5px;  /* 5px entre grille et footer */
+}
+
+/* La grille sans margin */
+.grid {
+  margin: 0;
+}
+
+/* Footer sans margin top */
+.site-footer {
+  margin-top: 0;
+  padding-top: 0;
+}

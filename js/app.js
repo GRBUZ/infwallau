@@ -530,12 +530,6 @@ const Toast = {
     if (DOM.timerValue) DOM.timerValue.textContent = 'Reservation expired 😱';
     return;
   }
-  // Si heartbeat existe et n'est pas running => ne pas démarrer
-  if (hb && !heartbeatRunning) {
-    console.log('[ViewManager] Not starting visual countdown: heartbeat not running');
-    if (DOM.timerValue) DOM.timerValue.textContent = 'Reservation expired 😱';
-    return;
-  }
       // Arrêter timer précédent
       if (AppState.lockTimer) {
         clearInterval(AppState.lockTimer);
