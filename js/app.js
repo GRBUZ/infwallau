@@ -1838,40 +1838,6 @@ highlightAndScrollToPurchasedPixels(blocks) {
         });
       }
       
-      // Price info tooltip
-if (DOM.priceInfoBtn && DOM.priceTooltip) {
-  let tooltipTimeout = null;
-  
-  // Click to toggle
-  DOM.priceInfoBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    DOM.priceTooltip.classList.toggle('show');
-    
-    // Auto-hide après 5 secondes
-    if (DOM.priceTooltip.classList.contains('show')) {
-      clearTimeout(tooltipTimeout);
-      tooltipTimeout = setTimeout(() => {
-        DOM.priceTooltip.classList.remove('show');
-      }, 5000);
-    }
-  });
-  
-  // Fermer si on clique ailleurs
-  document.addEventListener('click', (e) => {
-    if (!DOM.priceInfoBtn.contains(e.target) && !DOM.priceTooltip.contains(e.target)) {
-      DOM.priceTooltip.classList.remove('show');
-      clearTimeout(tooltipTimeout);
-    }
-  });
-  
-  // Fermer au scroll
-  window.addEventListener('scroll', () => {
-    if (DOM.priceTooltip.classList.contains('show')) {
-      DOM.priceTooltip.classList.remove('show');
-      clearTimeout(tooltipTimeout);
-    }
-  }, { passive: true });
-}
       // Back button
       if (DOM.backToGrid) {
         DOM.backToGrid.addEventListener('click', () => {
@@ -2003,9 +1969,6 @@ if (DOM.priceInfoBtn && DOM.priceTooltip) {
       pixelsLeft: document.getElementById('pixelsLeft'),
       selectionInfo: document.getElementById('selectionInfo'),
       warningMessage: document.getElementById('warningMessage'),
-      // Price info
-      priceInfoBtn: document.getElementById('priceInfoBtn'),
-      priceTooltip: document.getElementById('priceTooltip'),
       // Checkout
       checkoutForm: document.getElementById('checkoutForm'),
       nameInput: document.getElementById('name'),
@@ -2073,3 +2036,64 @@ if (DOM.priceInfoBtn && DOM.priceTooltip) {
     init();
   }
 })();
+
+// Price info tooltip - Standalone
+(function() {
+  'use strict';
+  
+  function initPriceTooltip() {
+    const priceInfoBtn = document.getElementById('priceInfoBtn');
+    const priceTooltip = document.getElementById('priceTooltip');
+    
+    console.log('Price info button:', priceInfoBtn);
+    console.log('Price tooltip:', priceTooltip);
+    
+    if (!priceInfoBtn || !priceTooltip) {
+      console.error('Price info elements not found!');
+      return;
+    }
+    
+    let tooltipTimeout = null;
+    
+    // Click to toggle
+    priceInfoBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      console.log('Button clicked!');
+      priceTooltip.classList.toggle('show');
+      
+      // Auto-hide après 5 secondes
+      if (priceTooltip.classList.contains('show')) {
+        console.log('Tooltip shown');
+        clearTimeout(tooltipTimeout);
+        tooltipTimeout = setTimeout(() => {
+          priceTooltip.classList.remove('show');
+        }, 5000);
+      }
+    });
+    
+    // Fermer si on clique ailleurs
+    document.addEventListener('click', (e) => {
+      if (!priceInfoBtn.contains(e.target) && !priceTooltip.contains(e.target)) {
+        priceTooltip.classList.remove('show');
+        clearTimeout(tooltipTimeout);
+      }
+    });
+    
+    // Fermer au scroll
+    window.addEventListener('scroll', () => {
+      if (priceTooltip.classList.contains('show')) {
+        priceTooltip.classList.remove('show');
+        clearTimeout(tooltipTimeout);
+      }
+    }, { passive: true });
+  }
+  
+  // Init
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPriceTooltip);
+  } else {
+    initPriceTooltip();
+  }
+})()
