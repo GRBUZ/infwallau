@@ -1569,7 +1569,7 @@ body.checkout-mode #mainContainer {
   position: absolute;
   bottom: calc(100% + 12px);
   left: 50%;
-  transform: translateX(-50%) translateY(10px);
+  transform: translateX(-50%) translateY(-10px);
   background: rgba(0, 0, 0, 0.95);
   backdrop-filter: blur(20px);
   border: 1px solid #333;
@@ -1603,16 +1603,17 @@ body.checkout-mode #mainContainer {
 }
 
 /* Flèche de la bulle */
+/* Flèche de la bulle - VERS LE HAUT maintenant */
 .tooltip-arrow {
   position: absolute;
-  bottom: -6px;
+  top: -6px;  /* ✅ En haut de la bulle */
   left: 50%;
   transform: translateX(-50%) rotate(45deg);
   width: 12px;
   height: 12px;
   background: rgba(0, 0, 0, 0.95);
-  border-right: 1px solid #333;
-  border-bottom: 1px solid #333;
+  border-left: 1px solid #333;  /* ✅ Changé */
+  border-top: 1px solid #333;   /* ✅ Changé */
 }
 
 /* Responsive */
