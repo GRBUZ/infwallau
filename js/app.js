@@ -1838,6 +1838,40 @@ highlightAndScrollToPurchasedPixels(blocks) {
         });
       }
       
+      // Price info tooltip
+if (DOM.priceInfoBtn && DOM.priceTooltip) {
+  let tooltipTimeout = null;
+  
+  // Click to toggle
+  DOM.priceInfoBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    DOM.priceTooltip.classList.toggle('show');
+    
+    // Auto-hide après 5 secondes
+    if (DOM.priceTooltip.classList.contains('show')) {
+      clearTimeout(tooltipTimeout);
+      tooltipTimeout = setTimeout(() => {
+        DOM.priceTooltip.classList.remove('show');
+      }, 5000);
+    }
+  });
+  
+  // Fermer si on clique ailleurs
+  document.addEventListener('click', (e) => {
+    if (!DOM.priceInfoBtn.contains(e.target) && !DOM.priceTooltip.contains(e.target)) {
+      DOM.priceTooltip.classList.remove('show');
+      clearTimeout(tooltipTimeout);
+    }
+  });
+  
+  // Fermer au scroll
+  window.addEventListener('scroll', () => {
+    if (DOM.priceTooltip.classList.contains('show')) {
+      DOM.priceTooltip.classList.remove('show');
+      clearTimeout(tooltipTimeout);
+    }
+  }, { passive: true });
+}
       // Back button
       if (DOM.backToGrid) {
         DOM.backToGrid.addEventListener('click', () => {
@@ -1969,7 +2003,9 @@ highlightAndScrollToPurchasedPixels(blocks) {
       pixelsLeft: document.getElementById('pixelsLeft'),
       selectionInfo: document.getElementById('selectionInfo'),
       warningMessage: document.getElementById('warningMessage'),
-      
+      // Price info
+      priceInfoBtn: document.getElementById('priceInfoBtn'),
+      priceTooltip: document.getElementById('priceTooltip'),
       // Checkout
       checkoutForm: document.getElementById('checkoutForm'),
       nameInput: document.getElementById('name'),

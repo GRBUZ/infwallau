@@ -53,14 +53,26 @@
     </div>
     
     <div class="stats-block">
-      <p class="masthead-slogan">Premium pixel space for creators. Claim your spot!</p>
+      <p class="masthead-slogan">Premium pixel space for creators!</p>
+      
       <div class="stats-inline">
-        <span class="stat" id="pixelsLeft">1M pixels</span>
-        <span class="dot">●</span>
-        <span class="stat hot" id="priceLine">$1.22/px</span>
-        <span class="dot">●</span>
-        <span class="stat note">+$0.01 per 1K</span>
-      </div>
+  <span class="stat" id="pixelsLeft">1M pixels</span>
+  <span class="dot">●</span>
+  <span class="stat hot" id="priceLine">$1.22/px</span>
+  <button class="price-info-btn" id="priceInfoBtn" aria-label="Price info">
+    <svg viewBox="0 0 16 16" fill="currentColor">
+      <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" fill="none"/>
+      <text x="8" y="11.5" text-anchor="middle" font-size="10" font-weight="700" fill="currentColor">i</text>
+    </svg>
+  </button>
+  
+  <!-- Bulle info (cachée par défaut) -->
+  <div class="price-tooltip" id="priceTooltip">
+    <div class="tooltip-arrow"></div>
+    <p>Price increases by <strong>+$0.01</strong> for every <strong>1,000 pixels</strong> sold</p>
+  </div>
+</div>
+
     </div>
 
   </div>
