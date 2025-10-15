@@ -1567,7 +1567,7 @@ body.checkout-mode #mainContainer {
 /* === TOOLTIP BUBBLE === */
 .price-tooltip {
   position: absolute;
-  bottom: calc(100% + 12px);
+  top: calc(100% + 12px);
   left: 50%;
   transform: translateX(-50%) translateY(-10px);
   background: rgba(0, 0, 0, 0.95);

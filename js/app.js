@@ -992,8 +992,8 @@ updateSelectionInfo() {
 },
     
     updateTopbar() {
-      DOM.priceLine.textContent = `1 pixel = $${AppState.globalPrice.toFixed(2)}`;
-      DOM.pixelsLeft.textContent = '1M pixels';
+      DOM.priceLine.textContent = `1 PIXEL = $${AppState.globalPrice.toFixed(2)}`;
+      DOM.pixelsLeft.textContent = '1M PIXELs';
       this.updateSelectionInfo();
     },
     
