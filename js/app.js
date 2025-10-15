@@ -812,6 +812,54 @@ const Toast = {
         if (col < 0 || col >= N || row < 0 || row >= N) return -1;
         return row * N + col;
       };
+
+      /*new guide*/
+        // 🔥 NOUVEAU : Selection guide logic
+  const selectionGuide = document.getElementById('selectionGuide');
+  let hasUserDragged = false;
+  let isMouseOverGrid = false;
+  
+  const updateGuidePosition = (e) => {
+    if (hasUserDragged || !isMouseOverGrid || !selectionGuide) return;
+    
+    const rect = DOM.grid.getBoundingClientRect();
+    const offsetX = 20;
+    const offsetY = 20;
+    
+    selectionGuide.style.left = (e.clientX - rect.left + offsetX) + 'px';
+    selectionGuide.style.top = (e.clientY - rect.top + offsetY) + 'px';
+  };
+  
+  const dismissGuide = () => {
+    hasUserDragged = true;
+    if (selectionGuide) {
+      selectionGuide.classList.add('dismissed');
+      selectionGuide.classList.remove('show');
+    }
+  };
+  
+  // Mouse enter grid
+  DOM.grid.addEventListener('mouseenter', (e) => {
+    isMouseOverGrid = true;
+    if (!hasUserDragged && AppState.selected.size === 0 && selectionGuide) {
+      selectionGuide.classList.add('show');
+      updateGuidePosition(e);
+    }
+  });
+  
+  // Mouse leave grid
+  DOM.grid.addEventListener('mouseleave', () => {
+    isMouseOverGrid = false;
+    if (selectionGuide) {
+      selectionGuide.classList.remove('show');
+    }
+  });
+  
+  // Mouse move on grid
+  DOM.grid.addEventListener('mousemove', (e) => {
+    updateGuidePosition(e);
+  });
+      /*new guide*/
       
       DOM.grid.addEventListener('mousedown', (e) => {
         const idx = idxFromXY(e.clientX, e.clientY);
@@ -831,6 +879,10 @@ const Toast = {
         
         lastDragIdx = idx;
         suppressClick = true;
+        // 🔥 Dismiss guide au premier drag
+    if (!hasUserDragged) {
+      dismissGuide();
+    }
         this.selectRect(dragStartIdx, idx);
       });
       
