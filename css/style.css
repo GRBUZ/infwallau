@@ -147,7 +147,8 @@ html, body {
 
 /* ===== MAIN CONTAINER ===== */
 #mainContainer {
-  padding-top: 45px;
+  padding-top: 30px;
+  padding-bottom: 30px;
   min-height: 100vh;
   transition: all 0.3s ease;
 }
@@ -1496,7 +1497,7 @@ body.checkout-mode #mainContainer {
 /* Slogan au-dessus des stats */
 .masthead-slogan {
   font-family: 'Inter', sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.5);
   margin: 0;
