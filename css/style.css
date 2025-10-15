@@ -1371,6 +1371,7 @@ body.checkout-mode .checkout-header p {
   font-size: 14px;  /* Taille de base pour .note */
   font-weight: 600;
   color: #666;
+  position: relative;
 }
 
 .stat {
