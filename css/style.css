@@ -147,8 +147,6 @@ html, body {
 
 /* ===== MAIN CONTAINER ===== */
 #mainContainer {
-  padding-top: 30px;
-  padding-bottom: 30px;
   min-height: 100vh;
   transition: all 0.3s ease;
 }
@@ -179,7 +177,8 @@ html, body {
 #gridView {
   display: flex;
   justify-content: center;
-  padding: 24px 16px;
+  margin: 0;
+  padding: 5px 0; 
 }
 
 .grid {
@@ -727,7 +726,7 @@ html, body {
 #gridView.active {
   display: flex;
   justify-content: center;
-  padding: 24px 16px;
+  padding: 5px 0;
 }
 
 #checkoutView.active {
