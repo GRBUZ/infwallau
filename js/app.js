@@ -509,17 +509,40 @@ const Toast = {
       
       const width = maxCol - minCol + 1;
       const height = maxRow - minRow + 1;
+
+      // 🔥 LIMITER à 20×15 max
+      const maxWidth = 20;
+      const maxHeight = 15;
+      const displayWidth = Math.min(width, maxWidth);
+      const displayHeight = Math.min(height, maxHeight);
       
+      // Calculer quels blocs afficher (centrer si trop grand)
+      const startRow = width > maxWidth ? minRow + Math.floor((width - maxWidth) / 2) : minRow;
+      const startCol = height > maxHeight ? minCol + Math.floor((height - maxHeight) / 2) : minCol;
+      
+      const endRow = startRow + displayHeight - 1;
+      const endCol = startCol + displayWidth - 1;
+      
+      // Filtrer les blocs à afficher
+      const displayBlocks = blocks.filter(idx => {
+        const r = Math.floor(idx / N);
+        const c = idx % N;
+        return r >= startRow && r <= endRow && c >= startCol && c <= endCol;
+      });
+          
       DOM.pixelPreview.innerHTML = `
-        <div class="preview-grid" style="--cols: ${width}; --rows: ${height}">
-          ${blocks.map(idx => {
-            const r = Math.floor(idx / N) - minRow;
-            const c = (idx % N) - minCol;
-            return `<div class="preview-pixel" style="--r: ${r}; --c: ${c}"></div>`;
-          }).join('')}
-        </div>
-        <div class="preview-info">${width}×${height} blocks</div>
-      `;
+      <div class="preview-grid" style="--cols: ${displayWidth}; --rows: ${displayHeight}">
+        ${displayBlocks.map(idx => {
+          const r = Math.floor(idx / N) - startRow;
+          const c = (idx % N) - startCol;
+          return `<div class="preview-pixel" style="--r: ${r}; --c: ${c}"></div>`;
+        }).join('')}
+      </div>
+      <div class="preview-info">
+        ${width}×${height} blocks
+        ${(width > maxWidth || height > maxHeight) ? '<span class="preview-truncated"> (preview)</span>' : ''}
+      </div>
+    `;
     },
     
     startLockTimer() {
@@ -551,7 +574,7 @@ const Toast = {
 
         if (DOM.timerValue) {
           if (secondsRemaining > 0) {
-            DOM.timerValue.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            DOM.timerValue.textContent = `Reserved for ${minutes}:${seconds.toString().padStart(2, '0')}`;
           } else {
             DOM.timerValue.textContent = 'Reservation expired 😱';
           }
@@ -562,7 +585,7 @@ const Toast = {
             clearInterval(AppState.lockTimer);
             AppState.lockTimer = null;
           }
-          if (DOM.timerValue) DOM.timerValue.textContent = '0:00';
+          if (DOM.timerValue) DOM.timerValue.textContent = 'Reservation expired 😱';
           console.log('[ViewManager] Visual countdown reached 0');
           return;
         }
@@ -1028,7 +1051,7 @@ updateSelectionInfo() {
       const priceEl = DOM.priceLine;
       if (priceEl) {
         // Format avec 2 décimales selon locale
-        priceEl.textContent = `1 PIXEL = $${AppState.globalPrice.toLocaleString(locale, { 
+        priceEl.textContent = `$${AppState.globalPrice.toLocaleString(locale, { 
           minimumFractionDigits: 2, 
           maximumFractionDigits: 2 
         })}/px`;
@@ -2098,6 +2121,11 @@ highlightAndScrollToPurchasedPixels(blocks) {
     if (tooltipPixelCount) {
       const locale = navigator.language || 'en-US';
       tooltipPixelCount.textContent = (1000).toLocaleString(locale);
+    }
+    const tooltipPixelraise = document.getElementById('tooltipPixelraise');
+    if (tooltipPixelraise) {
+      const locale = navigator.language || 'en-US';
+      tooltipPixelraise.textContent = (0.01).toLocaleString(locale);
     }
     
     let tooltipTimeout = null;
