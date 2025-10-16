@@ -23,19 +23,17 @@ html, body {
   z-index: 1000;
   box-shadow: 0 4px 20px rgba(0,0,0,0.08);
 }
-
 .masthead-title {
-  font-family: "Clash Display", "Inter", sans-serif;
-  font-weight: 700;
-  font-size: clamp(18px, 2.2vw, 22px);
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 24px;
+  font-weight: 800;
   margin: 0;
-  padding: 10px 0 6px;
-  text-align: center;
-  background: linear-gradient(135deg, #d946ef 0%, #a21caf 100%);
+  background: linear-gradient(135deg, #667eea 0%, #f093fb 100%);
   -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   background-clip: text;
-  color: transparent;
-  border-bottom: 1px solid rgba(203, 213, 225, 0.5);
+  letter-spacing: -0.5px;
+  line-height: 1;
 }
 
 /* Effet de brillance subtile */
@@ -1315,9 +1313,11 @@ body.checkout-mode .checkout-header p {
 }
 
 .logo-emoji {
-  font-size: 28px;
+  width: 30px;  /* 🔥 Taille fixe */
+  height: 30px;
   line-height: 1;
   animation: float 3s ease-in-out infinite;
+  flex-shrink: 0;  /* Empêche le logo de rétrécir */
 }
 
 @keyframes float {
@@ -1327,19 +1327,6 @@ body.checkout-mode .checkout-header p {
   50% { 
     transform: translateY(-4px) rotate(5deg); 
   }
-}
-
-.masthead-title {
-  font-family: 'Inter', -apple-system, sans-serif;
-  font-size: 24px;
-  font-weight: 800;
-  margin: 0;
-  background: linear-gradient(135deg, #667eea 0%, #f093fb 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.5px;
-  line-height: 1;
 }
 
 /* === STATS INLINE === */
