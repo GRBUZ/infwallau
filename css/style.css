@@ -1494,6 +1494,9 @@ body.checkout-mode .summary-card {
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex; /* ✅ Permet au bouton de descendre */
+  flex-direction: column;
+  height: 100%; /* ✅ Prend toute la hauteur disponible */
 }
 
 body.checkout-mode .summary-card h3 {
@@ -1536,6 +1539,7 @@ body.checkout-mode .btn-secondary {
   padding: 9px;
   font-size: 12px;
   border-radius: 6px;
+  margin-top: auto;
 }
 
 /* === MAIN CHECKOUT COMPACTE === */
