@@ -1421,6 +1421,9 @@ body.checkout-mode #mainContainer {
 /* ============================================
    CHECKOUT ULTRA-COMPACT - INSPIRÉ DE VOTRE RÉFÉRENCE
    ============================================ */
+/* ============================================
+   CHECKOUT ULTRA-COMPACT - VERSION SIMPLE
+   ============================================ */
 
 /* Masquer le header en mode checkout */
 body.checkout-mode .masthead {
@@ -1428,7 +1431,7 @@ body.checkout-mode .masthead {
 }
 
 body.checkout-mode #mainContainer {
-  padding-top: 20px !important; /* ✅ Réduit de 40px à 20px */
+  padding-top: 20px !important;
   padding-bottom: 0;
 }
 
@@ -1480,14 +1483,16 @@ body.checkout-mode .checkout-content {
   margin: 0 auto;
   padding: 0 20px;
   gap: 20px;
-  display: flex; /* ✅ Changé en flex pour mieux contrôler */
-  flex-direction: column;
+  grid-template-columns: 240px 1fr;
+  align-items: start;
 }
 
 /* === SIDEBAR COMPACTE === */
 body.checkout-mode .order-summary-sidebar {
   position: sticky;
   top: 20px;
+  display: flex;
+  flex-direction: column;
 }
 
 body.checkout-mode .summary-card {
@@ -1495,9 +1500,9 @@ body.checkout-mode .summary-card {
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  display: flex; /* ✅ Permet au bouton de descendre */
+  display: flex;
   flex-direction: column;
-  height: 100%; /* ✅ Prend toute la hauteur disponible */
+  min-height: 100%;
 }
 
 body.checkout-mode .summary-card h3 {
@@ -1536,23 +1541,24 @@ body.checkout-mode .lock-timer {
   border-radius: 6px;
 }
 
+/* Bouton Back to selection - poussé en bas */
 body.checkout-mode .btn-secondary {
-  padding: 9px;
+  padding: 9px 16px;
   font-size: 12px;
   border-radius: 6px;
-  margin-top: auto; /* ✅ Pousse le bouton vers le bas */
+  margin-top: auto; /* Pousse vers le bas */
 }
 
 /* === MAIN CHECKOUT COMPACTE === */
 body.checkout-mode .checkout-main {
-  padding: 16px 18px; /* ✅ Réduit le padding top pour remonter */
+  padding: 16px 18px;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 body.checkout-mode .checkout-step h2 {
-  display: none; /* ✅ Cache le titre */
+  display: none;
 }
 
 /* === FORM GROUPS ULTRA-COMPACTS === */
@@ -1567,7 +1573,7 @@ body.checkout-mode .form-group label {
 }
 
 body.checkout-mode .label-icon {
-  display: none; /* Retire les emojis pour plus de sobriété */
+  display: none;
 }
 
 body.checkout-mode .form-group input[type="text"],
@@ -1607,7 +1613,7 @@ body.checkout-mode .btn-primary {
   font-size: 14px;
   margin-top: 16px;
   border-radius: 6px;
-  width: auto; /* ✅ Adapté au contenu */
+  width: auto;
   display: inline-flex;
   align-items: center;
   gap: 6px;
