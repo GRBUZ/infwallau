@@ -430,7 +430,7 @@ if (hbBlocks.length > MAX_HEARTBEAT_BLOCKS) {
       }
 
       // Inactivité prolongée avec seuil adaptatif
-      const idleThreshold = activityLevel === 'high' ? IDLE_LIMIT_MS * 1.5 : IDLE_LIMIT_MS;
+      /*const idleThreshold = activityLevel === 'high' ? IDLE_LIMIT_MS * 1.5 : IDLE_LIMIT_MS;
       if (hbRequireActivity && (now - lastActivityTs > idleThreshold)) {
         console.log('[LockManager] User inactive for too long, stopping heartbeat');
         stopHeartbeat();
@@ -438,7 +438,7 @@ if (hbBlocks.length > MAX_HEARTBEAT_BLOCKS) {
           try { await unlock(blocksSnapshot); } catch {} 
         }
         return;
-      }
+      }*/
 
       // Renouvellement avec optimisation
       if (blocksSnapshot.length) {
