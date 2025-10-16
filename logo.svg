@@ -1,0 +1,14 @@
+<svg id="logo3" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="48" height="48" rx="12" fill="url(#gradient3)"/>
+            <rect x="12" y="12" width="8" height="8" fill="white" opacity="0.9"/>
+            <rect x="28" y="12" width="8" height="8" fill="white" opacity="0.9"/>
+            <rect x="12" y="28" width="8" height="8" fill="white" opacity="0.9"/>
+            <rect x="28" y="28" width="8" height="8" fill="white" opacity="0.9"/>
+            <rect x="20" y="20" width="8" height="8" fill="white"/>
+            <defs>
+              <linearGradient id="gradient3" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#a21caf"/>
+                <stop offset="1" stop-color="#7c3aed"/>
+              </linearGradient>
+            </defs>
+          </svg>

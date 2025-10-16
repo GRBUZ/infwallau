@@ -1289,7 +1289,6 @@ body.checkout-mode .checkout-header p {
 /* Reset du header existant */
 .masthead {
   background: #000;
-  border-bottom: 1px solid #222;
   padding: 16px 40px;
   position: sticky;
   top: 0;

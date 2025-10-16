@@ -2126,7 +2126,7 @@ highlightAndScrollToPurchasedPixels(blocks) {
     const tooltipPixelraise = document.getElementById('tooltipPixelraise');
     if (tooltipPixelraise) {
       const locale = navigator.language || 'en-US';
-      tooltipPixelraise.textContent = ` $${(0.01).toLocaleString(locale)}`;
+      tooltipPixelraise.textContent = ` +$${(0.01).toLocaleString(locale)}`;
     }
     
     let tooltipTimeout = null;
