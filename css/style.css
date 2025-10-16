@@ -1480,7 +1480,8 @@ body.checkout-mode .checkout-content {
   margin: 0 auto;
   padding: 0 20px;
   gap: 20px;
-  grid-template-columns: 240px 1fr;
+  display: flex; /* ✅ Changé en flex pour mieux contrôler */
+  flex-direction: column;
 }
 
 /* === SIDEBAR COMPACTE === */
@@ -1539,7 +1540,7 @@ body.checkout-mode .btn-secondary {
   padding: 9px;
   font-size: 12px;
   border-radius: 6px;
-  margin-top: auto;
+  margin-top: auto; /* ✅ Pousse le bouton vers le bas */
 }
 
 /* === MAIN CHECKOUT COMPACTE === */
