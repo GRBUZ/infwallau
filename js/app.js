@@ -498,52 +498,53 @@ const Toast = {
       this.renderPixelPreview();
     },
     
-    renderPixelPreview() {
-      const { blocks } = AppState.orderData;
-      if (!blocks.length) return;
-      
-      const minRow = Math.min(...blocks.map(i => Math.floor(i / N)));
-      const maxRow = Math.max(...blocks.map(i => Math.floor(i / N)));
-      const minCol = Math.min(...blocks.map(i => i % N));
-      const maxCol = Math.max(...blocks.map(i => i % N));
-      
-      const width = maxCol - minCol + 1;
-      const height = maxRow - minRow + 1;
-
-      // 🔥 LIMITER à 20×15 max
-      const maxWidth = 20;
-      const maxHeight = 15;
-      const displayWidth = Math.min(width, maxWidth);
-      const displayHeight = Math.min(height, maxHeight);
-      
-      // Calculer quels blocs afficher (centrer si trop grand)
-      const startRow = width > maxWidth ? minRow + Math.floor((width - maxWidth) / 2) : minRow;
-      const startCol = height > maxHeight ? minCol + Math.floor((height - maxHeight) / 2) : minCol;
-      
-      const endRow = startRow + displayHeight - 1;
-      const endCol = startCol + displayWidth - 1;
-      
-      // Filtrer les blocs à afficher
-      const displayBlocks = blocks.filter(idx => {
-        const r = Math.floor(idx / N);
-        const c = idx % N;
-        return r >= startRow && r <= endRow && c >= startCol && c <= endCol;
-      });
-          
-      DOM.pixelPreview.innerHTML = `
-      <div class="preview-grid" style="--cols: ${displayWidth}; --rows: ${displayHeight}">
-        ${displayBlocks.map(idx => {
-          const r = Math.floor(idx / N) - startRow;
-          const c = (idx % N) - startCol;
-          return `<div class="preview-pixel" style="--r: ${r}; --c: ${c}"></div>`;
-        }).join('')}
-      </div>
-      <div class="preview-info">
-        ${width}×${height} blocks
-        ${(width > maxWidth || height > maxHeight) ? '<span class="preview-truncated"> (preview)</span>' : ''}
-      </div>
-    `;
-    },
+renderPixelPreview() {
+  const { blocks } = AppState.orderData;
+  if (!blocks.length) return;
+  
+  const minRow = Math.min(...blocks.map(i => Math.floor(i / N)));
+  const maxRow = Math.max(...blocks.map(i => Math.floor(i / N)));
+  const minCol = Math.min(...blocks.map(i => i % N));
+  const maxCol = Math.max(...blocks.map(i => i % N));
+  
+  const width = maxCol - minCol + 1;
+  const height = maxRow - minRow + 1;
+  
+  // 🔥 LIMITER à 20×15 max
+  const maxWidth = 20;
+  const maxHeight = 15;
+  
+  const displayWidth = Math.min(width, maxWidth);
+  const displayHeight = Math.min(height, maxHeight);
+  
+  // Calculer le centre de la sélection (centrer si trop grand)
+  const startCol = width > maxWidth ? minCol + Math.floor((width - maxWidth) / 2) : minCol;
+  const startRow = height > maxHeight ? minRow + Math.floor((height - maxHeight) / 2) : minRow;
+  
+  const endCol = startCol + displayWidth - 1;
+  const endRow = startRow + displayHeight - 1;
+  
+  // Filtrer les blocs à afficher
+  const displayBlocks = blocks.filter(idx => {
+    const r = Math.floor(idx / N);
+    const c = idx % N;
+    return r >= startRow && r <= endRow && c >= startCol && c <= endCol;
+  });
+  
+  DOM.pixelPreview.innerHTML = `
+    <div class="preview-grid" style="--cols: ${displayWidth}; --rows: ${displayHeight}">
+      ${displayBlocks.map(idx => {
+        const r = Math.floor(idx / N) - startRow;
+        const c = (idx % N) - startCol;
+        return `<div class="preview-pixel" style="--r: ${r}; --c: ${c}"></div>`;
+      }).join('')}
+    </div>
+    <div class="preview-info">
+      ${width}×${height} blocks
+      ${(width > maxWidth || height > maxHeight) ? '<span class="preview-truncated"> (preview)</span>' : ''}
+    </div>
+  `;
+},
     
     startLockTimer() {
       console.log('[ViewManager] Starting 3-minute countdown');
@@ -2125,7 +2126,7 @@ highlightAndScrollToPurchasedPixels(blocks) {
     const tooltipPixelraise = document.getElementById('tooltipPixelraise');
     if (tooltipPixelraise) {
       const locale = navigator.language || 'en-US';
-      tooltipPixelraise.textContent = (0.01).toLocaleString(locale);
+      tooltipPixelraise.textContent = ` $${(0.01).toLocaleString(locale)}`;
     }
     
     let tooltipTimeout = null;
