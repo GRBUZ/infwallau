@@ -487,9 +487,14 @@ const Toast = {
       const pixels = blocks.length * 100;
       
       DOM.summaryPixels.textContent = pixels.toLocaleString(locale);
-      DOM.summaryPrice.textContent = `$${unitPrice.toFixed(2)}`;
-      DOM.summaryTotal.textContent = `$${totalAmount.toFixed(2)}`;
-      
+      DOM.summaryPrice.textContent = `$${unitPrice.toLocaleString(locale, { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+      })}`;
+      DOM.summaryTotal.textContent = `$${totalAmount.toLocaleString(locale, { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+      })}`;
       this.renderPixelPreview();
     },
     
@@ -994,23 +999,6 @@ const Toast = {
       this.updateTopbar();
     },
     
-    /*updateSelectionInfo() {
-      if (AppState.view === 'checkout') {
-        DOM.selectionInfo.classList.remove('show');
-        return;
-      }
-      
-      const count = AppState.selected.size * 100;
-      if (count === 0) {
-        DOM.selectionInfo.classList.remove('show');
-        return;
-      }
-      
-      const total = this.calculateTotal(AppState.selected.size * 100);
-      DOM.selectionInfo.innerHTML = 
-        `<span class="count">${count.toLocaleString(locale)}</span> pixels • $${total.toFixed(2)}`;
-      DOM.selectionInfo.classList.add('show');
-    },*/
 updateSelectionInfo() {
   if (AppState.view === 'checkout') {
     DOM.selectionInfo.classList.remove('show');
@@ -1030,15 +1018,21 @@ updateSelectionInfo() {
   const detailsEl = DOM.selectionInfo.querySelector('.selection-details');
   if (detailsEl) {
     detailsEl.innerHTML = 
-      `<span class="count">${count.toLocaleString(locale)}</span> pixels • $${total.toFixed(2)}`;
+      `<span class="count">${count.toLocaleString(locale)}</span> pixels • $${total.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
-  
   // 🔥 PAS DE CALCUL DE POSITION - FIXE EN CSS !
   DOM.selectionInfo.classList.add('show');
 },
     
     updateTopbar() {
-      DOM.priceLine.textContent = `1 PIXEL = $${AppState.globalPrice.toFixed(2)}`;
+      const priceEl = DOM.priceLine;
+      if (priceEl) {
+        // Format avec 2 décimales selon locale
+        priceEl.textContent = `1 PIXEL = $${AppState.globalPrice.toLocaleString(locale, { 
+          minimumFractionDigits: 2, 
+          maximumFractionDigits: 2 
+        })}/px`;
+      }
       DOM.pixelsLeft.textContent = '1M PIXELs';
       this.updateSelectionInfo();
     },
@@ -2097,6 +2091,13 @@ highlightAndScrollToPurchasedPixels(blocks) {
     if (!priceInfoBtn || !priceTooltip) {
       console.error('Price info elements not found!');
       return;
+    }
+
+    // 🔥 FORMATTER LE NOMBRE DE PIXELS SELON LOCALE
+    const tooltipPixelCount = document.getElementById('tooltipPixelCount');
+    if (tooltipPixelCount) {
+      const locale = navigator.language || 'en-US';
+      tooltipPixelCount.textContent = (1000).toLocaleString(locale);
     }
     
     let tooltipTimeout = null;
