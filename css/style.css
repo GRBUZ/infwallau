@@ -1428,7 +1428,7 @@ body.checkout-mode .masthead {
 }
 
 body.checkout-mode #mainContainer {
-  padding-top: 40px !important;
+  padding-top: 20px !important; /* ✅ Réduit de 40px à 20px */
   padding-bottom: 0;
 }
 
@@ -1540,16 +1540,14 @@ body.checkout-mode .btn-secondary {
 
 /* === MAIN CHECKOUT COMPACTE === */
 body.checkout-mode .checkout-main {
-  padding: 18px;
+  padding: 16px 18px; /* ✅ Réduit le padding top pour remonter */
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 body.checkout-mode .checkout-step h2 {
-  font-size: 18px;
-  margin-bottom: 16px;
-  font-weight: 600;
+  display: none; /* ✅ Cache le titre */
 }
 
 /* === FORM GROUPS ULTRA-COMPACTS === */
@@ -1600,10 +1598,14 @@ body.checkout-mode .form-hint {
 
 /* === BOUTONS COMPACTS === */
 body.checkout-mode .btn-primary {
-  padding: 10px 16px;
+  padding: 10px 20px;
   font-size: 14px;
   margin-top: 16px;
   border-radius: 6px;
+  width: auto; /* ✅ Adapté au contenu */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* === PAYMENT STEP === */
