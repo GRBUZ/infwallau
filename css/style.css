@@ -1123,21 +1123,6 @@ body.checkout-mode .checkout-header p {
   transform: translate(-50%, -120%); /* Centré au-dessus du curseur */
   white-space: nowrap;
 }
-
-/* Flèche pointant vers le curseur */
-.selection-guide::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  margin-left: -4px;
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 4px solid rgba(139, 92, 246, 0.9);
-}
-
 .selection-guide.show {
   opacity: 1;
   visibility: visible;
