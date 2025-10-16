@@ -2001,17 +2001,3 @@ body.checkout-mode #mainContainer {
         transform: translateY(0);
     }
 }
-
-/* État de chargement */
-.btn-primary:disabled,
-.btn-secondary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* Focus states pour l'accessibilité */
-button:focus-visible,
-input:focus-visible {
-    outline: 2px solid #8b5cf6;
-    outline-offset: 2px;
-}
