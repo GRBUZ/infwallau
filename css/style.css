@@ -2011,7 +2011,7 @@ body.checkout-mode .recap-image {
 .order-summary-sidebar,
 .user-info-recap {
   height: fit-content;
-  max-height: 680px; /* Hauteur maximale de la colonne recap */
+  max-height: 510; /* Hauteur maximale de la colonne recap */
 }
 
 .summary-card,
@@ -2271,8 +2271,8 @@ body.checkout-mode .recap-image {
     order: 3;
   }
   .checkout-main {
-  min-height: 600px;
-  max-height: 680px;
+  min-height: 500px;
+  max-height: 510px;
   overflow-y: auto;
 }
 
