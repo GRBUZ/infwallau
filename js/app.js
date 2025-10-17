@@ -423,28 +423,6 @@ const Toast = {
       AppState.uploadedImageCache = null;
     },
 
-    /*setCheckoutStep(step) {
-      console.log('[ViewManager] Setting checkout step:', step);
-      AppState.checkoutStep = step;
-      
-      // Update steps visibility
-      Object.entries(DOM.steps).forEach(([num, el]) => {
-        el.classList.toggle('active', parseInt(num) === step);
-      });
-      
-      // Update progress bar
-      DOM.progressSteps.forEach((el, i) => {
-        const stepNum = i + 1;
-        el.classList.toggle('active', stepNum <= step);
-        el.classList.toggle('completed', stepNum < step);
-      });
-      
-      // Au passage à step 2 (payment), redémarrer le timer visuel
-      if (step === 2) {
-        console.log('[ViewManager] Step 2: Restarting visual countdown');
-        this.startLockTimer();
-      }
-    },*/
   updateCheckoutButtons() {
   if (!DOM.backToGrid || !DOM.proceedToPayment) return;
   
@@ -465,7 +443,7 @@ const Toast = {
   }
 },
 
-    setCheckoutStep(step) {
+   setCheckoutStep(step) {
   console.log('[ViewManager] Setting checkout step:', step);
   AppState.checkoutStep = step;
 
@@ -483,19 +461,39 @@ const Toast = {
     el.classList.toggle('active', parseInt(num, 10) === step);
   });
 
-  // Update progress bar
+  // ✅ MODIFIÉ: Update progress bar avec 4 étapes
   if (DOM.progressSteps && DOM.progressSteps.forEach) {
     DOM.progressSteps.forEach((el, i) => {
       if (!el) return;
-      const stepNum = i + 1;
-      el.classList.toggle('active', stepNum <= step);
-      el.classList.toggle('completed', stepNum < step);
+      
+      // Récupérer le numéro d'étape depuis data-step (0, 1, 2, 3)
+      const progressStep = parseInt(el.dataset.step, 10);
+      
+      // Step 0 (Selection) est toujours completed en checkout
+      if (progressStep === 0) {
+        el.classList.add('completed');
+        el.classList.remove('active');
+      }
+      // Step actuel
+      else if (progressStep === step) {
+        el.classList.add('active');
+        el.classList.remove('completed');
+      }
+      // Steps complétés (avant le step actuel)
+      else if (progressStep < step) {
+        el.classList.add('completed');
+        el.classList.remove('active');
+      }
+      // Steps futurs
+      else {
+        el.classList.remove('active', 'completed');
+      }
     });
   } else {
     console.warn('[ViewManager] progressSteps not ready or empty');
   }
 
-  // ✅ NOUVEAU: Gestion des colonnes selon le step
+  // ✅ INCHANGÉ: Gestion des colonnes selon le step
   if (step === 1) {
     // Step 1: 2 colonnes (Order Summary + Form)
     if (DOM.checkoutContent) {

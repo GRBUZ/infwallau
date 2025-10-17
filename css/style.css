@@ -623,25 +623,49 @@ body.checkout-mode .checkout-content.three-columns {
 }
 
 /* ===== TITRES UNIFORMISÉS ===== */
+/* ===== TITRES UNIFORMISÉS ===== */
 .card-title {
   margin: 0 0 16px;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 18px; /* ✅ Même taille pour tous */
+  font-weight: 600;
   color: #111827;
   font-family: 'Inter', -apple-system, sans-serif;
+  line-height: 1.2;
+}
+
+/* Applique .card-title à TOUS les titres */
+.summary-card h3,
+.recap-card h3,
+.recap-header h3,
+.payment-title {
+  margin: 0 0 16px;
+  font-size: 18px !important; /* ✅ Force la taille */
+  font-weight: 600 !important;
+  color: #111827 !important;
+  font-family: 'Inter', -apple-system, sans-serif !important;
+  line-height: 1.2;
+}
+
+/* Retirer les marges en trop pour recap-header h3 */
+.recap-header h3 {
+  margin: 0 !important;
 }
 
 .payment-title {
   margin-bottom: 20px;
 }
 
-body.checkout-mode .card-title {
-  font-size: 14px;
+/* Mode checkout compact */
+body.checkout-mode .card-title,
+body.checkout-mode .summary-card h3,
+body.checkout-mode .recap-card h3,
+body.checkout-mode .recap-header h3,
+body.checkout-mode .payment-title {
+  font-size: 16px !important; /* ✅ Même taille en mode compact */
   margin-bottom: 12px;
 }
 
 body.checkout-mode .payment-title {
-  font-size: 14px;
   margin-bottom: 16px;
 }
 
@@ -654,8 +678,8 @@ body.checkout-mode .payment-title {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  height: 400px; /* ✅ Hauteur fixe */
-  max-height: 400px;
+  height: 380px; /* ✅ Hauteur fixe */
+  max-height: 380px;
   overflow: hidden; /* ✅ Important */
 }
 
@@ -748,8 +772,8 @@ body.checkout-mode .summary-card {
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  height: 400px; /* ✅ Même hauteur */
-  max-height: 400px;
+  height: 380px; /* ✅ Même hauteur */
+  max-height: 380px;
 }
 
 body.checkout-mode .summary-preview {
@@ -788,7 +812,7 @@ body.checkout-mode .lock-timer {
   opacity: 0;
   transition: opacity 0.3s ease;
   height: fit-content;
-  max-height: 400px;
+  max-height: 380px;
 }
 
 .user-info-recap.show {
@@ -804,8 +828,8 @@ body.checkout-mode .lock-timer {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  height: 400px; /* ✅ Hauteur fixe */
-  max-height: 400px;
+  height: 380px; /* ✅ Hauteur fixe */
+  max-height: 380px;
   overflow: hidden;
 }
 
@@ -945,8 +969,8 @@ body.checkout-mode .recap-image {
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  height: 400px; /* ✅ Hauteur fixe */
-  max-height: 400px;
+  height: 380px; /* ✅ Hauteur fixe */
+  max-height: 380px;
   overflow-y: auto;
 }
 
@@ -971,7 +995,7 @@ body.checkout-mode .checkout-main {
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  height: 400px; /* ✅ Même hauteur */
+  height: 380px; /* ✅ Même hauteur */
 }
 
 body.checkout-mode .checkout-step h2 {
@@ -1605,7 +1629,7 @@ body.checkout-mode .footer-copy {
   .order-summary-sidebar {
   top: 20px;
   height: fit-content;
-  max-height: 400px;
+  max-height: 380px;
 }
   .recap-card {
     position: relative;
