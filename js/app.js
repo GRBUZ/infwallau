@@ -2028,11 +2028,22 @@ highlightAndScrollToPurchasedPixels(blocks) {
       }
       
       // Edit info button
+// Edit info button
 if (DOM.editInfoBtn) {
   DOM.editInfoBtn.addEventListener('click', () => {
     console.log('[EventHandlers] Edit info clicked');
     
-    // Retour au step 1 sans perdre les données
+    // ✅ NOUVEAU: Vérifier si les locks sont encore valides
+    const blocks = AppState.orderData?.blocks || [];
+    const locksValid = haveMyValidLocks(blocks, 2000);
+    
+    if (!locksValid) {
+      console.warn('[EventHandlers] Cannot edit: locks expired');
+      Toast.warning('Your reservation has expired. Please start over.');
+      return; // ❌ Bloquer l'action
+    }
+    
+    // ✅ Locks valides, permettre l'édition
     ViewManager.setCheckoutStep(1);
     
     // Scroll vers le formulaire
