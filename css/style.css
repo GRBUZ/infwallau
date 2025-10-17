@@ -1721,75 +1721,58 @@ body.checkout-mode .field-error::before {
 }
 
 /*new*/
-
 /* ============================================
-   BARRE DE BOUTONS EN BAS (COMPACTE)
+   BOUTONS INLINE COMPACTS
    ============================================ */
 
-.checkout-footer-actions {
-  max-width: 1200px;
-  margin: 20px auto 0;
-  padding: 16px 24px;
+.checkout-actions-inline {
   display: flex;
   gap: 12px;
-  justify-content: space-between;
-  align-items: center;
+  justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 16px;
   border-top: 1px solid #e5e7eb;
 }
 
-.checkout-footer-actions .btn-secondary {
-  padding: 10px 20px;
-  font-size: 14px;
-  min-width: auto;
-  margin: 0;
+.btn-compact {
+  padding: 9px 18px !important;
+  font-size: 13px !important;
+  min-width: 140px;
+  margin: 0 !important;
+  white-space: nowrap;
 }
 
-.checkout-footer-actions .btn-primary {
-  padding: 10px 24px;
-  font-size: 14px;
-  min-width: auto;
-  margin: 0;
-}
-
-/* Mode checkout compact */
-body.checkout-mode .checkout-footer-actions {
+/* Mode checkout */
+body.checkout-mode .checkout-actions-inline {
   margin-top: 16px;
-  padding: 12px 20px;
+  padding-top: 12px;
 }
 
-body.checkout-mode .checkout-footer-actions .btn-secondary {
-  padding: 8px 16px;
-  font-size: 13px;
-}
-
-body.checkout-mode .checkout-footer-actions .btn-primary {
-  padding: 9px 20px;
-  font-size: 13px;
+body.checkout-mode .btn-compact {
+  padding: 8px 16px !important;
+  font-size: 12px !important;
+  min-width: 130px;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .checkout-footer-actions {
-    padding: 12px 16px;
+  .checkout-actions-inline {
     gap: 10px;
-    flex-wrap: wrap;
   }
   
-  .checkout-footer-actions .btn-secondary,
-  .checkout-footer-actions .btn-primary {
+  .btn-compact {
     flex: 1;
-    min-width: 140px;
+    min-width: 120px;
   }
 }
 
 @media (max-width: 480px) {
-  .checkout-footer-actions {
+  .checkout-actions-inline {
     flex-direction: column;
     gap: 8px;
   }
   
-  .checkout-footer-actions .btn-secondary,
-  .checkout-footer-actions .btn-primary {
+  .btn-compact {
     width: 100%;
   }
 }
