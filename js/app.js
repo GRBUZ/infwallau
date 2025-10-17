@@ -445,39 +445,36 @@ const Toast = {
         this.startLockTimer();
       }
     },*/
-    updateCheckoutButtons() {
+  updateCheckoutButtons() {
   if (!DOM.backToGrid || !DOM.proceedToPayment) return;
   
   const step = AppState.checkoutStep;
   
   if (step === 1) {
-    // Step 1: Les deux boutons visibles
     DOM.backToGrid.style.display = '';
     DOM.proceedToPayment.style.display = '';
     DOM.proceedToPayment.textContent = '💳 Continue to Payment';
   } 
   else if (step === 2) {
-    // Step 2: Seulement Back visible
     DOM.backToGrid.style.display = '';
     DOM.proceedToPayment.style.display = 'none';
   }
   else if (step === 3) {
-    // Step 3: Cacher les deux (success)
     DOM.backToGrid.style.display = 'none';
     DOM.proceedToPayment.style.display = 'none';
   }
 },
+
     setCheckoutStep(step) {
   console.log('[ViewManager] Setting checkout step:', step);
   AppState.checkoutStep = step;
 
-  // Defensive guards: exit early if DOM not ready
   if (!DOM || !DOM.steps) {
     console.warn('[ViewManager] DOM.steps not ready yet.');
     return;
   }
 
-  // Update steps visibility (skip null elements)
+  // Update steps visibility
   Object.entries(DOM.steps).forEach(([num, el]) => {
     if (!el) {
       console.warn(`[ViewManager] Missing step element for step ${num}`);
@@ -486,7 +483,7 @@ const Toast = {
     el.classList.toggle('active', parseInt(num, 10) === step);
   });
 
-  // Update progress bar (guard for NodeList)
+  // Update progress bar
   if (DOM.progressSteps && DOM.progressSteps.forEach) {
     DOM.progressSteps.forEach((el, i) => {
       if (!el) return;
@@ -498,13 +495,98 @@ const Toast = {
     console.warn('[ViewManager] progressSteps not ready or empty');
   }
 
-  // rest unchanged...
-  if (step === 2) {
-    console.log('[ViewManager] Step 2: Restarting visual countdown');
+  // ✅ NOUVEAU: Gestion des colonnes selon le step
+  if (step === 1) {
+    // Step 1: 2 colonnes (Order Summary + Form)
+    if (DOM.checkoutContent) {
+      DOM.checkoutContent.classList.remove('three-columns');
+    }
+    if (DOM.userInfoRecap) {
+      DOM.userInfoRecap.classList.remove('show');
+    }
+  } else if (step === 2) {
+    // Step 2: 3 colonnes (Order Summary + User Info + Payment)
+    console.log('[ViewManager] Step 2: Activating 3-column layout');
+    
+    if (DOM.checkoutContent) {
+      DOM.checkoutContent.classList.add('three-columns');
+    }
+    
+    // Populer et afficher le recap
+    this.populateUserRecap();
+    
+    if (DOM.userInfoRecap) {
+      // Petit délai pour l'animation
+      setTimeout(() => {
+        DOM.userInfoRecap.classList.add('show');
+      }, 50);
+    }
+    
+    // Redémarrer le timer
     this.startLockTimer();
   }
-  // ✅ AJOUTER CET APPEL
+  
+  // Mettre à jour les boutons
   this.updateCheckoutButtons();
+},
+
+populateUserRecap() {
+  console.log('[ViewManager] Populating user info recap');
+  
+  const { name, linkUrl, imageUrl } = AppState.orderData;
+  
+  // Name
+  if (DOM.recapName) {
+    DOM.recapName.textContent = name || '—';
+  }
+  
+  // URL
+  if (DOM.recapUrl) {
+    if (linkUrl) {
+      DOM.recapUrl.textContent = this.truncateUrl(linkUrl, 35);
+      DOM.recapUrl.href = linkUrl;
+      DOM.recapUrl.style.pointerEvents = 'auto';
+    } else {
+      DOM.recapUrl.textContent = '—';
+      DOM.recapUrl.href = '#';
+      DOM.recapUrl.style.pointerEvents = 'none';
+    }
+  }
+  
+  // Image
+  if (DOM.recapImage && DOM.recapImageWrapper) {
+    const noImageSpan = DOM.recapImageWrapper.querySelector('.recap-no-image');
+    
+    if (imageUrl) {
+      DOM.recapImage.src = imageUrl;
+      DOM.recapImage.style.display = 'block';
+      if (noImageSpan) noImageSpan.style.display = 'none';
+    } else {
+      DOM.recapImage.style.display = 'none';
+      if (noImageSpan) noImageSpan.style.display = 'block';
+    }
+  }
+},
+
+truncateUrl(url, maxLength = 40) {
+  try {
+    const urlObj = new URL(url);
+    const domain = urlObj.hostname.replace('www.', '');
+    const path = urlObj.pathname + urlObj.search;
+    
+    if (path.length <= 1) {
+      return domain;
+    }
+    
+    const full = domain + path;
+    if (full.length <= maxLength) {
+      return full;
+    }
+    
+    return domain + path.substring(0, maxLength - domain.length - 3) + '...';
+  } catch (e) {
+    return url.length > maxLength ? url.substring(0, maxLength - 3) + '...' : url;
+  }
 },
     updateSummary() {
       const { blocks, totalAmount, unitPrice } = AppState.orderData;
@@ -1245,6 +1327,8 @@ document.querySelectorAll('input').forEach(el => el.classList.remove('error'));
       AppState.orderData.linkUrl = linkUrl;
       AppState.orderData.imageUrl = AppState.uploadedImageCache.imageUrl;
       AppState.orderData.regionId = AppState.uploadedImageCache.regionId;
+      // ✅ AJOUTER: Log pour debug
+      console.log('[CheckoutFlow] Order data before step 2:', AppState.orderData);
 
       pauseHeartbeat();
       
@@ -1945,23 +2029,23 @@ highlightAndScrollToPurchasedPixels(blocks) {
         });
       }
       
-      // Form submit
-      /*if (DOM.checkoutForm) {
-        DOM.checkoutForm.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          await CheckoutFlow.processForm();
-        });
+      // Edit info button
+if (DOM.editInfoBtn) {
+  DOM.editInfoBtn.addEventListener('click', () => {
+    console.log('[EventHandlers] Edit info clicked');
+    
+    // Retour au step 1 sans perdre les données
+    ViewManager.setCheckoutStep(1);
+    
+    // Scroll vers le formulaire
+    setTimeout(() => {
+      const form = document.getElementById('checkoutForm');
+      if (form) {
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      
-      // Continue to Payment - redémarre le timer visuel
-      if (DOM.proceedToPayment) {
-        DOM.proceedToPayment.addEventListener('click', () => {
-          if (AppState.checkoutStep === 1) {
-            console.log('[EventHandlers] Resetting countdown on payment transition');
-            // Le timer sera redémarré automatiquement par setCheckoutStep(2)
-          }
-        });
-      }*/
+    }, 100);
+  });
+}
      // Continue to Payment button (maintenant hors du form)
 if (DOM.proceedToPayment) {
   DOM.proceedToPayment.addEventListener('click', async (e) => {
@@ -2099,6 +2183,14 @@ if (DOM.proceedToPayment) {
       // Buttons
       backToGrid: document.getElementById('backToGrid'),
       proceedToPayment: document.getElementById('proceedToPayment'),
+      // ✅ AJOUTER ces nouvelles références
+      userInfoRecap: document.getElementById('userInfoRecap'),
+      recapName: document.getElementById('recapName'),
+      recapUrl: document.getElementById('recapUrl'),
+      recapImage: document.getElementById('recapImage'),
+      recapImageWrapper: document.getElementById('recapImageWrapper'),
+      editInfoBtn: document.getElementById('editInfoBtn'),
+      checkoutContent: document.querySelector('.checkout-content'),
       
       // Steps
       steps: {

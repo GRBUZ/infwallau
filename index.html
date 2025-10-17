@@ -117,111 +117,155 @@
         </div>
       </div>
 
-      <!-- Checkout content -->
-      <div class="checkout-content">
+<!-- MODIFICATION 1: Ajouter la nouvelle colonne User Info Recap dans le checkout -->
+<!-- Checkout content -->
+<div class="checkout-content">
+  
+  <!-- Sidebar avec résumé -->
+  <aside class="order-summary-sidebar">
+    <div class="summary-card">
+      <h3>Order Summary</h3>
+      <div class="summary-preview" id="pixelPreview"></div>
+      
+      <div class="summary-details">
+        <div class="detail-row">
+          <span>Pixels selected</span>
+          <span id="summaryPixels">0</span>
+        </div>
+        <div class="detail-row">
+          <span>Price per pixel</span>
+          <span id="summaryPrice">$0.00</span>
+        </div>
+        <div class="detail-row total">
+          <span>Total</span>
+          <span id="summaryTotal">$0.00</span>
+        </div>
+      </div>
+
+      <div class="lock-timer" id="lockTimer">
+        <span class="timer-icon">⏱️</span>
+        <span class="timer-text"><span id="timerValue">3:00</span></span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ✅ NOUVELLE COLONNE: User Info Recap -->
+  <aside class="user-info-recap" id="userInfoRecap">
+    <div class="recap-card">
+      <div class="recap-header">
+        <h3>Your Details</h3>
+        <button type="button" class="btn-edit" id="editInfoBtn" title="Edit information">
+          ✏️
+        </button>
+      </div>
+      
+      <div class="recap-content">
+        <div class="recap-item">
+          <span class="recap-label">Display Name</span>
+          <span class="recap-value" id="recapName">—</span>
+        </div>
         
-        <!-- Sidebar avec résumé -->
-        <aside class="order-summary-sidebar">
-          <div class="summary-card">
-            <h3>Order Summary</h3>
-            <div class="summary-preview" id="pixelPreview"></div>
-            
-            <div class="summary-details">
-              <div class="detail-row">
-                <span>Pixels selected</span>
-                <span id="summaryPixels">0</span>
-              </div>
-              <div class="detail-row">
-                <span>Price per pixel</span>
-                <span id="summaryPrice">$0.00</span>
-              </div>
-              <div class="detail-row total">
-                <span>Total</span>
-                <span id="summaryTotal">$0.00</span>
-              </div>
-            </div>
-
-            <div class="lock-timer" id="lockTimer">
-              <span class="timer-icon">⏱️</span>
-              <span class="timer-text"><span id="timerValue">3:00</span></span>
-            </div>
+        <div class="recap-item">
+          <span class="recap-label">Profile URL</span>
+          <a class="recap-value recap-link" id="recapUrl" href="#" target="_blank" rel="noopener">—</a>
+        </div>
+        
+        <div class="recap-image-container">
+          <span class="recap-label">Profile Photo</span>
+          <div class="recap-image" id="recapImageWrapper">
+            <img id="recapImage" src="" alt="Your profile photo" style="display: none;">
+            <span class="recap-no-image">No image</span>
           </div>
-        </aside>
-
-        <!-- Main checkout form -->
-        <div class="checkout-main">
-          
-         <!-- Step 1: Form -->
-<div class="checkout-step active" id="step1">
-  <h2>Complete your purchase</h2>
-  <form id="checkoutForm">
-    <div class="form-group">
-      <label for="name">
-        <span class="label-icon">🏷️</span>
-        Display Name
-      </label>
-      <input 
-        type="text" 
-        id="name" 
-        name="name" 
-        placeholder="@yourname" 
-        maxlength="40" 
-        required
-      />
-      <span class="field-error" id="name-error"></span>
-    </div>
-
-    <div class="form-group">
-      <label for="link">
-        <span class="label-icon">🔗</span>
-        Profile URL
-      </label>
-      <input 
-        type="url" 
-        id="link" 
-        name="link" 
-        placeholder="https://instagram.com/your-handle" 
-        required
-      />
-      <span class="field-error" id="link-error"></span>
-    </div>
-
-    <div class="form-group">
-      <label for="image">
-        <span class="label-icon">📸</span>
-        Profile Photo
-      </label>
-      <div class="file-upload-wrapper">
-        <input 
-          type="file" 
-          id="image" 
-          accept="image/*" 
-        />
-        <div class="file-upload-preview" id="imagePreview">
-          <span>Click to upload or drag & drop</span>
         </div>
       </div>
-      <small class="form-hint">Max ~1.5 MB. JPG, PNG, GIF accepted.</small>
-      <span class="field-error" id="image-error"></span>
     </div>
-  </form>
+  </aside>
+
+  <!-- Main checkout form -->
+  <div class="checkout-main">
+    
+    <!-- Step 1: Form -->
+    <div class="checkout-step active" id="step1">
+      <h2>Complete your purchase</h2>
+      <form id="checkoutForm">
+        <div class="form-group">
+          <label for="name">
+            <span class="label-icon">🏷️</span>
+            Display Name
+          </label>
+          <input 
+            type="text" 
+            id="name" 
+            name="name" 
+            placeholder="@yourname" 
+            maxlength="40" 
+            required
+          />
+          <span class="field-error" id="name-error"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="link">
+            <span class="label-icon">🔗</span>
+            Profile URL
+          </label>
+          <input 
+            type="url" 
+            id="link" 
+            name="link" 
+            placeholder="https://instagram.com/your-handle" 
+            required
+          />
+          <span class="field-error" id="link-error"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="image">
+            <span class="label-icon">📸</span>
+            Profile Photo
+          </label>
+          <div class="file-upload-wrapper">
+            <input 
+              type="file" 
+              id="image" 
+              accept="image/*" 
+            />
+            <div class="file-upload-preview" id="imagePreview">
+              <span>Click to upload or drag & drop</span>
+            </div>
+          </div>
+          <small class="form-hint">Max ~1.5 MB. JPG, PNG, GIF accepted.</small>
+          <span class="field-error" id="image-error"></span>
+        </div>
+      </form>
+    </div>
+    
+    <!-- Step 2: Payment -->
+    <div class="checkout-step" id="step2">
+      <h2>Choose payment method</h2>
+      
+      <div class="payment-container">
+        <div id="paypal-button-container"></div>
+        
+        <div class="payment-security">
+          <span>🔒 Secure payment powered by PayPal</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
-          <!-- Step 2: Payment -->
-          <div class="checkout-step" id="step2">
-            <h2>Choose payment method</h2>
-            
-            <div class="payment-container">
-              <div id="paypal-button-container"></div>
-              
-              <div class="payment-security">
-                <span>🔒 Secure payment powered by PayPal</span>
-              </div>
-            </div>
-          </div>
 
-          
-        </div>
-      </div>
+<!-- Boutons en bas -->
+<div class="checkout-footer-actions">
+  <button type="button" class="btn-secondary" id="backToGrid">
+    ⬅️ Back to selection
+  </button>
+  <button type="button" class="btn-primary" id="proceedToPayment">
+    💳 Continue to Payment
+  </button>
+</div>
+
       <!-- ✅ AJOUTER CETTE NOUVELLE SECTION ICI, APRÈS .checkout-content -->
           <div class="checkout-footer-actions">
             <button type="button" class="btn-secondary" id="backToGrid">
