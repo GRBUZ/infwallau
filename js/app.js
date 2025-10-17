@@ -445,6 +445,28 @@ const Toast = {
         this.startLockTimer();
       }
     },*/
+    updateCheckoutButtons() {
+  if (!DOM.backToGrid || !DOM.proceedToPayment) return;
+  
+  const step = AppState.checkoutStep;
+  
+  if (step === 1) {
+    // Step 1: Les deux boutons visibles
+    DOM.backToGrid.style.display = '';
+    DOM.proceedToPayment.style.display = '';
+    DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+  } 
+  else if (step === 2) {
+    // Step 2: Seulement Back visible
+    DOM.backToGrid.style.display = '';
+    DOM.proceedToPayment.style.display = 'none';
+  }
+  else if (step === 3) {
+    // Step 3: Cacher les deux (success)
+    DOM.backToGrid.style.display = 'none';
+    DOM.proceedToPayment.style.display = 'none';
+  }
+},
     setCheckoutStep(step) {
   console.log('[ViewManager] Setting checkout step:', step);
   AppState.checkoutStep = step;
@@ -481,6 +503,8 @@ const Toast = {
     console.log('[ViewManager] Step 2: Restarting visual countdown');
     this.startLockTimer();
   }
+  // ✅ AJOUTER CET APPEL
+  this.updateCheckoutButtons();
 },
     updateSummary() {
       const { blocks, totalAmount, unitPrice } = AppState.orderData;
@@ -799,7 +823,8 @@ renderPixelPreview() {
       // Switch view
       this.switchTo('grid');
       this.setCheckoutStep(1);
-      
+      // ✅ AJOUTER CET APPEL
+      this.updateCheckoutButtons();
       // Refresh
       await StatusManager.load();
       GridManager.paintAll();
@@ -1921,7 +1946,7 @@ highlightAndScrollToPurchasedPixels(blocks) {
       }
       
       // Form submit
-      if (DOM.checkoutForm) {
+      /*if (DOM.checkoutForm) {
         DOM.checkoutForm.addEventListener('submit', async (e) => {
           e.preventDefault();
           await CheckoutFlow.processForm();
@@ -1936,7 +1961,31 @@ highlightAndScrollToPurchasedPixels(blocks) {
             // Le timer sera redémarré automatiquement par setCheckoutStep(2)
           }
         });
+      }*/
+     // Continue to Payment button (maintenant hors du form)
+if (DOM.proceedToPayment) {
+  DOM.proceedToPayment.addEventListener('click', async (e) => {
+    e.preventDefault();
+    
+    // Si on est au step 1, valider et soumettre le formulaire
+    if (AppState.checkoutStep === 1) {
+      console.log('[EventHandlers] Continue to Payment clicked');
+      
+      // Déclencher la validation du formulaire
+      const form = DOM.checkoutForm;
+      if (!form) return;
+      
+      // Utiliser la validation HTML5
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
       }
+      
+      // Valider et continuer
+      await CheckoutFlow.processForm();
+    }
+  });
+}
       
       // View pixels button
       const viewPixelsBtn = document.getElementById('viewMyPixels');

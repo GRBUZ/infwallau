@@ -1721,69 +1721,70 @@ body.checkout-mode .field-error::before {
 }
 
 /*new*/
-/* === BARRE D'ACTIONS CHECKOUT === */
-.checkout-actions {
+/* ============================================
+   BARRE DE BOUTONS EN BAS (HORS COLONNES)
+   ============================================ */
+
+.checkout-footer-actions {
+  max-width: 1200px;
+  margin: 24px auto 0;
+  padding: 20px 24px 0;
   display: flex;
-  gap: 12px;
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid #e5e7eb;
+  gap: 16px;
+  justify-content: flex-end;
+  border-top: 2px solid #e5e7eb;
 }
 
-.checkout-actions .btn-secondary,
-.checkout-actions .btn-primary {
-  flex: 1;
+.checkout-footer-actions .btn-secondary,
+.checkout-footer-actions .btn-primary {
+  min-width: 180px;
   margin: 0;
 }
 
-.checkout-actions .btn-secondary {
-  background: white;
-  border: 2px solid #e5e7eb;
-  order: 1;
-}
-
-.checkout-actions .btn-primary {
-  order: 2;
+.checkout-footer-actions .btn-secondary {
+  margin-right: auto; /* Pousse à gauche */
 }
 
 /* Mode checkout compact */
-body.checkout-mode .checkout-actions {
-  margin-top: 16px;
-  padding-top: 16px;
-  gap: 10px;
+body.checkout-mode .checkout-footer-actions {
+  margin-top: 20px;
+  padding: 16px 20px 0;
+  gap: 12px;
 }
 
-body.checkout-mode .checkout-actions .btn-secondary {
-  padding: 9px 16px;
-  font-size: 12px;
-}
-
-body.checkout-mode .checkout-actions .btn-primary {
-  padding: 10px 20px;
-  font-size: 14px;
+body.checkout-mode .checkout-footer-actions .btn-secondary,
+body.checkout-mode .checkout-footer-actions .btn-primary {
+  min-width: 160px;
 }
 
 /* Responsive */
-@media (max-width: 480px) {
-  .checkout-actions {
-    flex-direction: column-reverse;
-    gap: 8px;
+@media (max-width: 768px) {
+  .checkout-footer-actions {
+    padding: 16px 12px 0;
+    gap: 12px;
   }
   
-  .checkout-actions .btn-secondary,
-  .checkout-actions .btn-primary {
-    width: 100%;
+  .checkout-footer-actions .btn-secondary,
+  .checkout-footer-actions .btn-primary {
+    min-width: 140px;
+    font-size: 13px;
+    padding: 10px 16px;
   }
 }
-/* Retirer le margin-top: auto du btn-secondary dans la sidebar */
-body.checkout-mode .summary-card {
-  padding: 14px;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
 
-/* Plus besoin de margin-top: auto */
-body.checkout-mode .summary-card .btn-secondary {
-  display: none; /* Cache l'ancien bouton s'il reste */
+@media (max-width: 480px) {
+  .checkout-footer-actions {
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+  
+  .checkout-footer-actions .btn-secondary,
+  .checkout-footer-actions .btn-primary {
+    width: 100%;
+    min-width: auto;
+  }
+  
+  .checkout-footer-actions .btn-secondary {
+    margin-right: 0;
+  }
 }

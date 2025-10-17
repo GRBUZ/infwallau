@@ -208,16 +208,6 @@
       <small class="form-hint">Max ~1.5 MB. JPG, PNG, GIF accepted.</small>
       <span class="field-error" id="image-error"></span>
     </div>
-
-    <div class="checkout-actions">
-      <button type="button" class="btn-secondary" id="backToGrid">
-        ⬅️ Back to selection
-      </button>
-      <button type="submit" class="btn-primary" id="proceedToPayment">
-        💳 Continue to Payment
-      </button>
-    </div>
-    
   </form>
 </div>
           <!-- Step 2: Payment -->
@@ -232,10 +222,19 @@
               </div>
             </div>
           </div>
-
-
         </div>
       </div>
+
+      <!-- ✅ AJOUTER CETTE NOUVELLE SECTION ICI, APRÈS .checkout-content -->
+<div class="checkout-footer-actions">
+  <button type="button" class="btn-secondary" id="backToGrid">
+    ⬅️ Back to selection
+  </button>
+  <button type="button" class="btn-primary" id="proceedToPayment">
+    💳 Continue to Payment
+  </button>
+</div>
+
     </div>
   </main>
 
