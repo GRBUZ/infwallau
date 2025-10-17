@@ -627,7 +627,7 @@ body.checkout-mode .checkout-content.three-columns {
 .card-title {
   margin: 0 0 16px;
   font-size: 18px; /* ✅ Même taille pour tous */
-  font-weight: 600;
+  font-weight: 500;
   color: #111827;
   font-family: 'Inter', -apple-system, sans-serif;
   line-height: 1.2;
@@ -640,7 +640,7 @@ body.checkout-mode .checkout-content.three-columns {
 .payment-title {
   margin: 0 0 16px;
   font-size: 18px !important; /* ✅ Force la taille */
-  font-weight: 600 !important;
+  font-weight: 500 !important;
   color: #111827 !important;
   font-family: 'Inter', -apple-system, sans-serif !important;
   line-height: 1.2;
@@ -1756,4 +1756,20 @@ body.checkout-mode .footer-copy {
   .recap-image {
     height: 200px;
   }
+}
+
+/*hauteur des colonnes s adapte a la taille de l ecran*/
+.summary-card,
+.recap-card,
+.checkout-main {
+  height: clamp(380px, 45vh, 650px);
+  max-height: clamp(380px, 45vh, 650px);
+  overflow-y: auto;
+}
+
+body.checkout-mode .summary-card,
+body.checkout-mode .recap-card,
+body.checkout-mode .checkout-main {
+  height: clamp(350px, 42vh, 600px);
+  max-height: clamp(350px, 42vh, 600px);
 }
