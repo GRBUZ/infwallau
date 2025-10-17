@@ -1956,10 +1956,6 @@ body.checkout-mode .recap-image {
     order: 2; /* Order Summary (1), Recap (2), Payment (3) */
   }
   
-  .checkout-main {
-    order: 3;
-  }
-  
   .order-summary-sidebar {
     position: relative;
     top: 0;
@@ -2034,14 +2030,14 @@ body.checkout-mode .recap-image {
 
 /* Order Summary - hauteur fixe alignée sur recap */
 .summary-card {
-  min-height: 600px;
-  max-height: 680px;
+  min-height: 500px;
+  max-height: 510px;
 }
 
 /* Recap card - hauteur de référence */
 .recap-card {
-  min-height: 600px;
-  max-height: 680px;
+  min-height: 500px;
+  max-height: 510px;
 }
 
 .recap-content {
@@ -2274,6 +2270,16 @@ body.checkout-mode .recap-image {
   .checkout-main {
     order: 3;
   }
+  .checkout-main {
+  min-height: 600px;
+  max-height: 680px;
+  overflow-y: auto;
+}
+
+body.checkout-mode .checkout-main {
+  min-height: 500px;
+  max-height: 510px;
+}
   
   .order-summary-sidebar {
     position: relative;
