@@ -646,32 +646,23 @@ body.checkout-mode .payment-title {
 }
 
 /* ===== ORDER SUMMARY SIDEBAR ===== */
-.order-summary-sidebar {
-  position: sticky;
-  top: 20px;
-  height: fit-content;
-  max-height: 500px;
-}
-
 .summary-card {
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  position: sticky;
-  top: 20px;
-  height: 100%;
   display: flex;
   flex-direction: column;
-  min-height: 480px;
+  height: 500px; /* ✅ Hauteur fixe */
   max-height: 500px;
+  overflow: hidden; /* ✅ Important */
 }
 
 .summary-card h3 {
   margin: 0;
+  flex-shrink: 0;
 }
-
 .summary-preview {
   background: #f8f9fa;
   border-radius: 8px;
@@ -717,8 +708,9 @@ body.checkout-mode .payment-title {
   border-top: 1px solid #e5e7eb;
   padding-top: 16px;
   margin-bottom: 20px;
-  flex: 1;
-  overflow-y: auto;
+  flex: 1; /* ✅ Prend l'espace restant */
+  overflow-y: auto; /* ✅ Scroll si nécessaire */
+  min-height: 0; /* ✅ Important pour flex */
 }
 
 .detail-row {
@@ -744,19 +736,11 @@ body.checkout-mode .payment-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 0;
   font-size: 14px;
   font-weight: 600;
   color: #92400e;
   flex-shrink: 0;
-  margin-top: auto;
-}
-
-body.checkout-mode .order-summary-sidebar {
-  position: sticky;
-  top: 20px;
-  display: flex;
-  flex-direction: column;
 }
 
 body.checkout-mode .summary-card {
@@ -764,8 +748,8 @@ body.checkout-mode .summary-card {
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  min-height: 550px;
-  max-height: 650px;
+  height: 500px; /* ✅ Même hauteur */
+  max-height: 500px;
 }
 
 body.checkout-mode .summary-preview {
@@ -818,13 +802,11 @@ body.checkout-mode .lock-timer {
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  position: sticky;
-  top: 20px;
-  height: 100%;
   display: flex;
   flex-direction: column;
-  min-height: 480px;
+  height: 500px; /* ✅ Hauteur fixe */
   max-height: 500px;
+  overflow: hidden;
 }
 
 .recap-card h3 {
@@ -937,8 +919,6 @@ body.checkout-mode .lock-timer {
 
 body.checkout-mode .recap-card {
   padding: 14px;
-  min-height: 550px;
-  max-height: 650px;
 }
 
 body.checkout-mode .recap-header h3 {
@@ -965,7 +945,7 @@ body.checkout-mode .recap-image {
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  min-height: 480px;
+  height: 500px; /* ✅ Hauteur fixe */
   max-height: 500px;
   overflow-y: auto;
 }
@@ -991,8 +971,8 @@ body.checkout-mode .checkout-main {
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  min-height: 550px;
-  max-height: 650px;
+  height: 500px; /* ✅ Même hauteur */
+  max-height: 500px;
 }
 
 body.checkout-mode .checkout-step h2 {
@@ -1607,12 +1587,6 @@ body.checkout-mode .footer-copy {
     padding: 0 16px;
   }
   
-  .order-summary-sidebar,
-  .user-info-recap {
-    height: auto;
-    max-height: none;
-  }
-  
   .summary-card,
   .recap-card {
     min-height: auto;
@@ -1630,12 +1604,10 @@ body.checkout-mode .footer-copy {
   }
   
   .order-summary-sidebar {
-    position: relative;
-    top: 0;
-    order: 1;
-    margin-bottom: 20px;
-  }
-  
+  top: 20px;
+  height: fit-content;
+  max-height: 500px;
+}
   .recap-card {
     position: relative;
     top: 0;
