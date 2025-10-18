@@ -490,107 +490,6 @@ body.checkout-mode .masthead-title {
   font-size: 20px;
 }
 
-/* ===== CHECKOUT PROGRESS ===== */
-.checkout-progress {
-  background: #f8f9fa;
-  padding: 20px 0;
-  margin-bottom: 32px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 60px;
-  position: relative;
-}
-
-.progress-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  position: relative;
-  opacity: 0.4;
-  transition: opacity 0.3s ease;
-}
-
-.progress-step.active {
-  opacity: 1;
-}
-
-.progress-step.completed {
-  opacity: 0.7;
-}
-
-.step-number {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #e5e7eb;
-  color: #6b7280;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 16px;
-  transition: all 0.3s ease;
-}
-
-.progress-step.active .step-number {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-  color: white;
-}
-
-.progress-step.completed .step-number {
-  background: #10b981;
-  color: white;
-}
-
-.step-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #6b7280;
-}
-
-.progress-step.active .step-label {
-  color: #111827;
-}
-
-.progress-step:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  top: 20px;
-  left: 60px;
-  width: 60px;
-  height: 2px;
-  background: #e5e7eb;
-  z-index: -1;
-}
-
-.progress-step.completed:not(:last-child)::after {
-  background: #10b981;
-}
-
-body.checkout-mode .checkout-progress {
-  padding: 12px 0;
-  margin-bottom: 24px;
-  gap: 30px;
-  background: transparent;
-}
-
-body.checkout-mode .step-number {
-  width: 28px;
-  height: 28px;
-  font-size: 13px;
-}
-
-body.checkout-mode .step-label {
-  font-size: 11px;
-}
-
-body.checkout-mode .progress-step:not(:last-child)::after {
-  width: 30px;
-  left: 40px;
-  top: 14px;
-}
 
 /* ===== CHECKOUT CONTENT ===== */
 .checkout-content {
@@ -1592,12 +1491,6 @@ body.checkout-mode .footer-copy {
     padding-top: 100px;
   }
   
-  .checkout-progress {
-    padding: 16px 0;
-    margin-bottom: 24px;
-    gap: 30px;
-  }
-  
   .progress-step:not(:last-child)::after {
     width: 30px;
     left: 35px;
@@ -1772,4 +1665,189 @@ body.checkout-mode .recap-card,
 body.checkout-mode .checkout-main {
   height: clamp(350px, 42vh, 600px);
   max-height: clamp(350px, 42vh, 600px);
+}
+
+/* ===== CHECKOUT PROGRESS BAR ALIGNÉE ===== */
+.checkout-progress {
+  background: transparent;
+  padding: 0 0 24px 0;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0;
+  position: relative;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
+  flex: 0 0 auto; /* Ne pas étirer */
+}
+
+/* ✅ Positionnement des steps */
+.progress-step[data-step="0"] {
+  /* Selection - aligné avec colonne 1 (240px de largeur) */
+  margin-right: auto;
+}
+
+.progress-step[data-step="1"] {
+  /* Your info - aligné avec colonne 2 au step 2 */
+  position: relative;
+}
+
+.progress-step[data-step="2"] {
+  /* Payment - aligné avec colonne 3 */
+  margin-left: auto;
+}
+
+.progress-step.active {
+  opacity: 1;
+}
+
+.progress-step.completed {
+  opacity: 0.7;
+}
+
+.step-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.progress-step.active .step-number {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+}
+
+.progress-step.completed .step-number {
+  background: #10b981;
+  color: white;
+}
+
+.step-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.progress-step.active .step-label {
+  color: #111827;
+}
+
+/* ✅ Lignes entre les steps - ALLONGÉES */
+.progress-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: calc(50% + 20px);
+  width: 200px; /* ✅ Ligne beaucoup plus longue */
+  height: 2px;
+  background: #e5e7eb;
+  z-index: -1;
+}
+
+.progress-step.completed:not(:last-child)::after {
+  background: #10b981;
+}
+
+/* Mode checkout compact */
+body.checkout-mode .checkout-progress {
+  padding: 0 0 16px 0;
+  margin-bottom: 16px;
+  padding-left: 20px;
+  padding-right: 20px;
+  max-width: 900px;
+}
+
+body.checkout-mode .step-number {
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+}
+
+body.checkout-mode .step-label {
+  font-size: 12px;
+}
+
+body.checkout-mode .progress-step:not(:last-child)::after {
+  width: 150px;
+  top: 16px;
+  left: calc(50% + 16px);
+}
+
+/* ✅ Alignement avec 3 colonnes au step 2 */
+.checkout-content.three-columns ~ .checkout-progress .progress-step[data-step="1"] {
+  /* Ajuster position de "Your info" quand 3 colonnes */
+  margin: 0;
+}
+
+/* === SUPPRIMER LES TITRES DES COLONNES === */
+.card-title,
+.summary-card h3,
+.recap-card h3,
+.payment-title {
+  display: none !important;
+}
+
+/* Ajuster le header recap sans titre */
+.recap-header {
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+/* Ajuster les paddings sans titres */
+.summary-card,
+.recap-card,
+.checkout-main {
+  padding-top: 20px;
+}
+
+body.checkout-mode .summary-card,
+body.checkout-mode .recap-card,
+body.checkout-mode .checkout-main {
+  padding-top: 16px;
+}
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+  /* Recentrer la progress bar sur mobile */
+  .checkout-progress {
+    justify-content: center;
+    gap: 40px;
+  }
+  
+  .progress-step[data-step="0"],
+  .progress-step[data-step="1"],
+  .progress-step[data-step="2"] {
+    margin: 0;
+  }
+  
+  .progress-step:not(:last-child)::after {
+    width: 30px;
+    left: calc(50% + 20px);
+  }
+  
+  body.checkout-mode .progress-step:not(:last-child)::after {
+    width: 20px;
+    left: calc(50% + 16px);
+  }
 }

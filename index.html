@@ -105,7 +105,7 @@
     <div class="checkout-progress">
       <div class="progress-step completed" data-step="0">
         <span class="step-number">1</span>
-        <span class="step-label">Selection</span>
+        <span class="step-label">Your selection</span>
       </div>
       <div class="progress-step active" data-step="1">
         <span class="step-number">2</span>
@@ -113,11 +113,7 @@
       </div>
       <div class="progress-step" data-step="2">
         <span class="step-number">3</span>
-        <span class="step-label">Payment</span>
-      </div>
-      <div class="progress-step" data-step="3">
-        <span class="step-number">4</span>
-        <span class="step-label">Complete</span>
+        <span class="step-label">Payment method</span>
       </div>
     </div>
 
@@ -128,7 +124,6 @@
   <!-- Sidebar avec résumé -->
   <aside class="order-summary-sidebar">
     <div class="summary-card">
-      <h3>Your order</h3>
       <div class="summary-preview" id="pixelPreview"></div>
       
       <div class="summary-details">
@@ -157,7 +152,6 @@
   <aside class="user-info-recap" id="userInfoRecap">
     <div class="recap-card">
       <div class="recap-header">
-        <h3>Your info</h3>
         <button type="button" class="btn-edit" id="editInfoBtn" title="Edit information">
           ✏️
         </button>
@@ -190,7 +184,6 @@
     
     <!-- Step 1: Form -->
     <div class="checkout-step active" id="step1">
-      <h2>Complete your purchase</h2>
       <form id="checkoutForm">
         <div class="form-group">
           <label for="name">
@@ -246,8 +239,6 @@
     
     <!-- Step 2: Payment -->
     <div class="checkout-step" id="step2">
-      <h3 class="card-title payment-title">Your payment method</h3>
-      
       <div class="payment-container">
         <div id="paypal-button-container"></div>
         
