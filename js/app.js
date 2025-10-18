@@ -175,7 +175,7 @@ const Toast = {
     this.show(message, 'info', duration);
   }
 };
-
+window.Toast = Toast;
   // ===== MODAL CONFIRMATION SYSTEM =====
   const Modal = {
     show(options) {
