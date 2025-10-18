@@ -51,6 +51,8 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       
       if (response.ok) {
+        console.log('[Contact] Success! Checking Toast...');
+        console.log('[Contact] Toast exists?', typeof Toast);
         // ✅ Utiliser le Toast de app.js (qui existe déjà)
         if (typeof Toast !== 'undefined') {
           Toast.success('Message sent successfully! We\'ll get back to you soon. 📬');
