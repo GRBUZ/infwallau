@@ -1853,3 +1853,59 @@ body.checkout-mode .checkout-main {
   padding-top: 16px;
 }
 
+/* ===== HEADER POUR ORDER SUMMARY ===== */
+.summary-header {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+  min-height: 32px; /* ✅ Même hauteur que recap-header */
+}
+
+.btn-back {
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 18px; /* ✅ Flèche un peu plus grande */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #6b7280;
+  line-height: 1;
+  min-width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-back:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.btn-back:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  color: #9ca3af;
+}
+
+/* Aligner avec le header recap (avec bouton edit) */
+.recap-header {
+  min-height: 32px; /* ✅ Assurer même hauteur */
+}
+
+body.checkout-mode .summary-header {
+  margin-bottom: 10px;
+  min-height: 28px;
+}
+
+body.checkout-mode .btn-back {
+  padding: 5px 8px;
+  font-size: 16px;
+  min-width: 28px;
+}
