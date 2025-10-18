@@ -1,154 +1,408 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Terms of Use — Influencers Wall</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms of Use - Influencers Wall</title>
+  <link rel="stylesheet" href="css/style.css">
   <style>
-    :root { --text:#1f2937; --muted:#6b7280; --line:#e5e7eb; --accent:#6D28D9; }
-    html, body { margin:0; padding:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; color:var(--text); }
-    header { background: linear-gradient(180deg, #7C3AED 0%, #6D28D9 60%, #5B21B6 100%); color:#fff; padding:28px 16px; }
-    header .wrap, main .wrap { max-width: 900px; margin: 0 auto; }
-    header h1 { margin:0; font-size: 28px; line-height:1.15; }
-    header p { margin:6px 0 0; opacity:.95 }
-    main { padding: 24px 16px 40px; }
-    h2 { margin: 26px 0 8px; font-size: 20px; }
-    p, li { line-height: 1.6; }
-    .muted { color:var(--muted); }
-    .card { border:1px solid var(--line); border-radius:12px; padding:16px; }
-    ul { margin:10px 0 10px 22px; }
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    footer { border-top:1px solid var(--line); padding:16px; text-align:center; color:var(--muted); }
-    .pill { display:inline-block; background:#f3f4f6; color:#111827; border:1px solid var(--line); padding:4px 10px; border-radius:9999px; font-size:12px; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      line-height: 1.6;
+      color: #374151;
+      background: #fafafa;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 48px;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    
+    h1 {
+      font-size: 32px;
+      font-weight: 800;
+      color: #111827;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #667eea 0%, #f093fb 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .last-updated {
+      color: #9ca3af;
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+    
+    h2 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #111827;
+      margin-top: 40px;
+      margin-bottom: 16px;
+    }
+    
+    h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #374151;
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+    
+    p {
+      margin-bottom: 16px;
+    }
+    
+    ul {
+      margin-bottom: 16px;
+      padding-left: 24px;
+    }
+    
+    li {
+      margin-bottom: 8px;
+    }
+    
+    strong {
+      color: #111827;
+      font-weight: 600;
+    }
+    
+    a {
+      color: #8b5cf6;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    
+    a:hover {
+      text-decoration: underline;
+    }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 24px;
+      padding: 10px 20px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      color: #374151;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    
+    .back-link:hover {
+      background: #e5e7eb;
+      text-decoration: none;
+    }
+    
+    .highlight {
+      background: #fef3c7;
+      padding: 16px;
+      border-radius: 8px;
+      border-left: 4px solid #f59e0b;
+      margin: 24px 0;
+    }
+    
+    .card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 16px 0;
+    }
+    
+    .card ul {
+      margin: 0;
+    }
+    
+    .pill {
+      display: inline-block;
+      background: #8b5cf6;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .pricing-example {
+      background: #ede9fe;
+      border: 1px solid #c4b5fd;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 16px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 24px;
+      }
+      
+      h1 {
+        font-size: 24px;
+      }
+      
+      h2 {
+        font-size: 20px;
+      }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <div class="wrap">
-      <h1>Terms of Use</h1>
-      <p class="muted">Effective date: August 13, 2025</p>
+  <div class="container">
+    <a href="/" class="back-link">← Back to Influencers Wall</a>
+    
+    <h1>📋 Terms of Use</h1>
+    <p class="last-updated">Last updated: January 2025</p>
+    
+    <p>Welcome to <strong>Influencers Wall</strong>. By purchasing pixels or placing content on our grid, you agree to these Terms of Use. Please read them carefully.</p>
+    
+    <h2>1. Purchases & Pricing</h2>
+    
+    <div class="card">
+      <h3>Starting Price</h3>
+      <p>The initial price of each pixel is <strong>USD $1.00</strong>.</p>
+      
+      <h3>Price Increase Per Tier</h3>
+      <ul>
+        <li>Pixels are sold in blocks of <strong>1,000 pixels</strong> (called a "tier")</li>
+        <li>After each full tier of 1,000 pixels is sold, the unit price increases by <strong>$0.01</strong> for the next tier</li>
+      </ul>
+      
+      <h3>Price at Time of Reservation</h3>
+      <ul>
+        <li>When you select pixels, the current unit price is displayed</li>
+        <li>This price is guaranteed only once you complete the reservation process and proceed to payment</li>
+        <li>If your reservation expires or is canceled, you must reselect your pixels, and the price will be recalculated based on the then-current tier</li>
+      </ul>
+      
+      <h3>Final Price Calculation</h3>
+      <p>The total price of your selection is calculated progressively across tiers.</p>
+      
+      <div class="pricing-example">
+        <strong>Example:</strong><br>
+        • First 1,000 pixels: $1.00/px<br>
+        • Next 1,000 pixels: $1.01/px<br>
+        • Next 1,000 pixels: $1.02/px<br>
+        • And so on...
+      </div>
+      
+      <p>If your purchase spans multiple tiers, the portion in each tier will be priced according to that tier's unit price.</p>
+      
+      <h3>Additional Terms</h3>
+      <ul>
+        <li><strong>Currency:</strong> All prices are displayed and payable in U.S. dollars (USD)</li>
+        <li><strong>Indicative Prices:</strong> Any price shown during selection is indicative. The final payable price is confirmed at checkout</li>
+        <li><strong>No Retroactive Adjustments:</strong> Once pixels are purchased, the price is final. Later price changes do not affect prior purchases</li>
+        <li><strong>Secure Payment:</strong> All payments are processed securely via <span class="pill">PayPal</span></li>
+      </ul>
     </div>
-  </header>
-
-  <main>
-    <div class="wrap">
-      <p class="muted">Welcome to <strong>Influencers Wall</strong>. By purchasing pixels or placing content on our grid, you agree to these Terms of Use. Please read them carefully.</p>
-
-      <h2>1) Purchases & Pricing</h2>
-      <div class="card">
-        <ul>
-          <li><strong>Minimum purchase:</strong> 10×10 pixels (100&nbsp;€) for optimal visibility.</li>
-          <li>Pricing may change over time (e.g., per‑pixel price can increase as sales progress). Checkout always shows the current price.</li>
-          <li>
-            Pricing Rules
-
-Starting Price
-The initial price of each pixel is USD 1.00.
-
-Price Increase per Tier
-
-Pixels are sold in blocks of 1,000 pixels (called a “tier”).
-
-After each full tier of 1,000 pixels is sold, the unit price for the next pixels increases by 1% compared to the previous tier.
-
-Price at Time of Reservation
-
-When you select pixels, the current unit price is displayed.
-
-This price is guaranteed only once you complete the reservation process and proceed to payment.
-
-If your reservation expires or is canceled, you must reselect your pixels, and the price will be recalculated based on the then-current tier.
-
-Final Price Calculation
-
-The total price of your selection is calculated progressively across tiers.
-
-Example: if your purchase spans multiple tiers, the portion in each tier will be priced according to that tier’s unit price.
-
-Indicative Prices
-
-Any price shown during selection is indicative.
-
-The final payable price is confirmed by our system at the time of checkout.
-
-Currency
-
-All prices are displayed and payable in U.S. dollars (USD).
-
-No Retroactive Adjustments
-
-Once pixels are purchased, the price is final.
-
-Later price changes do not affect prior purchases.
-          </li>
-          <li><strong>Secure payment:</strong> via <span class="pill">PayPal</span>.</li>
-        </ul>
-      </div>
-
-      <h2>2) Content Rules</h2>
-      <div class="card">
-        <ul>
-          <li>Your submitted content (including image, display name, and link) must be appropriate and comply with these Terms.</li>
-          <li><strong>No offensive, illegal, hateful, violent, pornographic, deceptive, or misleading content.</strong></li>
-          <li>We may reject or remove any content, at our sole discretion, if it violates these rules.</li>
-        </ul>
-      </div>
-
-      <h2>3) Links Policy</h2>
-      <div class="card">
-        <ul>
-          <li>All links must point to <strong>legal and safe websites</strong>.</li>
-          <li>No malware, phishing, deceptive landing pages, or prohibited goods/services.</li>
-          <li>We may disable links that pose security risks to users.</li>
-        </ul>
-      </div>
-
-      <h2>4) Permanence & Refunds</h2>
-      <div class="card">
-        <ul>
-          <li><strong>Purchased pixels are permanent</strong> on the grid for the life of the project.</li>
-          <li>Purchases are <strong>non‑refundable</strong>.</li>
-          <li><strong>No modifications</strong> are possible after purchase (including changing images, text, or links).</li>
-        </ul>
-      </div>
-
-      <h2>5) Ownership & License</h2>
-      <div class="card">
-        <ul>
-          <li>You retain ownership of your uploaded/linked content.</li>
-          <li>You grant us a worldwide, non‑exclusive, royalty‑free license to host, display, and link your content on the grid and in promotional screenshots or archives of the site.</li>
-          <li>You confirm you have all necessary rights to use and publish the content and links you provide.</li>
-        </ul>
-      </div>
-
-      <h2>6) Uptime & Changes</h2>
-      <div class="card">
-        <ul>
-          <li>We aim for high availability but do not guarantee uninterrupted uptime.</li>
-          <li>We may update the site, the grid, or these Terms at any time. Material changes will be noted on this page.</li>
-        </ul>
-      </div>
-
-      <h2>7) Liability</h2>
-      <div class="card">
-        <ul>
-          <li>To the maximum extent permitted by law, we are not liable for indirect, incidental, or consequential damages arising from your use of the site.</li>
-          <li>In any case, our total liability is limited to the amount you paid for the affected pixels.</li>
-        </ul>
-      </div>
-
-      <h2>8) Contact</h2>
-      <p>Questions? Contact us at <a href="mailto:hello@example.com">hello@example.com</a>.</p>
-
-      <p class="muted" style="margin-top:24px;">These Terms are for general guidance and do not constitute legal advice. Consider consulting a qualified attorney to adapt them to your situation.</p>
+    
+    <h2>2. Content Rules</h2>
+    
+    <div class="card">
+      <p>Your submitted content (including image, display name, and link) must be appropriate and comply with these Terms.</p>
+      
+      <ul>
+        <li><strong>No offensive, illegal, hateful, violent, pornographic, deceptive, or misleading content</strong></li>
+        <li>Content must not violate any third-party rights (copyright, trademark, privacy, etc.)</li>
+        <li>We reserve the right to reject or remove any content, at our sole discretion, if it violates these rules</li>
+      </ul>
     </div>
-  </main>
-
-  <footer>
-    © <span id="year"></span> Influencers Wall
-  </footer>
-
-  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+    
+    <h2>3. Links Policy</h2>
+    
+    <div class="card">
+      <ul>
+        <li>All links must point to <strong>legal and safe websites</strong></li>
+        <li>No malware, phishing, deceptive landing pages, or prohibited goods/services</li>
+        <li>No links to illegal content, hate speech, or scams</li>
+        <li>We may disable links that pose security risks to users without refund</li>
+      </ul>
+    </div>
+    
+    <h2>4. Permanence & Refunds</h2>
+    
+    <div class="highlight">
+      <strong>⚠️ Important:</strong>
+      <ul style="margin: 8px 0 0 20px;">
+        <li><strong>Purchased pixels are permanent</strong> on the grid for the life of the project</li>
+        <li>Purchases are <strong>non-refundable</strong></li>
+        <li><strong>No modifications</strong> are possible after purchase (including changing images, text, or links)</li>
+      </ul>
+    </div>
+    
+    <p>Please ensure all information is correct before completing your purchase. We cannot issue refunds or make changes once payment is processed.</p>
+    
+    <h2>5. Ownership & License</h2>
+    
+    <div class="card">
+      <h3>Your Content</h3>
+      <ul>
+        <li>You retain ownership of your uploaded/linked content</li>
+        <li>You confirm you have all necessary rights to use and publish the content and links you provide</li>
+      </ul>
+      
+      <h3>License Grant</h3>
+      <p>You grant us a worldwide, non-exclusive, royalty-free license to:</p>
+      <ul>
+        <li>Host and display your content on the grid</li>
+        <li>Use your content in promotional screenshots or archives of the site</li>
+        <li>Share your content on social media to promote Influencers Wall</li>
+      </ul>
+    </div>
+    
+    <h2>6. Reservation System</h2>
+    
+    <div class="card">
+      <ul>
+        <li>When you select pixels, they are temporarily reserved for <strong>3 minutes</strong></li>
+        <li>During this time, other users cannot purchase the same pixels</li>
+        <li>If you don't complete payment within 3 minutes, your reservation expires and pixels become available again</li>
+        <li>You can cancel your reservation at any time before payment by clicking "Back to selection"</li>
+      </ul>
+    </div>
+    
+    <h2>7. Uptime & Service Changes</h2>
+    
+    <div class="card">
+      <ul>
+        <li>We aim for high availability but do not guarantee uninterrupted uptime</li>
+        <li>We may update the site, the grid, or these Terms at any time</li>
+        <li>Material changes will be noted on this page with an updated "Last updated" date</li>
+        <li>Continued use of the service after changes constitutes acceptance of the new Terms</li>
+      </ul>
+    </div>
+    
+    <h2>8. Liability & Disclaimers</h2>
+    
+    <div class="card">
+      <h3>Service "As Is"</h3>
+      <p>Influencers Wall is provided "as is" without warranties of any kind, express or implied.</p>
+      
+      <h3>Limitation of Liability</h3>
+      <ul>
+        <li>To the maximum extent permitted by law, we are not liable for indirect, incidental, or consequential damages arising from your use of the site</li>
+        <li>In any case, our total liability is limited to the amount you paid for the affected pixels</li>
+        <li>We are not responsible for content posted by users or external websites linked from the grid</li>
+      </ul>
+    </div>
+    
+    <h2>9. Content Responsibility & Disclaimer</h2>
+    
+    <div class="card">
+      <h3>User-Generated Content</h3>
+      <p>Influencers Wall is a platform where users purchase pixel space and provide their own content (images, names, and links). <strong>All content displayed on the grid is user-generated and does not represent the views or endorsement of Influencers Wall.</strong></p>
+      
+      <h3>No Responsibility for User Content</h3>
+      <p>We are <strong>not responsible</strong> for:</p>
+      <ul>
+        <li>The accuracy, legality, or appropriateness of user-submitted content</li>
+        <li>Images uploaded by users</li>
+        <li>External websites linked from the grid</li>
+        <li>Any damages, losses, or consequences resulting from visiting linked websites</li>
+        <li>Content or services offered on external websites</li>
+        <li>Copyright infringement by users (users are solely responsible for their content)</li>
+      </ul>
+      
+      <h3>External Links Disclaimer</h3>
+      <div class="highlight">
+        <strong>⚠️ Important:</strong> Links on Influencers Wall lead to external websites operated by third parties. We have no control over the content, privacy practices, or security of these external sites. <strong>You visit external links at your own risk.</strong>
+      </div>
+      
+      <h3>Prohibited Content</h3>
+      <p>We <strong>strictly prohibit</strong> the following types of content:</p>
+      <ul>
+        <li><strong>Illegal content:</strong> Anything that violates local, national, or international laws</li>
+        <li><strong>Violent or graphic content:</strong> Excessive violence, gore, or disturbing imagery</li>
+        <li><strong>Hate speech:</strong> Content promoting hatred, discrimination, or violence against individuals or groups based on race, ethnicity, religion, gender, sexual orientation, disability, or any other protected characteristic</li>
+        <li><strong>Pornographic or sexual content:</strong> Adult content, nudity, or sexually explicit material</li>
+        <li><strong>Child exploitation:</strong> Any content involving minors in inappropriate contexts</li>
+        <li><strong>Harassment or bullying:</strong> Content targeting or harassing individuals</li>
+        <li><strong>Terrorism or extremism:</strong> Content promoting terrorist organizations or violent extremism</li>
+        <li><strong>Fraudulent or deceptive content:</strong> Scams, phishing, pyramid schemes, or misleading information</li>
+        <li><strong>Malware or harmful content:</strong> Links to sites that distribute viruses, malware, or engage in unauthorized data collection</li>
+        <li><strong>Copyright infringement:</strong> Content you don't have the right to use</li>
+        <li><strong>Drug-related content:</strong> Promotion or sale of illegal drugs or controlled substances</li>
+        <li><strong>Weapons or explosives:</strong> Illegal sale or promotion of weapons</li>
+      </ul>
+      
+      <h3>Content Moderation</h3>
+      <ul>
+        <li>Content is published immediately upon successful payment</li>
+        <li>We reserve the right to remove any content at any time if it violates these Terms</li>
+        <li>Content may be removed if reported by users or discovered during routine monitoring</li>
+        <li><strong>No refunds will be issued for content removed due to Terms violations</strong></li>
+        <li>Users are solely responsible for ensuring their content complies with these Terms before submission</li>
+      </ul>
+      
+      <h3>Reporting Inappropriate Content</h3>
+      <p>If you discover content on the grid that violates these Terms, please report it immediately via our <a href="/#contact">Contact Form</a>. We will investigate and take appropriate action within 48 hours.</p>
+      
+      <h3>Indemnification</h3>
+      <p>You agree to indemnify and hold Influencers Wall harmless from any claims, damages, losses, or expenses (including legal fees) arising from:</p>
+      <ul>
+        <li>Content you submit or display on the grid</li>
+        <li>Your violation of these Terms</li>
+        <li>Your violation of any third-party rights</li>
+        <li>Any illegal activity conducted through your purchased pixels</li>
+      </ul>
+    </div>
+    
+    <h2>10. User Conduct</h2>
+    
+    <div class="card">
+      <p>You agree not to:</p>
+      <ul>
+        <li>Attempt to hack, manipulate, or abuse the reservation system</li>
+        <li>Use automated tools (bots) to reserve or purchase pixels</li>
+        <li>Submit false or fraudulent payment information</li>
+        <li>Harass other users or staff</li>
+        <li>Violate any applicable laws or regulations</li>
+      </ul>
+      
+      <p>Violation of these rules may result in removal of your content without refund and potential legal action.</p>
+    </div>
+    
+    <h2>11. Termination</h2>
+    
+    <p>We reserve the right to:</p>
+    <ul>
+      <li>Refuse service to anyone at any time</li>
+      <li>Remove content that violates these Terms</li>
+      <li>Terminate the Influencers Wall project at our discretion</li>
+    </ul>
+    
+    <h2>12. Governing Law</h2>
+    
+    <p>These Terms are governed by the laws of France. Any disputes will be resolved in the courts of France.</p>
+    
+    <h2>13. Contact</h2>
+    
+    <p>Questions about these Terms? Contact us via our <a href="/#contact">Contact Form</a>.</p>
+    
+    <div class="highlight">
+      <strong>📌 Note:</strong> These Terms are for general guidance and do not constitute legal advice. Consider consulting a qualified attorney to adapt them to your specific situation.
+    </div>
+    
+    <hr style="margin: 40px 0; border: none; border-top: 1px solid #e5e7eb;">
+    
+    <p style="text-align: center; color: #9ca3af; font-size: 14px;">
+      © <span id="year"></span> Influencers Wall. All rights reserved.
+    </p>
+  </div>
+  
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>
