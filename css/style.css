@@ -1194,7 +1194,7 @@ body.checkout-mode .payment-security {
   padding: 12px 20px 20px;
   display: flex;
   gap: 12px;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   border-top: 1px solid #e5e7eb;
 }
