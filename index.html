@@ -300,26 +300,26 @@
         <h2 style="margin:0; font-weight: 700;">💬 Contact me</h2>
         <button class="close" style="border:none;background:none;font-size:24px;cursor:pointer;color:#9ca3af;" title="Close" data-close>&times;</button>
       </div>
-      
-      <form id="contactForm" name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" class="body">
-        <input type="hidden" name="form-name" value="contact" />
-        <p hidden><label>Don't fill this out: <input name="bot-field" /></label></p>
 
-        <label>👤 Your name
-          <input name="name" placeholder="Your name" required />
-        </label>
-        <label>📧 Your email
-          <input name="email" type="email" placeholder="you@example.com" required />
-        </label>
-        <label>💭 Message
-          <textarea name="message" placeholder="How can we help?" rows="5" required></textarea>
-        </label>
+    <form id="contactForm" name="contact" method="POST" action="/" data-netlify="true" netlify-honeypot="bot-field" class="body">
+      <!-- ✅ Garder action="/" pour Netlify -->
+      <input type="hidden" name="form-name" value="contact" />
+      <p hidden><label>Don't fill this out: <input name="bot-field" /></label></p>
+      <label>👤 Your name
+        <input name="name" placeholder="Your name" required />
+      </label>
+      <label>📧 Your email
+        <input name="email" type="email" placeholder="you@example.com" required />
+      </label>
+      <label>💭 Message
+        <textarea name="message" placeholder="How can I help?" rows="5" required></textarea>
+      </label>
+      <div class="footer">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn primary">📨 Send Message</button>
+      </div>
+    </form>
 
-        <div class="footer">
-          <button type="button" class="btn" data-close>Cancel</button>
-          <button type="submit" class="btn primary">📨 Send Message</button>
-        </div>
-      </form>
     </div>
   </div>
   <!-- Scripts -->

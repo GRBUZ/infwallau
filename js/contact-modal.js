@@ -1,4 +1,4 @@
-// contact-modal.js — with Toast notification
+// contact-modal.js — Version simple
 document.addEventListener('DOMContentLoaded', function() {
   const btn = document.querySelector('a[href="#contact"]');
   const modal = document.getElementById('contactModal');
@@ -31,20 +31,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
-  // ✅ NOUVEAU: Gérer la soumission du formulaire
+  // ✅ Gérer la soumission
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const submitBtn = form.querySelector('button[type="submit"]');
     const originalText = submitBtn.textContent;
     
-    // Désactiver le bouton
     submitBtn.disabled = true;
-    submitBtn.textContent = '📤 Sending...';
+    submitBtn.innerHTML = '📤 Sending...';
     
     try {
-      // Soumettre via fetch pour rester sur la page
       const formData = new FormData(form);
+      
       const response = await fetch('/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -52,28 +51,23 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       
       if (response.ok) {
-        // ✅ Succès : Toast + fermer modal + reset form
-        if (window.Toast) {
-          Toast.success('Message sent successfully! We\'ll get back to you soon. 📬', 4000);
-        } else {
-          alert('Message sent successfully!');
+        // ✅ Utiliser le Toast de app.js (qui existe déjà)
+        if (typeof Toast !== 'undefined') {
+          Toast.success('Message sent successfully! We\'ll get back to you soon. 📬');
         }
         form.reset();
-        close();
+        setTimeout(() => close(), 1000);
       } else {
-        throw new Error('Network response was not ok');
+        throw new Error('Network error');
       }
     } catch (error) {
-      console.error('[Contact] Submit error:', error);
-      if (window.Toast) {
-        Toast.error('Failed to send message. Please try again.', 4000);
-      } else {
-        alert('Failed to send message. Please try again.');
+      console.error('[Contact] Error:', error);
+      if (typeof Toast !== 'undefined') {
+        Toast.error('Failed to send message. Please try again.');
       }
     } finally {
-      // Réactiver le bouton
       submitBtn.disabled = false;
-      submitBtn.textContent = originalText;
+      submitBtn.innerHTML = originalText;
     }
   });
 });
