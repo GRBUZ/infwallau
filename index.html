@@ -292,6 +292,12 @@
       <div class="footer-copy">© 2025 Influencers Wall. All rights reserved.</div>
     </div>
   </footer>
+  <!-- Form caché pour détection Netlify au build -->
+<form name="contact" netlify netlify-honeypot="bot-field" hidden>
+  <input type="text" name="name" />
+  <input type="email" name="email" />
+  <textarea name="message"></textarea>
+</form>
    <!-- Contact Modal -->
   <div id="contactModal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="backdrop" data-close></div>
