@@ -1,4 +1,4 @@
-// locks.js — Lock manager optimisé avec debouncing et prédiction
+// locks.js – Lock manager optimisé avec limite 5 min
 (function(){
   'use strict';
 
@@ -10,40 +10,35 @@
   const { apiCall } = window.CoreManager;
   const uid = window.CoreManager.uid || window.uid;
 
-  // OPTIMISATION 1: État optimisé avec WeakMap pour performance
+  // État optimisé
   let localLocks = Object.create(null);
   const othersLastSeen = Object.create(null);
   const OTHERS_GRACE_MS = 3000;
   
-  // OPTIMISATION 2: Heartbeat adaptatif selon l'activité
+  // Heartbeat avec limite 5 min totale
   let hbTimer = null;
   let hbBlocks = [];
-  const HB_INTERVAL_MS = 25000; // Réduit de 30s à 25s pour plus de réactivité
-
   let hbStartedAt = 0;
-  let hbMaxMs = 180000;
+  let hbMaxMs = 300000;  // 5 min par défaut
   let hbAutoUnlock = true;
-  //let hbRequireActivity = true;
-  let lastActivityTs = Date.now();
-  const IDLE_LIMIT_MS = 100000; // Réduit de 120s à 100s
+  const HB_INTERVAL_MS = 30000;  // 30s fixe
 
-  // OPTIMISATION 3: Tracking d'activité plus granulaire
+  // Tracking d'activité (conservé pour stats)
+  let lastActivityTs = Date.now();
   let recentActivity = [];
-  const ACTIVITY_WINDOW = 30000; // 30 secondes
+  const ACTIVITY_WINDOW = 30000;
 
   function trackActivity(type = 'generic') {
     const now = Date.now();
     lastActivityTs = now;
     
     recentActivity.push({ type, timestamp: now });
-    
-    // Nettoyer les anciennes activités
     recentActivity = recentActivity.filter(a => now - a.timestamp < ACTIVITY_WINDOW);
   }
 
   function getActivityLevel() {
     const now = Date.now();
-    const recent = recentActivity.filter(a => now - a.timestamp < 10000); // 10s
+    const recent = recentActivity.filter(a => now - a.timestamp < 10000);
     
     if (recent.length > 10) return 'high';
     if (recent.length > 3) return 'medium';
@@ -51,7 +46,7 @@
     return 'idle';
   }
 
-  // OPTIMISATION 4: Event listeners optimisés avec throttling
+  // Event listeners optimisés avec throttling
   let activityThrottled = false;
   
   function throttledActivity(type) {
@@ -62,7 +57,7 @@
     
     setTimeout(() => {
       activityThrottled = false;
-    }, 1000); // Throttle à 1 seconde
+    }, 1000);
   }
 
   (function attachActivityListenersOnce(){
@@ -73,7 +68,7 @@
     window.addEventListener('scroll', () => throttledActivity('scroll'), { passive: true });
   })();
 
-  // OPTIMISATION 5: Event emitter optimisé
+  // Event emitter optimisé
   const listeners = new Set();
   let emitScheduled = false;
 
@@ -93,20 +88,21 @@
   function on(evt, cb){ 
     if (evt==='change' && typeof cb==='function') listeners.add(cb); 
   }
+  
   function off(evt, cb){ 
     if (evt==='change') listeners.delete(cb); 
   }
 
   function now(){ return Date.now(); }
 
-  // OPTIMISATION 6: Pruning avec cache de dernière exécution
+  // Pruning avec cache
   let lastPruneTime = 0;
-  const PRUNE_INTERVAL = 5000; // 5 secondes minimum entre les prunes
+  const PRUNE_INTERVAL = 5000;
 
   function pruneLocal(){
     const currentTime = now();
     if (currentTime - lastPruneTime < PRUNE_INTERVAL) {
-      return; // Skip si trop récent
+      return;
     }
     
     lastPruneTime = currentTime;
@@ -128,7 +124,7 @@
     }
   }
 
-  // OPTIMISATION 7: Merge optimisé avec diff detection
+  // Merge optimisé avec diff detection
   let lastServerLocksHash = '';
 
   function hashLocks(locks) {
@@ -137,10 +133,9 @@
   }
 
   function merge(serverLocks){
-    // Early exit si pas de changements serveur
     const serverHash = hashLocks(serverLocks || {});
     if (serverHash === lastServerLocksHash && Object.keys(localLocks).length > 0) {
-      return localLocks; // Pas de changements
+      return localLocks;
     }
     lastServerLocksHash = serverHash;
 
@@ -148,14 +143,14 @@
     const t = now();
     const out = Object.create(null);
 
-    // 1) Mes locks locaux d'abord (priorité locale)
+    // Mes locks locaux d'abord
     for (const [k, l] of Object.entries(localLocks)) {
       if (l && l.uid === uid && l.until > t) {
         out[k] = { uid: l.uid, until: l.until };
       }
     }
 
-    // 2) Locks serveur avec mise à jour du tracking
+    // Locks serveur
     for (const [k, l] of Object.entries(serverLocks || {})) {
       if (l && l.until > t) {
         out[k] = { uid: l.uid, until: l.until };
@@ -165,14 +160,14 @@
       }
     }
 
-    // 3) Grâce pour locks autres disparus (avec cleanup)
+    // Grâce pour locks autres disparus
     for (const [k, l] of Object.entries(localLocks)) {
       if (!out[k] && l && l.uid !== uid && l.until > t) {
         const last = othersLastSeen[k] || 0;
         if (t - last < OTHERS_GRACE_MS) {
           out[k] = { uid: l.uid, until: l.until };
         } else {
-          delete othersLastSeen[k]; // Cleanup
+          delete othersLastSeen[k];
         }
       }
     }
@@ -187,13 +182,12 @@
     return out;
   }
 
-  // OPTIMISATION 8: Batch lock setting avec deduplication
+  // Batch lock setting
   function setLocalLocks(indices, ttlMs){
     const t = now();
     const until = t + (ttlMs || 180000);
     let changed = false;
     
-    // Dédupliquer les indices
     const uniqueIndices = [...new Set(indices)];
     
     for (const idx of uniqueIndices) {
@@ -208,7 +202,7 @@
     if (changed) emitChange();
   }
 
-  // OPTIMISATION 9: Lock avec retry intelligent et backoff adaptatif
+  // Lock avec retry intelligent
   let lockRetryCount = 0;
   const MAX_LOCK_RETRIES = 3;
 
@@ -218,7 +212,7 @@
       return { ok:false, locked: [], conflicts: [], locks: localLocks };
     }
 
-    // OPTIMISATION: Vérification précoce des conflits locaux
+    // Vérification précoce des conflits
     const conflicts = [];
     for (const idx of indices) {
       const l = localLocks[String(idx)];
@@ -232,7 +226,7 @@
       return { ok:false, locked: [], conflicts, locks: localLocks };
     }
 
-    // Optimisme local avec prédiction
+    // Optimisme local
     if (optimistic) {
       setLocalLocks(indices, ttlMs);
     }
@@ -247,8 +241,7 @@
         });
 
         if (!res || !res.ok) {
-          // Échec mais pas une erreur réseau
-          lockRetryCount = 0; // Reset sur échec métier
+          lockRetryCount = 0;
           return { 
             ok: false, 
             locked: [], 
@@ -291,7 +284,6 @@
           continue;
         }
         
-        // Échec définitif
         console.error(`[LockManager] Lock failed after ${attempt} attempts:`, error);
         return { ok: false, locked: [], conflicts: [], locks: localLocks, error: error.message };
       }
@@ -300,7 +292,7 @@
     return { ok: false, locked: [], conflicts: [], locks: localLocks, error: 'Max retries exceeded' };
   }
 
-  // OPTIMISATION 10: Unlock groupé avec batch processing
+  // Unlock groupé
   async function unlock(blocks){
     const indices = Array.isArray(blocks) ? blocks.map(n=>parseInt(n,10)).filter(Number.isInteger) : [];
     if (!indices.length) return { ok:true, locks: localLocks };
@@ -320,7 +312,6 @@
       emitChange();
     }
 
-    // Appel serveur avec retry simple
     try {
       const res = await apiCall('/unlock', {
         method: 'POST',
@@ -340,9 +331,9 @@
     }
   }
 
-  // OPTIMISATION 11: Validation stricte avec cache
+  // Validation stricte avec cache
   let validationCache = new Map();
-  const VALIDATION_CACHE_TTL = 1000; // 1 seconde
+  const VALIDATION_CACHE_TTL = 1000;
 
   function haveMyValidLocksStrict(indices, skewMs = 1000){
     if (!Array.isArray(indices) || !indices.length) return false;
@@ -363,7 +354,6 @@
     
     validationCache.set(cacheKey, { result, timestamp: now });
     
-    // Nettoyer le cache périodiquement
     if (validationCache.size > 100) {
       const oldEntries = [];
       for (const [key, value] of validationCache.entries()) {
@@ -377,60 +367,75 @@
     return result;
   }
 
-  // OPTIMISATION 12: Heartbeat adaptatif selon l'activité
-  function startHeartbeat(blocks, options = {}) {
-  const intervalMs = options.intervalMs || 30000;   // 30s par défaut
-  const ttlMs = options.ttlMs || 180000;            // 180s renewal
-  const maxTotalMs = options.maxTotalMs || 300000;  // 5 min MAX
-  
-  stopHeartbeat();
-  hbBlocks = Array.from(new Set(blocks)).slice(0, 500);
-  if (!hbBlocks.length) return;
-  
-  hbStartedAt = Date.now();  // ← Tracker temps local
-  hbMaxMs = maxTotalMs;
-  hbAutoUnlock = options.autoUnlock !== false;
-  
-  // Premier renewal immédiat
-  lock(hbBlocks, ttlMs, { optimistic: true }).catch(...);
-  
-  // Loop adaptatif simplifié
-  const tick = async () => {
-    const elapsed = Date.now() - hbStartedAt;
+  // ✅ HEARTBEAT SIMPLIFIÉ - 5 MIN MAX TOTAL
+  function startHeartbeat(blocks, options = {}){
+    stopHeartbeat();
     
-    // Vérif limite locale (protection client)
-    if (elapsed > hbMaxMs) {
-      console.log('[Heartbeat] Max duration reached (5min), stopping');
-      stopHeartbeat();
-      if (hbAutoUnlock) {
-        try { await unlock(hbBlocks); } catch (e) {}
-      }
-      return;
+    hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
+    
+    const MAX_HEARTBEAT_BLOCKS = 500;
+    if (hbBlocks.length > MAX_HEARTBEAT_BLOCKS) {
+      console.warn(`[LockManager] Clamping heartbeat to ${MAX_HEARTBEAT_BLOCKS} blocks`);
+      hbBlocks = hbBlocks.slice(0, MAX_HEARTBEAT_BLOCKS);
     }
-    
-    // Renewal
-    try {
-      const result = await lock(hbBlocks, ttlMs, { optimistic: false });
-      
-      if (!result || !result.ok) {
-        console.warn('[Heartbeat] Renewal failed (backend rejected):', result?.error);
-        // Backend a refusé = probablement dépassé 5 min côté serveur
+
+    if (!hbBlocks.length) return;
+
+    const intervalMs = options.intervalMs || HB_INTERVAL_MS;
+    const ttlMs = options.ttlMs || 180000;
+    hbMaxMs = options.maxTotalMs || 300000;  // 5 min par défaut
+    hbAutoUnlock = options.autoUnlock !== false;
+
+    hbStartedAt = Date.now();
+    lastActivityTs = Date.now();
+
+    console.log(`[LockManager] Starting heartbeat: ${hbBlocks.length} blocks, ${hbMaxMs}ms max`);
+
+    // Premier renouvellement optimiste
+    lock(hbBlocks, ttlMs, { optimistic: true }).catch((e) => {
+      console.warn('[LockManager] Initial heartbeat lock failed:', e);
+    });
+
+    // ✅ TICK SIMPLIFIÉ (pas d'adaptive, juste vérif limite)
+    const tick = async () => {
+      const elapsed = Date.now() - hbStartedAt;
+      const blocksSnapshot = hbBlocks.slice();
+
+      // ✅ VÉRIFICATION LIMITE 5 MIN TOTALE
+      if (elapsed > hbMaxMs) {
+        console.log(`[LockManager] Max duration reached (${hbMaxMs}ms), stopping`);
         stopHeartbeat();
+        if (hbAutoUnlock && blocksSnapshot.length) { 
+          try { await unlock(blocksSnapshot); } catch {} 
+        }
         return;
       }
-      
-      console.log('[Heartbeat] Renewal OK');
-    } catch (e) {
-      console.error('[Heartbeat] Renewal error:', e);
-    }
-    
-    // Next tick (fixe, pas adaptatif pour simplifier)
-    hbTimer = setTimeout(tick, intervalMs);
-  };
-  
-  hbTimer = setTimeout(tick, intervalMs);
-}
 
+      // Renouvellement
+      if (blocksSnapshot.length) {
+        try {
+          const result = await lock(blocksSnapshot, ttlMs, { optimistic: false });
+          
+          if (!result || !result.ok) {
+            console.warn('[LockManager] Heartbeat renewal failed (backend rejected):', result?.error);
+            // Backend a refusé = probablement dépassé 5 min côté serveur
+            stopHeartbeat();
+            return;
+          }
+          
+          console.log('[LockManager] Heartbeat renewal OK');
+        } catch (e) {
+          console.warn('[LockManager] Heartbeat renewal error:', e);
+        }
+      }
+
+      // Prochain tick (intervalle fixe)
+      hbTimer = setTimeout(tick, intervalMs);
+    };
+
+    // Premier tick
+    hbTimer = setTimeout(tick, intervalMs);
+  }
 
   function stopHeartbeat(){
     if (hbTimer) { 
@@ -444,6 +449,10 @@
 
   function setHeartbeatBlocks(blocks){
     hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
+  }
+  
+  function isHeartbeatRunning(){
+    return !!hbTimer;
   }
 
   function getSnapshot(){
@@ -475,11 +484,10 @@
     return other;
   }
 
-  // OPTIMISATION 13: Nettoyage périodique et stats
+  // Nettoyage périodique
   setInterval(() => {
     pruneLocal();
     
-    // Nettoyer othersLastSeen
     const now = Date.now();
     for (const [k, timestamp] of Object.entries(othersLastSeen)) {
       if (now - timestamp > OTHERS_GRACE_MS * 3) {
@@ -487,23 +495,23 @@
       }
     }
     
-    // Nettoyer le cache de validation
     for (const [key, value] of validationCache.entries()) {
       if (now - value.timestamp > VALIDATION_CACHE_TTL * 5) {
         validationCache.delete(key);
       }
     }
-  }, 30000); // Toutes les 30 secondes
+  }, 30000);
 
-  // OPTIMISATION 14: API avec méthodes de debug et stats
+  // ✅ API SIMPLIFIÉE
   const api = {
     lock, 
     unlock, 
     merge,
     heartbeat: { 
-      start: (blocks, options) => startHeartbeat(blocks, options),
-      stop: stopHeartbeat,
-      isRunning: () => !!hbTimer
+      start: startHeartbeat, 
+      stop: stopHeartbeat, 
+      setBlocks: setHeartbeatBlocks,
+      isRunning: isHeartbeatRunning  // ← Nouveau
     },
     getLocalLocks, 
     isLocked, 
@@ -512,12 +520,13 @@
     on, 
     off,
     
-    // Nouvelles méthodes d'optimisation
     getStats: () => ({
       localLocksCount: Object.keys(localLocks).length,
       othersLastSeenCount: Object.keys(othersLastSeen).length,
       heartbeatActive: !!hbTimer,
       heartbeatBlocks: hbBlocks.length,
+      heartbeatElapsed: hbTimer ? Date.now() - hbStartedAt : 0,
+      heartbeatMaxMs: hbMaxMs,
       activityLevel: getActivityLevel(),
       recentActivityCount: recentActivity.length,
       validationCacheSize: validationCache.size,
@@ -531,11 +540,9 @@
     }
   };
 
-  // Export global
   window.LockManager = api;
 
-  // Optionnel: CommonJS
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 
-  console.log('[LockManager] Optimized version loaded');
+  console.log('[LockManager] Loaded with 5min limit');
 })();
