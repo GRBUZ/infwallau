@@ -136,46 +136,6 @@ exports.handler = async (event) => {
       locks[k] = { uid: r.uid, until: untilMs };
     }
 
-    // 5) regionId + until (max des until) + totalAmount exact (= somme des unit_price * 100 px)
-    /*let until = 0;
-    let totalAmount = 0; // en dollars pour l'ensemble de la résa
-
-    if (locked.length) {
-      const { data: myLockRows, error: myErr } = await supabase
-        .rpc('locks_by_uid_in', { _uid: uid, _blocks: locked });
-
-      if (myErr) {
-        console.error('[reserve] Self locks RPC failed:', myErr);
-        return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: myErr.message });
-      }
-
-      for (const r of (myLockRows || [])) {
-        const t = r.until ? new Date(r.until).getTime() : 0;
-        if (t > until) until = t;
-
-        // tolère snake_case / camelCase
-        const p = Number(r.unit_price ?? r.unitPrice);
-        //const p = Number(pRaw);
-        if (Number.isFinite(p)) {
-          totalAmount += p * 100; 
-        }
-      }
-    }
-
-    const regionId = genRegionId(uid, locked);
-
-    const result = {
-      locked,
-      conflicts,
-      locks,
-      ttlSeconds: ttlSec,
-      regionId,
-      until,
-      totalAmount
-    };
-
-    return ok(result);*/
-    //new new
     // 5) regionId + until + totalAmount (depuis SQL, sans cap 1000)
 let until = 0;
 let totalAmount = 0; // dollars

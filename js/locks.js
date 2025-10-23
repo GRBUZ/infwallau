@@ -23,7 +23,7 @@
   let hbStartedAt = 0;
   let hbMaxMs = 180000;
   let hbAutoUnlock = true;
-  let hbRequireActivity = true;
+  //let hbRequireActivity = true;
   let lastActivityTs = Date.now();
   const IDLE_LIMIT_MS = 100000; // Réduit de 120s à 100s
 
@@ -378,94 +378,59 @@
   }
 
   // OPTIMISATION 12: Heartbeat adaptatif selon l'activité
-  function startHeartbeat(blocks, intervalMs = HB_INTERVAL_MS, ttlMs = 180000, options = {}){
-    stopHeartbeat();
-    hbBlocks = Array.isArray(blocks) ? blocks.slice() : [];
-    // limiter la taille pour éviter d'envoyer trop d'appels
-const MAX_HEARTBEAT_BLOCKS = 500;
-if (hbBlocks.length > MAX_HEARTBEAT_BLOCKS) {
-  console.warn(`[LockManager] startHeartbeat requested for ${hbBlocks.length} blocks — clamping to ${MAX_HEARTBEAT_BLOCKS} to avoid network storm`);
-  hbBlocks = hbBlocks.slice(0, MAX_HEARTBEAT_BLOCKS);
+  function startHeartbeat(blocks, options = {}) {
+  const intervalMs = options.intervalMs || 30000;   // 30s par défaut
+  const ttlMs = options.ttlMs || 180000;            // 180s renewal
+  const maxTotalMs = options.maxTotalMs || 300000;  // 5 min MAX
+  
+  stopHeartbeat();
+  hbBlocks = Array.from(new Set(blocks)).slice(0, 500);
+  if (!hbBlocks.length) return;
+  
+  hbStartedAt = Date.now();  // ← Tracker temps local
+  hbMaxMs = maxTotalMs;
+  hbAutoUnlock = options.autoUnlock !== false;
+  
+  // Premier renewal immédiat
+  lock(hbBlocks, ttlMs, { optimistic: true }).catch(...);
+  
+  // Loop adaptatif simplifié
+  const tick = async () => {
+    const elapsed = Date.now() - hbStartedAt;
+    
+    // Vérif limite locale (protection client)
+    if (elapsed > hbMaxMs) {
+      console.log('[Heartbeat] Max duration reached (5min), stopping');
+      stopHeartbeat();
+      if (hbAutoUnlock) {
+        try { await unlock(hbBlocks); } catch (e) {}
+      }
+      return;
+    }
+    
+    // Renewal
+    try {
+      const result = await lock(hbBlocks, ttlMs, { optimistic: false });
+      
+      if (!result || !result.ok) {
+        console.warn('[Heartbeat] Renewal failed (backend rejected):', result?.error);
+        // Backend a refusé = probablement dépassé 5 min côté serveur
+        stopHeartbeat();
+        return;
+      }
+      
+      console.log('[Heartbeat] Renewal OK');
+    } catch (e) {
+      console.error('[Heartbeat] Renewal error:', e);
+    }
+    
+    // Next tick (fixe, pas adaptatif pour simplifier)
+    hbTimer = setTimeout(tick, intervalMs);
+  };
+  
+  hbTimer = setTimeout(tick, intervalMs);
 }
 
-    if (!hbBlocks.length) return;
-
-    hbMaxMs = Math.max(30000, options.maxMs || 180000);
-    hbAutoUnlock = options.autoUnlock !== false;
-    hbRequireActivity = options.requireActivity !== false;
-
-    hbStartedAt = Date.now();
-    lastActivityTs = Date.now();
-
-    console.log(`[LockManager] Starting adaptive heartbeat for ${hbBlocks.length} blocks`);
-
-    // Premier renouvellement optimiste
-    lock(hbBlocks, ttlMs, { optimistic: true }).catch((e) => {
-      console.warn('[LockManager] Initial heartbeat lock failed:', e);
-    });
-
-    // Fonction de tick adaptative
-    const adaptiveTick = async () => {
-      const now = Date.now();
-      const blocksSnapshot = hbBlocks.slice();
-      const elapsed = now - hbStartedAt;
-      const activityLevel = getActivityLevel();
-
-      // Adapter l'intervalle selon l'activité
-      let nextInterval = intervalMs;
-      if (activityLevel === 'high') {
-        nextInterval = intervalMs * 0.8; // Plus fréquent si actif
-      } else if (activityLevel === 'idle') {
-        nextInterval = intervalMs * 1.5; // Moins fréquent si idle
-      }
-
-      // Cap de durée totale
-      if (elapsed > hbMaxMs) {
-        console.log('[LockManager] Heartbeat max duration reached, stopping');
-        stopHeartbeat();
-        if (hbAutoUnlock && blocksSnapshot.length) { 
-          try { await unlock(blocksSnapshot); } catch {} 
-        }
-        return;
-      }
-
-      // Inactivité prolongée avec seuil adaptatif
-      /*const idleThreshold = activityLevel === 'high' ? IDLE_LIMIT_MS * 1.5 : IDLE_LIMIT_MS;
-      if (hbRequireActivity && (now - lastActivityTs > idleThreshold)) {
-        console.log('[LockManager] User inactive for too long, stopping heartbeat');
-        stopHeartbeat();
-        if (hbAutoUnlock && blocksSnapshot.length) { 
-          try { await unlock(blocksSnapshot); } catch {} 
-        }
-        return;
-      }*/
-
-      // Renouvellement avec optimisation
-      if (blocksSnapshot.length) {
-        try {
-          const result = await lock(blocksSnapshot, ttlMs, { optimistic: false });
-          if (!result || !result.ok) {
-            console.warn('[LockManager] Heartbeat renewal failed:', result?.error);
-            // Ne pas arrêter pour un échec ponctuel, mais augmenter l'intervalle
-            nextInterval = Math.min(nextInterval * 1.2, intervalMs * 2);
-          } else {
-            console.log('[LockManager] Heartbeat renewal success');
-            // Réduire l'intervalle en cas de succès
-            nextInterval = Math.max(nextInterval * 0.95, intervalMs * 0.8);
-          }
-        } catch (e) {
-          console.warn('[LockManager] Heartbeat renewal error:', e);
-          nextInterval = Math.min(nextInterval * 1.3, intervalMs * 2);
-        }
-      }
-
-      // Programmer le prochain tick
-      hbTimer = setTimeout(adaptiveTick, nextInterval + Math.random() * 1000);
-    };
-
-    // Premier tick
-    hbTimer = setTimeout(adaptiveTick, intervalMs);
-  }
 
   function stopHeartbeat(){
     if (hbTimer) { 
@@ -536,9 +501,9 @@ if (hbBlocks.length > MAX_HEARTBEAT_BLOCKS) {
     unlock, 
     merge,
     heartbeat: { 
-      start: startHeartbeat, 
-      stop: stopHeartbeat, 
-      setBlocks: setHeartbeatBlocks 
+      start: (blocks, options) => startHeartbeat(blocks, options),
+      stop: stopHeartbeat,
+      isRunning: () => !!hbTimer
     },
     getLocalLocks, 
     isLocked, 

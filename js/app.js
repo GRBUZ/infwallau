@@ -16,34 +16,6 @@
   // ===== HEARTBEAT CONTROL =====
   let __processing = false;
 
-  function pauseHeartbeat() {
-    if (__processing) return;
-    __processing = true;
-    try { 
-      window.LockManager?.heartbeat?.stop?.(); 
-      console.log('[Heartbeat] Paused');
-    } catch (e) {
-      console.warn('[Heartbeat] Pause failed', e);
-    }
-  }
-
-  function resumeHeartbeat() {
-    if (!__processing) return;
-    __processing = false;
-    try {
-      const sel = AppState.orderData?.blocks || [];
-      if (sel.length && AppState.view === 'checkout') {
-        window.LockManager?.heartbeat?.start?.(sel, 30000, 180000, {
-          maxMs: 180000,
-          autoUnlock: true,
-          requireActivity: true
-        });
-        console.log('[Heartbeat] Resumed for', sel.length, 'blocks');
-      }
-    } catch (e) {
-      console.warn('[Heartbeat] Resume failed', e);
-    }
-  }
 
   // ===== VALIDATION LOCKS =====
   function haveMyValidLocks(arr, graceMs = 2000) {
@@ -521,7 +493,7 @@ window.Toast = Toast;
     }
     
     // Redémarrer le timer
-    this.startLockTimer();
+    //this.startLockTimer();
   }
   
   // Mettre à jour les boutons
@@ -649,173 +621,122 @@ renderPixelPreview() {
     </div>
   `;
 },
-    
+ 
     startLockTimer() {
-      console.log('[ViewManager] Starting 3-minute countdown');
-
-      // Defensive guard: don't start if locks are known invalid
-  // Consider heartbeat as proxy : si le heartbeat n'existe pas ou n'est pas running, ne démarre pas.
-  const hb = window.LockManager?.heartbeat;
-  const heartbeatRunning = !!(hb && (hb.isRunning || hb._running || hb._timer));
-  // Si on a un flag explicite
-  if (AppState.locksValid === false) {
-    console.log('[ViewManager] Not starting visual countdown: locks marked invalid');
+  console.log('[Timer] Starting 5-minute countdown');
+  
+  // Defensive guard
+  const hbRunning = window.LockManager?.heartbeat?.isRunning?.();
+  if (!hbRunning) {
+    console.warn('[Timer] Not starting: heartbeat not running');
     if (DOM.timerValue) DOM.timerValue.textContent = 'Reservation expired 😱';
     return;
   }
-      // Arrêter timer précédent
-      if (AppState.lockTimer) {
-        clearInterval(AppState.lockTimer);
-        AppState.lockTimer = null;
+  
+  if (AppState.lockTimer) {
+    clearInterval(AppState.lockTimer);
+    AppState.lockTimer = null;
+  }
+
+  // ✅ 5 MINUTES = 300 SECONDES
+  AppState.lockSecondsRemaining = 300;
+
+  const updateDisplay = () => {
+    const remaining = AppState.lockSecondsRemaining;
+    const minutes = Math.floor(Math.max(0, remaining) / 60);
+    const seconds = Math.max(0, remaining % 60);
+
+    if (DOM.timerValue) {
+      if (remaining > 0) {
+        DOM.timerValue.textContent = `Reserved for ${minutes}:${seconds.toString().padStart(2, '0')}`;
+      } else {
+        DOM.timerValue.textContent = 'Reservation expired 😱';
       }
+    }
 
-      // Reset à 180 secondes
-      AppState.lockSecondsRemaining = 180;
+    if (remaining <= 0) {
+      clearInterval(AppState.lockTimer);
+      AppState.lockTimer = null;
+      console.log('[Timer] Countdown reached 0:00');
+      return;
+    }
 
-      const updateDisplay = () => {
-        const secondsRemaining = AppState.lockSecondsRemaining;
-        const minutes = Math.floor(Math.max(0, secondsRemaining) / 60);
-        const seconds = Math.max(0, secondsRemaining % 60);
+    AppState.lockSecondsRemaining--;
+  };
 
-        if (DOM.timerValue) {
-          if (secondsRemaining > 0) {
-            DOM.timerValue.textContent = `Reserved for ${minutes}:${seconds.toString().padStart(2, '0')}`;
-          } else {
-            DOM.timerValue.textContent = 'Reservation expired 😱';
-          }
-        }
+  updateDisplay();
+  AppState.lockTimer = setInterval(updateDisplay, 1000);
+},
 
-        if (secondsRemaining <= 0) {
-          if (AppState.lockTimer) {
-            clearInterval(AppState.lockTimer);
-            AppState.lockTimer = null;
-          }
-          if (DOM.timerValue) DOM.timerValue.textContent = 'Reservation expired 😱';
-          console.log('[ViewManager] Visual countdown reached 0');
-          return;
-        }
+  startLockMonitoring(warmupMs = 1200) {
+  console.log('[Monitoring] Starting with warmup:', warmupMs);
 
-        AppState.lockSecondsRemaining--;
-      };
+  if (AppState.lockCheckTimeout) { 
+    clearTimeout(AppState.lockCheckTimeout); 
+    AppState.lockCheckTimeout = null; 
+  }
+  if (AppState.lockCheckInterval) { 
+    clearInterval(AppState.lockCheckInterval); 
+    AppState.lockCheckInterval = null; 
+  }
 
-      updateDisplay();
-      AppState.lockTimer = setInterval(updateDisplay, 1000);
-    },
+  const checkLocks = async () => {
+    const blocks = AppState.orderData.blocks;
+    if (!blocks || !blocks.length) return;
 
-    startLockMonitoring(warmupMs = 1200) {
-      console.log('[ViewManager] Starting lock monitoring with server refresh');
-
-      // Cleanup anciens timers
-      if (AppState.lockCheckTimeout) { 
-        clearTimeout(AppState.lockCheckTimeout); 
-        AppState.lockCheckTimeout = null; 
+    // 1) Rafraîchir status serveur
+    try {
+      const status = await apiCall('/status?ts=' + Date.now());
+      if (status && status.ok) {
+        AppState.locks = window.LockManager.merge(status.locks || {});
+        AppState.sold = status.sold || AppState.sold;
+        AppState.regions = status.regions || AppState.regions;
+      } else {
+        console.warn('[Monitoring] /status returned not ok');
       }
-      if (AppState.lockCheckInterval) { 
-        clearInterval(AppState.lockCheckInterval); 
-        AppState.lockCheckInterval = null; 
+    } catch (err) {
+      console.warn('[Monitoring] Failed to refresh /status:', err);
+    }
+
+    // 2) Vérifier validité locks
+    const valid = haveMyValidLocks(blocks, 2000);
+    console.log('[Monitoring] Locks valid:', valid, '| Timer:', AppState.lockSecondsRemaining, 's');
+
+    // 3) Update UI selon step
+    if (AppState.checkoutStep === 1) {
+      if (DOM.proceedToPayment) {
+        DOM.proceedToPayment.disabled = !valid;
+        DOM.proceedToPayment.textContent = valid 
+          ? '💳 Continue to Payment' 
+          : '⏰ Reservation expired - reselect';
       }
+    } else if (AppState.checkoutStep === 2) {
+      ViewManager.setPayPalEnabled(valid);
+    }
 
-      const checkLocks = async () => {
-        // Skip si en processing
-        if (__processing) {
-          console.log('[LockMonitor] Skipping check (processing)');
-          return;
-        }
+    // 4) Stop monitoring si invalide
+    if (!valid) {
+      console.log('[Monitoring] Locks invalid, stopping monitoring & heartbeat');
+      
+      try { window.LockManager.heartbeat.stop(); } catch (e) {}
+      
+      if (AppState.lockCheckInterval) {
+        clearInterval(AppState.lockCheckInterval);
+        AppState.lockCheckInterval = null;
+      }
+      
+      return;
+    }
+  };
 
-        const blocks = AppState.orderData.blocks;
-        if (!blocks || !blocks.length) return;
+  // Premier check après warmup, puis toutes les 5s
+  AppState.lockCheckTimeout = setTimeout(() => {
+    checkLocks();
+    AppState.lockCheckInterval = setInterval(checkLocks, 5000);
+  }, Math.max(0, warmupMs | 0));
 
-        // 1) Rafraîchir status serveur (source de vérité)
-        try {
-          const status = await apiCall('/status?ts=' + Date.now());
-          if (status && status.ok) {
-            AppState.locks = window.LockManager.merge(status.locks || {});
-            AppState.sold = status.sold || AppState.sold;
-            AppState.regions = status.regions || AppState.regions;
-          } else {
-            console.warn('[LockMonitor] /status returned not ok');
-          }
-        } catch (err) {
-          console.warn('[LockMonitor] Failed to refresh /status:', err);
-        }
-
-        // 2) Vérifier validité locks
-        const ok = haveMyValidLocks(blocks, 3000);
-        console.log('[LockMonitor] Check result:', ok, '| Timer:', AppState.lockSecondsRemaining, 's');
-
-        // 3) Update UI selon step
-        if (AppState.checkoutStep === 1) {
-          // Step 1: bouton "Continue to Payment"
-          if (DOM.proceedToPayment) {
-            DOM.proceedToPayment.disabled = !ok;
-            DOM.proceedToPayment.textContent = ok 
-              ? '💳 Continue to Payment' 
-              : '⏰ Reservation expired - reselect';
-          }
-        } else if (AppState.checkoutStep === 2) {
-          // Step 2: PayPal
-          this.setPayPalEnabled(ok);
-        }
-
-        // 4) Stop monitoring si locks invalides
-        if (!ok) {
-          try { window.LockManager.heartbeat.stop(); } catch (e) {}
-          console.log('[LockMonitor] Locks invalid, stopping monitoring');
-          
-          if (AppState.lockCheckInterval) {
-            clearInterval(AppState.lockCheckInterval);
-            AppState.lockCheckInterval = null;
-          }
-          return;
-        }
-
-        // 5) Unlock défensif si timer visuel expiré ET heartbeat arrêté
-        const timerExpired = AppState.lockSecondsRemaining <= 0;
-        const heartbeatObj = window.LockManager?.heartbeat;
-        const heartbeatRunning = !!(heartbeatObj && (
-          heartbeatObj.isRunning || heartbeatObj._running || heartbeatObj._timer
-        ));
-
-        if (timerExpired && !heartbeatRunning) {
-          console.warn('[LockMonitor] Defensive unlock: timer expired, heartbeat stopped');
-          
-          try {
-            await window.LockManager.unlock(blocks);
-          } catch (e) {
-            try {
-              await apiCall('/unlock', {
-                method: 'POST',
-                body: JSON.stringify({ blocks })
-              });
-            } catch (ex) {
-              console.error('[LockMonitor] Defensive unlock failed', ex);
-            }
-          }
-
-          if (AppState.lockCheckInterval) {
-            clearInterval(AppState.lockCheckInterval);
-            AppState.lockCheckInterval = null;
-          }
-
-          AppState.locks = {};
-          
-          if (DOM.proceedToPayment) {
-            DOM.proceedToPayment.disabled = true;
-            DOM.proceedToPayment.textContent = '⏰ Reservation expired - reselect';
-          }
-          this.setPayPalEnabled(false);
-          return;
-        }
-      };
-
-      // Première vérif après warmup, puis toutes les 5s
-      AppState.lockCheckTimeout = setTimeout(() => {
-        checkLocks();
-        AppState.lockCheckInterval = setInterval(checkLocks, 5000);
-      }, Math.max(0, warmupMs | 0));
-
-      console.log('[ViewManager] Lock monitoring scheduled with warmup:', warmupMs);
-    },
+  console.log('[Monitoring] Scheduled with warmup:', warmupMs);
+},
 
     stopAllTimers() {
       console.log('[ViewManager] Stopping all timers');
@@ -1212,75 +1133,73 @@ updateSelectionInfo() {
   // ===== CHECKOUT FLOW =====
   const CheckoutFlow = {
     async initiate() {
-      console.log('[CheckoutFlow] Initiating checkout');
-      
-      const blocks = Array.from(AppState.selected);
-      if (!blocks.length) {
-        //this.showWarning('Please select pixels first!');
-        Toast.warning('Please select pixels first!');
-        return;
-      }
-      
-      try {
-        // Lock avec retry de LockManager
-        const lockResult = await window.LockManager.lock(blocks, 180000);
-        console.log('[CheckoutFlow] Lock result:', lockResult);
-        
-        if (!lockResult.ok || lockResult.conflicts?.length) {
-          console.warn('[CheckoutFlow] Lock failed or conflicts');
-          GridManager.showInvalidArea(0, 0, N-1, N-1);
-          GridManager.clearSelection();
-          return;
-        }
-        
-        // Setup order data avec prix serveur
-        AppState.orderData = {
-          blocks: lockResult.locked || blocks,
-          name: '',
-          linkUrl: '',
-          imageUrl: null,
-          regionId: lockResult.regionId || null,
-          totalAmount: lockResult.totalAmount || GridManager.calculateTotal(blocks.length * 100),
-          unitPrice: lockResult.unitPrice || AppState.globalPrice
-        };
-        
-        // Exposer pour compatibilité
-        window.reservedTotal = AppState.orderData.totalAmount;
-        window.reservedPrice = AppState.orderData.unitPrice;
-        
-        console.log('[CheckoutFlow] Order data:', AppState.orderData);
-        
-        // Start heartbeat avec config complète
-        window.LockManager.heartbeat.start(
-          AppState.orderData.blocks, 
-          30000,   // interval 30s
-          180000,  // max 180s
-          {
-            maxMs: 180000,
-            autoUnlock: true,
-            requireActivity: true
-          }
-        );
-        
-        // Switch to checkout
-        ViewManager.switchTo('checkout');
-        
-      } catch (e) {
-        console.error('[Checkout] Failed:', e);
-        Toast.error('Failed to reserve pixels. Please try again.');
-      }
-    },
+  console.log('[CheckoutFlow] Initiating checkout');
+  
+  const blocks = Array.from(AppState.selected);
+  if (!blocks.length) {
+    Toast.warning('Please select pixels first!');
+    return;
+  }
+  
+  try {
+    // Lock avec retry de LockManager
+    const lockResult = await window.LockManager.lock(blocks, 180000);
+    console.log('[CheckoutFlow] Lock result:', lockResult);
+    
+    if (!lockResult.ok || lockResult.conflicts?.length) {
+      console.warn('[CheckoutFlow] Lock failed or conflicts');
+      GridManager.showInvalidArea(0, 0, N-1, N-1);
+      GridManager.clearSelection();
+      return;
+    }
+    
+    // Setup order data
+    AppState.orderData = {
+      blocks: lockResult.locked || blocks,
+      name: '',
+      linkUrl: '',
+      imageUrl: null,
+      regionId: lockResult.regionId || null,
+      totalAmount: lockResult.totalAmount || GridManager.calculateTotal(blocks.length * 100),
+      unitPrice: lockResult.unitPrice || AppState.globalPrice
+    };
+    
+    window.reservedTotal = AppState.orderData.totalAmount;
+    window.reservedPrice = AppState.orderData.unitPrice;
+    
+    console.log('[CheckoutFlow] Order data:', AppState.orderData);
+    
+    // ✅ START HEARTBEAT UNE SEULE FOIS - 5 MIN MAX
+    window.LockManager.heartbeat.start(AppState.orderData.blocks, {
+      intervalMs: 30000,     // 30s
+      ttlMs: 180000,         // 3 min par renewal
+      maxTotalMs: 300000,    // ✅ 5 MIN MAX TOTAL
+      autoUnlock: true
+    });
+    
+    // Switch to checkout
+    ViewManager.switchTo('checkout');
+    
+  } catch (e) {
+    console.error('[Checkout] Failed:', e);
+    Toast.error('Failed to reserve pixels. Please try again.');
+  }
+},
     
 async processForm() {
   console.log('[CheckoutFlow] Processing form');
   
+  // ✅ NORMALISER L'URL AVANT LA VALIDATION
+  const linkInput = DOM.linkInput;
+  if (linkInput && linkInput.value.trim()) {
+    linkInput.value = this.normalizeUrl(linkInput.value);
+  }
   // Reset toutes les erreurs
-  // Reset toutes les erreurs
-document.querySelectorAll('.field-error').forEach(el => el.classList.remove('show'));
-document.querySelectorAll('input').forEach(el => el.classList.remove('error'));
+  document.querySelectorAll('.field-error').forEach(el => el.classList.remove('show'));
+  document.querySelectorAll('input').forEach(el => el.classList.remove('error'));
   
   const name = DOM.nameInput.value.trim();
-  const linkUrl = this.normalizeUrl(DOM.linkInput.value);
+  const linkUrl = linkInput.value.trim();
   
   let hasError = false;
   
@@ -1293,6 +1212,9 @@ document.querySelectorAll('input').forEach(el => el.classList.remove('error'));
   // Validation URL (juste vérifier qu'il y a quelque chose)
   if (!linkUrl) {
     this.showFieldError('link', 'This field is required.');
+    hasError = true;
+  } else if (!this.isValidUrl(linkUrl)) {
+    this.showFieldError('link', 'Please enter a valid URL.');
     hasError = true;
   }
   
@@ -1327,8 +1249,6 @@ document.querySelectorAll('input').forEach(el => el.classList.remove('error'));
       AppState.orderData.regionId = AppState.uploadedImageCache.regionId;
       // ✅ AJOUTER: Log pour debug
       console.log('[CheckoutFlow] Order data before step 2:', AppState.orderData);
-
-      pauseHeartbeat();
       
       try {
         // Renouveler locks avant start-order
@@ -1368,8 +1288,6 @@ document.querySelectorAll('input').forEach(el => el.classList.remove('error'));
       } catch (e) {
         console.error('[Order] Failed:', e);
         Toast.error('Failed to process order: ' + (e.message || e));
-      } finally {
-        resumeHeartbeat();
       }
     },
 
@@ -1469,7 +1387,6 @@ isValidUrl(string) {
 
         onApproved: async (data, actions) => {
           console.log('[PayPal] Payment approved');
-          pauseHeartbeat();
           
           try {
             ViewManager.setPayPalEnabled(false);
@@ -1537,13 +1454,11 @@ isValidUrl(string) {
           ViewManager.setPayPalEnabled(true);
           //this.showWarning('Payment cancelled. You can retry or go back.');
           Toast.info('Payment cancelled. You can retry or go back.');
-          resumeHeartbeat();
         },
 
         onError: async (err) => {
           console.error('[PayPal] Error:', err);
           
-          pauseHeartbeat();
           ViewManager.setPayPalEnabled(false);
           
           //this.showWarning('Payment error occurred. Please try again or contact support.');
@@ -2235,8 +2150,6 @@ if (DOM.proceedToPayment) {
       GridManager,
       CheckoutFlow,
       StatusManager,
-      pauseHeartbeat,
-      resumeHeartbeat,
       haveMyValidLocks
     };
     
