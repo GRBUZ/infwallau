@@ -177,8 +177,6 @@ const result = {
 };
 return ok(result);
 
-    //new new
-
   }catch(e){
     console.error('[reserve] Server error:', e);
     return bad(500, 'SERVER_ERROR', { message: String(e?.message || e) });

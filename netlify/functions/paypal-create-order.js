@@ -163,39 +163,11 @@ exports.handler = async (event) => {
     }
     if (lockRows?.length) return bad(409, 'LOCKED_BY_OTHER', { idx: Number(lockRows[0].idx) });
 
-    // 3) Prix serveur
-    /*const { count, error: countErr } = await supabase
-      .from('cells')
-      .select('idx', { count: 'exact', head: true })
-      .not('sold_at', 'is', null);
-    if (countErr) return bad(500, 'PRICE_QUERY_FAILED', { message: countErr.message });
-
-    const blocksSold  = count || 0;
-    const tier        = Math.floor(blocksSold / 10);
-    const unitPrice   = Math.round((1 + tier * 0.01) * 100) / 100;
-    const totalPixels = blocks.length * 100;
-    const total       = Math.round(unitPrice * totalPixels * 100) / 100;
-    const currency    = String(order.currency || 'USD').toUpperCase();
-
-    if ((order.unit_price != null && Number(order.unit_price) !== unitPrice) ||
-        (order.total      != null && Number(order.total)      !== total)) {
-      try {
-        await supabase.from('orders').update({
-          server_unit_price: unitPrice,
-          server_total: total,
-          updated_at: new Date().toISOString()
-        }).eq('order_id', orderId);
-      } catch(_) {}
-      return bad(409, 'PRICE_CHANGED', { serverUnitPrice: unitPrice, serverTotal: total, currency });
-    }*/
-   //new
    // 3) Montant = total figé dans l'order (déjà calculé depuis les locks)
 const total = Number(order.total);
 if (!Number.isFinite(total)) return bad(409, 'ORDER_PRICE_MISSING');
 const totalPixels = (Array.isArray(order.blocks) ? order.blocks.length : 0) * 100;
 const currency = String(order.currency || 'USD').toUpperCase();
-
-   //new
 
     // 4) Créer l’ordre PayPal
     const accessToken = await getPayPalAccessToken();

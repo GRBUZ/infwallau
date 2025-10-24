@@ -177,7 +177,6 @@ async uploadForRegion(file, regionId) {
   }
 }
 
-
     // Helper pour lier image à région (utilisé par upload-addon.js)
     async linkImageToRegion(regionId, imageUrlOrPath) {
       try {

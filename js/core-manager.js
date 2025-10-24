@@ -365,7 +365,6 @@
   window.apiCallMultipart = window.CoreManager.apiCallMultipart;
   window.apiCallRaw = window.CoreManager.apiCallRaw;
 
-  //patch pause status
     // [PATCH] Pause automatique du polling /status pendant les transactions ou uploads
   const originalApiCall = window.CoreManager.apiCall;
   const originalMultipart = window.CoreManager.apiCallMultipart;

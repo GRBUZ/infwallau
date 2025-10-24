@@ -86,12 +86,6 @@ exports.handler = async (event) => {
       const file = form.file;
       regionId = String(form.regionId || "").trim();
 
-      /*if (!file || !file.name) return bad(400, "NO_FILE");
-      if (!file.type || !file.type.startsWith("image/")) return bad(400, "NOT_IMAGE");
-
-      contentType = file.type;
-      filename = safeFilename(file.name);
-      buffer = Buffer.from(file.data || "", 'binary'); */
       if (!file || !file.name) return bad(400, "NO_FILE");
 if (!file.type || !file.type.startsWith("image/")) return bad(400, "NOT_IMAGE");
 
@@ -104,8 +98,6 @@ if (!allowedTypes.includes(file.type)) {
 contentType = file.type;
 filename = safeFilename(file.name);
 buffer = Buffer.from(file.data || "", 'binary'); // binaire
-
-
 
     } else {
       // JSON { regionId, filename, contentType, contentBase64 }

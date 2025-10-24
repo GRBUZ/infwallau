@@ -492,9 +492,6 @@ window.Toast = Toast;
         DOM.userInfoRecap.classList.add('show');
       }, 50);
     }
-    
-    // Redémarrer le timer
-    //this.startLockTimer();
   }
   
   // Mettre à jour les boutons
@@ -623,51 +620,6 @@ renderPixelPreview() {
   `;
 },
  
-   /* startLockTimer() {
-  console.log('[Timer] Starting 5-minute countdown');
-  
-  // Defensive guard
-  const hbRunning = window.LockManager?.heartbeat?.isRunning?.();
-  if (!hbRunning) {
-    console.warn('[Timer] Not starting: heartbeat not running');
-    if (DOM.timerValue) DOM.timerValue.textContent = 'Reservation expired 😱';
-    return;
-  }
-  
-  if (AppState.lockTimer) {
-    clearInterval(AppState.lockTimer);
-    AppState.lockTimer = null;
-  }
-
-  // ✅ 5 MINUTES = 300 SECONDES
-  AppState.lockSecondsRemaining = 300;
-
-  const updateDisplay = () => {
-    const remaining = AppState.lockSecondsRemaining;
-    const minutes = Math.floor(Math.max(0, remaining) / 60);
-    const seconds = Math.max(0, remaining % 60);
-
-    if (DOM.timerValue) {
-      if (remaining > 0) {
-        DOM.timerValue.textContent = `Reserved for ${minutes}:${seconds.toString().padStart(2, '0')}`;
-      } else {
-        DOM.timerValue.textContent = 'Reservation expired 😱';
-      }
-    }
-
-    if (remaining <= 0) {
-      clearInterval(AppState.lockTimer);
-      AppState.lockTimer = null;
-      console.log('[Timer] Countdown reached 0:00');
-      return;
-    }
-
-    AppState.lockSecondsRemaining--;
-  };
-
-  updateDisplay();
-  AppState.lockTimer = setInterval(updateDisplay, 1000);
-},*/
 startLockTimer() {
   console.log('[Timer] Starting 5-minute countdown');
   
@@ -965,7 +917,6 @@ startLockMonitoring(warmupMs = 1200) {
         return row * N + col;
       };
 
-      /*new guide*/
         // 🔥 NOUVEAU : Selection guide logic
   const selectionGuide = document.getElementById('selectionGuide');
   let hasUserDragged = false;
@@ -1011,7 +962,6 @@ startLockMonitoring(warmupMs = 1200) {
   DOM.grid.addEventListener('mousemove', (e) => {
     updateGuidePosition(e);
   });
-      /*new guide*/
       
       DOM.grid.addEventListener('mousedown', (e) => {
         const idx = idxFromXY(e.clientX, e.clientY);
@@ -2069,7 +2019,6 @@ highlightAndScrollToPurchasedPixels(blocks) {
         });
       }
       
-      // Edit info button
 // Edit info button
 if (DOM.editInfoBtn) {
   DOM.editInfoBtn.addEventListener('click', () => {

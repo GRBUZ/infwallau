@@ -152,17 +152,12 @@ exports.handler = async (event) => {
     if (!blocks.length) return bad(400, 'NO_BLOCKS');
     //const currency = String(order.currency || 'USD').toUpperCase();
 
-    //new
-    //const serverTotal = Number(order.total);
-    //const currency    = String(order.currency || 'USD').toUpperCase();
-    //if (!Number.isFinite(serverTotal)) return bad(409, 'ORDER_PRICE_MISSING');
     const currency = String(order.currency || 'USD').toUpperCase();
     const serverTotal = Math.round(Number(order.total) * 100) / 100;
     if (!Number.isFinite(serverTotal)) {
       console.warn('[capture-finalize] ORDER_PRICE_MISSING', { orderId, paypalOrderId, orderTotal: order.total });
       return bad(409, 'ORDER_PRICE_MISSING');
     }
-    //new fin
 
     // 3) CAPTURE PayPal
     const accessToken = await getPayPalAccessToken();
