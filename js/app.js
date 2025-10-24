@@ -303,7 +303,8 @@ window.Toast = Toast;
     lockTimer: null,
     lockCheckTimeout: null,
     lockCheckInterval: null,
-    lockSecondsRemaining: 180,
+    lockSecondsRemaining: 300,  // ← Mettre 300 (5 min)
+    lockStartTime: 0, 
     
     // Upload cache
     uploadedImageCache: null
@@ -622,7 +623,7 @@ renderPixelPreview() {
   `;
 },
  
-    startLockTimer() {
+   /* startLockTimer() {
   console.log('[Timer] Starting 5-minute countdown');
   
   // Defensive guard
@@ -666,8 +667,72 @@ renderPixelPreview() {
 
   updateDisplay();
   AppState.lockTimer = setInterval(updateDisplay, 1000);
-},
+},*/
+startLockTimer() {
+  console.log('[Timer] Starting 5-minute countdown');
+  
+  const hbRunning = window.LockManager?.heartbeat?.isRunning?.();
+  if (!hbRunning) {
+    console.warn('[Timer] Not starting: heartbeat not running');
+    if (DOM.timerValue) DOM.timerValue.textContent = 'Reservation expired 😱';
+    return;
+  }
+  
+  if (AppState.lockTimer) {
+    clearInterval(AppState.lockTimer);
+    AppState.lockTimer = null;
+  }
 
+  // ✅ TIMESTAMP ABSOLU (résistant au throttling)
+  AppState.lockStartTime = Date.now();
+  const LOCK_DURATION_MS = 300000; // 5 min
+
+  const updateDisplay = () => {
+    // ✅ TOUJOURS CALCULER DEPUIS LE TIMESTAMP RÉEL
+    const elapsed = Date.now() - AppState.lockStartTime;
+    const remaining = Math.max(0, Math.floor((LOCK_DURATION_MS - elapsed) / 1000));
+    
+    AppState.lockSecondsRemaining = remaining;
+    
+    const minutes = Math.floor(remaining / 60);
+    const seconds = remaining % 60;
+
+    if (DOM.timerValue) {
+      if (remaining > 0) {
+        DOM.timerValue.textContent = `Reserved for ${minutes}:${seconds.toString().padStart(2, '0')}`;
+      } else {
+        DOM.timerValue.textContent = 'Reservation expired 😱';
+      }
+    }
+
+    if (remaining <= 0) {
+      clearInterval(AppState.lockTimer);
+      AppState.lockTimer = null;
+      console.log('[Timer] Countdown reached 0:00');
+      return;
+    }
+  };
+
+  updateDisplay();
+  AppState.lockTimer = setInterval(updateDisplay, 1000);
+  
+  // ✅ FORCER UPDATE QUAND L'ONGLET REVIENT AU PREMIER PLAN
+  const handleVisibilityChange = () => {
+    if (!document.hidden) {
+      console.log('[Timer] Tab visible again, forcing update');
+      updateDisplay();
+    }
+  };
+  
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  
+  // Cleanup au stop
+  const originalStop = this.stopAllTimers;
+  this.stopAllTimers = function() {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    originalStop.call(this);
+  };
+},
 // Dans app.js - startLockMonitoring
 startLockMonitoring(warmupMs = 1200) {
   console.log('[Monitoring] Starting with warmup:', warmupMs);

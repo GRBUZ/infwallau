@@ -383,19 +383,6 @@ exports.handler = async (event) => {
       }
     }
 
-    // --- 5) Prix serveur
-    /*const { count, error: countErr } = await supabase
-      .from('cells')
-      .select('idx', { count:'exact', head:true })
-      .not('sold_at', 'is', null);
-    if (countErr) return bad(500, 'PRICE_QUERY_FAILED', { message: countErr.message });
-
-    const blocksSold  = count || 0;
-    const tier        = Math.floor(blocksSold / 10);
-    const unitPrice   = Math.round((1 + tier * 0.01) * 100) / 100;
-    const totalPixels = blocks.length * 100;
-    const total       = Math.round(unitPrice * totalPixels * 100) / 100;
-    const usedCurrency= (order.currency || paidCurr || 'USD').toUpperCase();*/
     const total = Number(order.total);
 const usedCurrency = (order.currency || paidCurr || 'USD').toUpperCase();
 if (!Number.isFinite(total)) return bad(409, 'ORDER_PRICE_MISSING');
