@@ -700,6 +700,27 @@ renderPixelPreview() {
 
     // 2) Vérifier validité locks
     const valid = haveMyValidLocks(blocks, 2000);
+    /*logs*/
+    // ✅ AJOUTEZ CES LOGS DÉTAILLÉS
+  const now = Date.now();
+  const firstBlock = blocks[0];
+  const lock = AppState.locks[String(firstBlock)];
+  
+  if (lock) {
+    const untilMs = lock.until;
+    const remainingMs = untilMs - now;
+    const remainingWithGrace = untilMs - (now + 2000);
+    
+    console.log('[Monitoring] Detailed check:', {
+      timerSeconds: AppState.lockSecondsRemaining,
+      lockUntil: new Date(untilMs).toISOString(),
+      now: new Date(now).toISOString(),
+      remainingMs: Math.round(remainingMs),
+      remainingWithGrace: Math.round(remainingWithGrace),
+      valid: valid
+    });
+  }
+    /*logs*/
     console.log('[Monitoring] Locks valid:', valid, '| Timer:', AppState.lockSecondsRemaining, 's');
 
     // 3) Update UI selon step
