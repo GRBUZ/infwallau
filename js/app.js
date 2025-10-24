@@ -668,7 +668,8 @@ renderPixelPreview() {
   AppState.lockTimer = setInterval(updateDisplay, 1000);
 },
 
-  startLockMonitoring(warmupMs = 1200) {
+// Dans app.js - startLockMonitoring
+startLockMonitoring(warmupMs = 1200) {
   console.log('[Monitoring] Starting with warmup:', warmupMs);
 
   if (AppState.lockCheckTimeout) { 
@@ -684,46 +685,43 @@ renderPixelPreview() {
     const blocks = AppState.orderData.blocks;
     if (!blocks || !blocks.length) return;
 
-    // 1) Rafraîchir status serveur
+    const checkStartTime = Date.now();
+
     try {
       const status = await apiCall('/status?ts=' + Date.now());
       if (status && status.ok) {
         AppState.locks = window.LockManager.merge(status.locks || {});
         AppState.sold = status.sold || AppState.sold;
         AppState.regions = status.regions || AppState.regions;
-      } else {
-        console.warn('[Monitoring] /status returned not ok');
       }
     } catch (err) {
       console.warn('[Monitoring] Failed to refresh /status:', err);
     }
 
-    // 2) Vérifier validité locks
     const valid = haveMyValidLocks(blocks, 2000);
-    /*logs*/
-    // ✅ AJOUTEZ CES LOGS DÉTAILLÉS
-  const now = Date.now();
-  const firstBlock = blocks[0];
-  const lock = AppState.locks[String(firstBlock)];
-  
-  if (lock) {
-    const untilMs = lock.until;
-    const remainingMs = untilMs - now;
-    const remainingWithGrace = untilMs - (now + 2000);
     
-    console.log('[Monitoring] Detailed check:', {
-      timerSeconds: AppState.lockSecondsRemaining,
-      lockUntil: new Date(untilMs).toISOString(),
-      now: new Date(now).toISOString(),
-      remainingMs: Math.round(remainingMs),
-      remainingWithGrace: Math.round(remainingWithGrace),
-      valid: valid
-    });
-  }
-    /*logs*/
+    // Logs détaillés
+    const now = Date.now();
+    const firstBlock = blocks[0];
+    const lock = AppState.locks[String(firstBlock)];
+    
+    if (lock) {
+      const untilMs = lock.until;
+      const remainingMs = untilMs - now;
+      const remainingWithGrace = untilMs - (now + 2000);
+      
+      console.log('[Monitoring] Detailed check:', {
+        timerSeconds: AppState.lockSecondsRemaining,
+        lockUntil: new Date(untilMs).toISOString(),
+        now: new Date(now).toISOString(),
+        remainingMs: Math.round(remainingMs),
+        remainingWithGrace: Math.round(remainingWithGrace),
+        valid: valid
+      });
+    }
+    
     console.log('[Monitoring] Locks valid:', valid, '| Timer:', AppState.lockSecondsRemaining, 's');
 
-    // 3) Update UI selon step
     if (AppState.checkoutStep === 1) {
       if (DOM.proceedToPayment) {
         DOM.proceedToPayment.disabled = !valid;
@@ -735,7 +733,6 @@ renderPixelPreview() {
       ViewManager.setPayPalEnabled(valid);
     }
 
-    // 4) Stop monitoring si invalide
     if (!valid) {
       console.log('[Monitoring] Locks invalid, stopping monitoring & heartbeat');
       
@@ -748,12 +745,26 @@ renderPixelPreview() {
       
       return;
     }
+
+    // ✅ NOUVEAU : Monitoring adaptatif selon temps restant
+    if (AppState.lockCheckInterval) {
+      clearInterval(AppState.lockCheckInterval);
+      AppState.lockCheckInterval = null;
+    }
+
+    let nextInterval = 5000;  // 5s par défaut
+    
+    if (AppState.lockSecondsRemaining <= 10) {
+      nextInterval = 2000;  // 2s si < 10s restant
+    }
+    
+    console.log(`[Monitoring] Next check in ${nextInterval}ms`);
+    AppState.lockCheckInterval = setTimeout(checkLocks, nextInterval);
   };
 
-  // Premier check après warmup, puis toutes les 5s
+  // Premier check après warmup
   AppState.lockCheckTimeout = setTimeout(() => {
     checkLocks();
-    AppState.lockCheckInterval = setInterval(checkLocks, 5000);
   }, Math.max(0, warmupMs | 0));
 
   console.log('[Monitoring] Scheduled with warmup:', warmupMs);
