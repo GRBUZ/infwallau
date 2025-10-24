@@ -1221,107 +1221,116 @@ updateSelectionInfo() {
 async processForm() {
   console.log('[CheckoutFlow] Processing form');
   
-  // ✅ NORMALISER L'URL AVANT LA VALIDATION
-  const linkInput = DOM.linkInput;
-  if (linkInput && linkInput.value.trim()) {
-    linkInput.value = this.normalizeUrl(linkInput.value);
-  }
-  // Reset toutes les erreurs
-  document.querySelectorAll('.field-error').forEach(el => el.classList.remove('show'));
-  document.querySelectorAll('input').forEach(el => el.classList.remove('error'));
-  
-  const name = DOM.nameInput.value.trim();
-  const linkUrl = linkInput.value.trim();
-  
-  let hasError = false;
-  
-  // Validation name
-  if (!name) {
-    this.showFieldError('name', 'This field is required.');
-    hasError = true;
-  }
-  
-  // Validation URL (juste vérifier qu'il y a quelque chose)
-  if (!linkUrl) {
-    this.showFieldError('link', 'This field is required.');
-    hasError = true;
-  } else if (!this.isValidUrl(linkUrl)) {
-    this.showFieldError('link', 'Please enter a valid URL.');
-    hasError = true;
-  }
-  
-  // Vérifier upload image
-  if (!AppState.uploadedImageCache || !AppState.uploadedImageCache.imageUrl) {
-    this.showFieldError('image', 'Please upload an image.');
-    hasError = true;
-  }
-  
-  if (hasError) return;
-  
-  // Vérifier âge upload (max 5 min)
-  const uploadAge = Date.now() - AppState.uploadedImageCache.uploadedAt;
-  if (uploadAge > 300000) {
-    Toast.warning('Image upload expired, please reselect your image');
-    AppState.uploadedImageCache = null;
+  // ✅ DEBOUNCE: Empêcher double-click
+  if (this._processing) {
+    console.warn('[CheckoutFlow] Already processing, ignoring click');
     return;
   }
-      
-      // Vérifier locks
-      if (!haveMyValidLocks(AppState.orderData.blocks, 1000)) {
-        await StatusManager.load();
-        this.showWarning('Your reservation expired. Please reselect your pixels.');
-        ViewManager.returnToGrid();
-        return;
-      }
+  this._processing = true;
+  
+  try {
+    // Normaliser URL
+    const linkInput = DOM.linkInput;
+    if (linkInput && linkInput.value.trim()) {
+      linkInput.value = this.normalizeUrl(linkInput.value);
+    }
+    
+    // Reset erreurs
+    document.querySelectorAll('.field-error').forEach(el => el.classList.remove('show'));
+    document.querySelectorAll('input').forEach(el => el.classList.remove('error'));
+    
+    const name = DOM.nameInput.value.trim();
+    const linkUrl = linkInput.value.trim();
+    
+    let hasError = false;
+    
+    if (!name) {
+      this.showFieldError('name', 'This field is required.');
+      hasError = true;
+    }
+    
+    if (!linkUrl) {
+      this.showFieldError('link', 'This field is required.');
+      hasError = true;
+    } else if (!this.isValidUrl(linkUrl)) {
+      this.showFieldError('link', 'Please enter a valid URL.');
+      hasError = true;
+    }
+    
+    if (!AppState.uploadedImageCache || !AppState.uploadedImageCache.imageUrl) {
+      this.showFieldError('image', 'Please upload an image.');
+      hasError = true;
+    }
+    
+    if (hasError) {
+      this._processing = false;
+      return;
+    }
+    
+    const uploadAge = Date.now() - AppState.uploadedImageCache.uploadedAt;
+    if (uploadAge > 300000) {
+      Toast.warning('Image upload expired, please reselect your image');
+      AppState.uploadedImageCache = null;
+      this._processing = false;
+      return;
+    }
+    
+    if (!haveMyValidLocks(AppState.orderData.blocks, 1000)) {
+      await StatusManager.load();
+      Toast.warning('Your reservation expired. Please reselect your pixels.');
+      ViewManager.returnToGrid();
+      this._processing = false;
+      return;
+    }
 
-      // Save form data
-      AppState.orderData.name = name;
-      AppState.orderData.linkUrl = linkUrl;
-      AppState.orderData.imageUrl = AppState.uploadedImageCache.imageUrl;
-      AppState.orderData.regionId = AppState.uploadedImageCache.regionId;
-      // ✅ AJOUTER: Log pour debug
-      console.log('[CheckoutFlow] Order data before step 2:', AppState.orderData);
-      
-      try {
-        // Renouveler locks avant start-order
-        console.log('[CheckoutFlow] Renewing locks before start-order');
-        await window.LockManager.lock(AppState.orderData.blocks, 180000, { optimistic: false });
+    AppState.orderData.name = name;
+    AppState.orderData.linkUrl = linkUrl;
+    AppState.orderData.imageUrl = AppState.uploadedImageCache.imageUrl;
+    AppState.orderData.regionId = AppState.uploadedImageCache.regionId;
+    
+    console.log('[CheckoutFlow] Order data before step 2:', AppState.orderData);
 
-        // Paralléliser SDK PayPal + start-order
-        console.log('[CheckoutFlow] Parallel: SDK + start-order');
-        const startTime = performance.now();
-        
-        const [sdkReady, orderResult] = await Promise.all([
-          this.ensurePayPalSDK(),
-          this.startOrder()
-        ]);
-        
-        const parallelTime = ((performance.now() - startTime) / 1000).toFixed(2);
-        console.log(`[CheckoutFlow] Parallel completed in ${parallelTime}s`);
+    await window.LockManager.lock(AppState.orderData.blocks, 180000, { optimistic: false });
 
-        if (!orderResult || !orderResult.success) {
-          throw new Error(orderResult?.error || 'Failed to start order');
-        }
+    const startTime = performance.now();
+    
+    const [sdkReady, orderResult] = await Promise.all([
+      this.ensurePayPalSDK(),
+      this.startOrder()
+    ]);
+    
+    const parallelTime = ((performance.now() - startTime) / 1000).toFixed(2);
+    console.log(`[CheckoutFlow] Parallel completed in ${parallelTime}s`);
 
-        AppState.currentOrder = {
-          orderId: orderResult.orderId,
-          regionId: orderResult.regionId,
-          currency: orderResult.currency || 'USD'
-        };
-        
-        // Extension finale locks avant PayPal
-        console.log('[CheckoutFlow] Final lock extension before PayPal');
-        await window.LockManager.lock(AppState.orderData.blocks, 180000, { optimistic: false });
+    if (!orderResult || !orderResult.success) {
+      throw new Error(orderResult?.error || 'Failed to start order');
+    }
 
-        // Passer au step 2 et render PayPal
-        ViewManager.setCheckoutStep(2);
-        await this.initializePayPal();
+    AppState.currentOrder = {
+      orderId: orderResult.orderId,
+      regionId: orderResult.regionId,
+      currency: orderResult.currency || 'USD'
+    };
+    
+    await window.LockManager.lock(AppState.orderData.blocks, 180000, { optimistic: false });
 
-      } catch (e) {
-        console.error('[Order] Failed:', e);
-        Toast.error('Failed to process order: ' + (e.message || e));
-      }
-    },
+    ViewManager.setCheckoutStep(2);
+    
+    // ✅ ATTENDRE DOM STABLE
+    console.log('[CheckoutFlow] Waiting for DOM to stabilize...');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    await this.initializePayPal();
+    
+  } catch (e) {
+    console.error('[Order] Failed:', e);
+    Toast.error('Failed to process order: ' + (e.message || e));
+  } finally {
+    setTimeout(() => {
+      this._processing = false;
+    }, 1000);
+  }
+},
 
     showFieldError(fieldName, message) {
   const input = document.getElementById(fieldName);
@@ -1410,7 +1419,27 @@ isValidUrl(string) {
         console.error('[PayPal] PayPalIntegration not loaded');
         return;
       }
-      
+      // ✅ VÉRIFIER CONTAINER
+      const container = document.getElementById('paypal-button-container');
+      if (!container) {
+        console.error('[PayPal] Container not found');
+        Toast.error('PayPal initialization failed');
+        return;
+      }
+      if (!document.body.contains(container)) {
+        console.warn('[PayPal] Container not in DOM, waiting...');
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        if (!document.body.contains(container)) {
+          console.error('[PayPal] Container still not in DOM');
+          Toast.error('PayPal initialization failed');
+          return;
+        }
+      }
+      // ✅ CLEAR CONTAINER
+      console.log('[CheckoutFlow] Clearing PayPal container');
+      container.innerHTML = '';
+              
       console.log('[CheckoutFlow] Rendering PayPal buttons');
       
       await window.PayPalIntegration.initAndRender({
@@ -1502,6 +1531,7 @@ isValidUrl(string) {
           } catch (e) {}
         }
       });
+      console.log('[CheckoutFlow] PayPal buttons initialized');
     },
     
     async waitForCompleted(orderId, maxSeconds = 120) {
