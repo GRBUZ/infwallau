@@ -208,7 +208,7 @@ const currency = String(order.currency || 'USD').toUpperCase();
   invoice_id: orderId
 }],
       application_context: {
-        brand_name: 'Million Pixels',
+        brand_name: 'Influencers Wall',
         landing_page: 'BILLING',
         user_action: 'PAY_NOW'
       }
