@@ -59,10 +59,9 @@ async function getOrderCustomId(accessToken, paypalOrderId){
 async function refundPayPalCapture(accessToken, captureId, amount, currency) {
   //refund fail simu
   // 🎯 Test mode: forcer l’échec du refund
-  if (FORCE_REFUND_FAIL) {
-    console.log('❌ TEST: Simulation échec refund');
-    throw new Error('TEST_FORCED_REFUND_FAIL');
-  }
+  //if (FORCE_REFUND_FAIL) {
+    //throw new Error('TEST_FORCED_REFUND_FAIL');
+  //}
   //refund fail simu
   try {
     const body = (Number.isFinite(amount) && currency)
