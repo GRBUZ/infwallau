@@ -16,7 +16,7 @@ const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET;
 const PAYPAL_BASE_URL      = process.env.PAYPAL_BASE_URL || 'https://api-m.sandbox.paypal.com';
 
 //refund fail simu
-const FORCE_REFUND_FAIL = process.env.FORCE_REFUND_FAIL === '1';
+const FORCE_REFUND_FAIL = true; 
 //refund fail simu
 function json(status, obj){
   return {
@@ -52,6 +52,7 @@ async function refundPayPalCapture(accessToken, captureId, amount, currency) {
   //refund fail simu
   // 🎯 Test mode: forcer l’échec du refund
   if (FORCE_REFUND_FAIL) {
+    console.log('❌ TEST: Simulation échec refund');
     throw new Error('TEST_FORCED_REFUND_FAIL');
   }
   //refund fail simu
