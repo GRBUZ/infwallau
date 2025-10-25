@@ -1365,11 +1365,12 @@ async processForm() {
   }
 },
 
-isValidUrl(string) {
+isValidUrl(url) {
+  if (!url) return false;
   try {
-    const url = new URL(string);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch (_) {
+    const urlObj = new URL(url);
+    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+  } catch {
     return false;
   }
 },
