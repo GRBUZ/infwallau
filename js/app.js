@@ -1244,18 +1244,21 @@ async processForm() {
   this._processing = true;
   
   try {
-    // Normaliser URL
-    const linkInput = DOM.linkInput;
-    if (linkInput && linkInput.value.trim()) {
-      linkInput.value = this.normalizeUrl(linkInput.value);
-    }
-    
     // Reset erreurs
     document.querySelectorAll('.field-error').forEach(el => el.classList.remove('show'));
     document.querySelectorAll('input').forEach(el => el.classList.remove('error'));
     
     const name = DOM.nameInput.value.trim();
-    const linkUrl = linkInput.value.trim();
+    
+    // Normaliser URL AVANT de la récupérer dans une variable
+    const linkInput = DOM.linkInput;
+    let linkUrl = '';
+    
+    if (linkInput && linkInput.value.trim()) {
+      linkUrl = this.normalizeUrl(linkInput.value.trim());
+      // Mettre à jour l'input avec l'URL normalisée
+      linkInput.value = linkUrl;
+    }
     
     let hasError = false;
     
