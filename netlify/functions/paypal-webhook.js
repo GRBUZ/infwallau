@@ -11,6 +11,10 @@ const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const { verifyPayPalWebhook } = require('./_paypal-verify');
 const { logManualRefundNeeded } = require('./_manual-refund-logger');
 
+//refund fail simu
+const FORCE_REFUND_FAIL = true; 
+//refund fail simu
+
 function json(status, obj){
   return {
     statusCode: status,
@@ -53,6 +57,13 @@ async function getOrderCustomId(accessToken, paypalOrderId){
 
 // Refund PayPal (amount/currency optionnels -> full refund si omis)
 async function refundPayPalCapture(accessToken, captureId, amount, currency) {
+  //refund fail simu
+  // 🎯 Test mode: forcer l’échec du refund
+  if (FORCE_REFUND_FAIL) {
+    console.log('❌ TEST: Simulation échec refund');
+    throw new Error('TEST_FORCED_REFUND_FAIL');
+  }
+  //refund fail simu
   try {
     const body = (Number.isFinite(amount) && currency)
       ? { amount: { value: Number(amount).toFixed(2), currency_code: String(currency).toUpperCase() } }
