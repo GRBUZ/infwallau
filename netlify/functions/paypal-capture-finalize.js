@@ -337,7 +337,7 @@ exports.handler = async (event) => {
           updated_at: new Date().toISOString()
         })
         .eq('order_id', orderId)
-        .not('status', 'in', ['completed','failed','refund_failed','refund_pending'])
+        .eq('status', 'pending')
         .select('id');
 
       const weOwnRefund = !claimErr && Array.isArray(claimRows) && claimRows.length > 0;
@@ -499,7 +499,7 @@ exports.handler = async (event) => {
           updated_at: new Date().toISOString()
         })
         .eq('order_id', orderId)
-        .not('status', 'in', ['completed','failed','refund_failed','refund_pending'])
+        .eq('status', 'pending')
         .select('id');
 
       const weOwnRefund = !claimErr && Array.isArray(claimRows) && claimRows.length > 0;
