@@ -337,7 +337,7 @@ exports.handler = async (event) => {
           updated_at: new Date().toISOString()
         })
         .eq('order_id', orderId)
-        .not('status', 'in', ['completed','refunded','refund_failed','refund_pending'])
+        .not('status', 'in', ['completed','failed','refund_failed','refund_pending'])
         .select('id');
 
       const weOwnRefund = !claimErr && Array.isArray(claimRows) && claimRows.length > 0;
@@ -360,7 +360,7 @@ exports.handler = async (event) => {
             currency
           });
         }
-        if (fresh?.status === 'refunded') {
+        if (fresh?.status === 'failed') {
           return bad(500, 'FINALIZE_FAILED_REFUNDED', { message: reason });
         }
         return bad(409, 'LOCK_MISSING_OR_EXPIRED');
@@ -382,8 +382,7 @@ exports.handler = async (event) => {
           || null;
 
         await supabase.from('orders').update({
-          status: 'refunded',
-          refund_status: 'succeeded',
+          status: 'failed',
           needs_manual_refund: false,
           refund_attempted_at: new Date().toISOString(),
           refund_id: refundId,
@@ -394,7 +393,6 @@ exports.handler = async (event) => {
       } else {
         await supabase.from('orders').update({
           status: 'refund_failed',
-          refund_status: 'failed',
           needs_manual_refund: true,
           refund_attempted_at: new Date().toISOString(),
           refund_error: 'REFUND_FAILED',
@@ -501,7 +499,7 @@ exports.handler = async (event) => {
           updated_at: new Date().toISOString()
         })
         .eq('order_id', orderId)
-        .not('status', 'in', ['completed','refunded','refund_failed','refund_pending'])
+        .not('status', 'in', ['completed','failed','refund_failed','refund_pending'])
         .select('id');
 
       const weOwnRefund = !claimErr && Array.isArray(claimRows) && claimRows.length > 0;
@@ -525,7 +523,7 @@ exports.handler = async (event) => {
             currency
           });
         }
-        if (fresh?.status === 'refunded') {
+        if (fresh?.status === 'failed') {
           return bad(500, 'FINALIZE_FAILED_REFUNDED', { message: 'LOCKS_INVALID' });
         }
         return bad(409, 'LOCK_MISSING_OR_EXPIRED');
@@ -547,8 +545,7 @@ exports.handler = async (event) => {
           || null;
 
         await supabase.from('orders').update({
-          status: 'refunded',
-          refund_status: 'succeeded',
+          status: 'failed',
           needs_manual_refund: false,
           refund_attempted_at: new Date().toISOString(),
           refund_id: refundId,
@@ -557,7 +554,6 @@ exports.handler = async (event) => {
       } else {
         await supabase.from('orders').update({
           status: 'refund_failed',
-          refund_status: 'failed',
           needs_manual_refund: true,
           refund_attempted_at: new Date().toISOString(),
           refund_error: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),

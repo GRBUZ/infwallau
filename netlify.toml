@@ -5,3 +5,7 @@
 
 [functions]
   directory = "netlify/functions"
+
+# Cron job - nettoyage des orders pending coincés (toutes les 5 minutes)
+[functions.scheduled-cleanup-pending]
+  schedule = "*/9 * * * *"
