@@ -525,11 +525,34 @@ exports.handler = async (event) => {
       }
       
       if (accessToken && captureId) {
+        // ✅ VÉRIFIER D'ABORD SI DÉJÀ REFUNDÉ
         try {
-          refundObj = await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr);
-          console.log('[webhook] Refund result:', refundObj);
-        } catch(refundErr) {
-          console.error('[webhook] Refund exception:', refundErr);
+          const checkResp = await fetch(`${PAYPAL_BASE_URL}/v2/payments/captures/${captureId}`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          });
+          if (checkResp.ok) {
+            const captureData = await checkResp.json();
+            console.log('[webhook] Capture status:', captureData.status);
+            
+            // Si déjà refundé, récupérer le refund ID
+            if (captureData.status === 'REFUNDED') {
+              const existingRefund = captureData?.transaction_info?.paypal_account_id || 
+                                    captureData?.links?.find(l => l.rel === 'refund')?.href?.split('/').pop();
+              refundObj = { id: existingRefund || 'ALREADY_REFUNDED', status: 'COMPLETED' };
+              console.log('[webhook] Already refunded, using existing refund:', refundObj.id);
+              refundedOk = true;
+            }
+          }
+        } catch(_) {}
+        
+        // Si pas encore refundé, faire le refund
+        if (!refundedOk) {
+          try {
+            refundObj = await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr);
+            console.log('[webhook] Refund result:', refundObj);
+          } catch(refundErr) {
+            console.error('[webhook] Refund exception:', refundErr);
+          }
         }
       }
       

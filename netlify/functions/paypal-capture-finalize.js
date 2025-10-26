@@ -368,10 +368,28 @@ exports.handler = async (event) => {
 
       let refundedOk = false;
       let refundObj  = null;
+      
+      // ✅ Vérifier d'abord si déjà refundé
       try {
-        refundObj  = await refundPayPalCapture(accessToken, captureId, capValue, currency);
-        refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
-      } catch (_) {}
+        const checkResp = await fetch(`${PAYPAL_BASE_URL}/v2/payments/captures/${captureId}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        if (checkResp.ok) {
+          const captureData = await checkResp.json();
+          if (captureData.status === 'REFUNDED') {
+            refundObj = { id: 'ALREADY_REFUNDED', status: 'COMPLETED' };
+            refundedOk = true;
+          }
+        }
+      } catch(_) {}
+      
+      // Si pas encore refundé, faire le refund
+      if (!refundedOk) {
+        try {
+          refundObj  = await refundPayPalCapture(accessToken, captureId, capValue, currency);
+          refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+        } catch (_) {}
+      }
 
       try { await releaseLocks(supabase, blocksOk, uid); } catch(_) {}
 
@@ -531,10 +549,28 @@ exports.handler = async (event) => {
 
       let refundedOk = false;
       let refundObj  = null;
+      
+      // ✅ Vérifier d'abord si déjà refundé
       try {
-        refundObj  = await refundPayPalCapture(accessToken, captureId, capValue, currency);
-        refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
-      } catch (_) {}
+        const checkResp = await fetch(`${PAYPAL_BASE_URL}/v2/payments/captures/${captureId}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        if (checkResp.ok) {
+          const captureData = await checkResp.json();
+          if (captureData.status === 'REFUNDED') {
+            refundObj = { id: 'ALREADY_REFUNDED', status: 'COMPLETED' };
+            refundedOk = true;
+          }
+        }
+      } catch(_) {}
+      
+      // Si pas encore refundé, faire le refund
+      if (!refundedOk) {
+        try {
+          refundObj  = await refundPayPalCapture(accessToken, captureId, capValue, currency);
+          refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+        } catch (_) {}
+      }
 
       try { await releaseLocks(supabase, blocksOk, uid); } catch(_) {}
 
