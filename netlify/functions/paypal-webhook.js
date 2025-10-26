@@ -11,9 +11,8 @@ const SUPA_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const { verifyPayPalWebhook } = require('./_paypal-verify');
 const { logManualRefundNeeded } = require('./_manual-refund-logger');
 
-//refund fail simu
-const FORCE_REFUND_FAIL = true; 
-//refund fail simu
+// ❌ DÉSACTIVER LE MODE TEST REFUND FAIL
+const FORCE_REFUND_FAIL = false; 
 
 function json(status, obj){
   return {
@@ -57,12 +56,11 @@ async function getOrderCustomId(accessToken, paypalOrderId){
 
 // Refund PayPal (amount/currency optionnels -> full refund si omis)
 async function refundPayPalCapture(accessToken, captureId, amount, currency) {
-  //refund fail simu
-  // 🎯 Test mode: forcer l’échec du refund
-  //if (FORCE_REFUND_FAIL) {
-    //throw new Error('TEST_FORCED_REFUND_FAIL');
-  //}
-  //refund fail simu
+  // ✅ Mode test désactivé
+  if (FORCE_REFUND_FAIL) {
+    throw new Error('TEST_FORCED_REFUND_FAIL');
+  }
+  
   try {
     const body = (Number.isFinite(amount) && currency)
       ? { amount: { value: Number(amount).toFixed(2), currency_code: String(currency).toUpperCase() } }
@@ -120,13 +118,13 @@ async function countSoldConflicts(supabase, blocks) {
       .not('sold_at', 'is', null);
     if (error) throw Object.assign(new Error(error.message), { code: 'CELLS_QUERY_FAILED' });
     total += (count || 0);
-    if (total > 0) break; // early-exit, on veut juste savoir s’il y en a
+    if (total > 0) break; // early-exit, on veut juste savoir s'il y en a
   }
   return total;
 }
 
 async function countLocksByOthers(supabase, blocks, uid) {
-  // 1) Essayer le RPC locks_conflicts_in(_idxs, _uid) -> renvoie les locks d’un autre uid
+  // 1) Essayer le RPC locks_conflicts_in(_idxs, _uid) -> renvoie les locks d'un autre uid
   try {
     const { data, error } = await supabase.rpc('locks_conflicts_in', { _idxs: blocks, _uid: uid });
     if (!error && Array.isArray(data)) return data.length;
@@ -197,52 +195,43 @@ exports.handler = async (event) => {
       .from('orders')
       .select('*')
       .eq('order_id', orderId)
-      .single();
+      .maybeSingle();
 
-    if (getErr || !order) return bad(404, "ORDER_NOT_FOUND");
-
-    // Ne pas finaliser si un refund est en cours/terminé
-    if (['refund_pending', 'refunded', 'refund_failed'].includes(order.status)) {
-      return ok({ ignored: true, reason: 'refund_in_progress_or_done', orderId });
+    if (getErr || !order) {
+      return bad(404, "ORDER_NOT_FOUND", { orderId });
     }
-    // Idempotence: si déjà complété
-    if (order.status === "completed" && order.paypal_capture_id) {
+
+    // --- 3.5) Race avec capture-finalize => retour si completed ou *_failed
+    const currentStatus = String(order.status || '').toLowerCase();
+    if (currentStatus === 'completed' && order.paypal_capture_id) {
       return ok({
+        status: 'completed',
         orderId,
-        already: true,
-        status: "completed",
         regionId: order.region_id,
-        imageUrl: order.image_url,
-        unitPrice: order.unit_price || null,
-        total: order.total || null,
-        currency: order.currency || paidCurr,
-        paypalOrderId: order.paypal_order_id || paypalOrderId || null,
+        imageUrl: order.image_url || null,
+        paypalOrderId: order.paypal_order_id || null,
         paypalCaptureId: order.paypal_capture_id
       });
     }
-
-    const uid      = String(order.uid || '').trim();
-    const name     = String(order.name || '').trim();
-    const linkUrl  = String(order.link_url || '').trim();
-    const blocks   = Array.isArray(order.blocks) ? order.blocks.map(n=>parseInt(n,10)).filter(Number.isFinite) : [];
-    const regionIn = String(order.region_id || '').trim();
-    const imageUrl = order.image_url || null;
-
-    if (!uid || !name || !linkUrl || !blocks.length) {
-      return bad(400, "ORDER_INVALID");
+    if (currentStatus === 'refund_failed' || currentStatus === 'refund_pending') {
+      return ok({ status: currentStatus, orderId, note: "already_in_refund_flow" });
     }
-    const regionUuid = isUuid(regionIn) ? regionIn : (await import('node:crypto')).randomUUID();
 
-    // --- 4) Contrôles pré-RPC: vendu ? locké par un autre ?
-    // RPC-first + fallback count-only (anti-row-cap, anti-payload)
-    let soldConflicts = 0;
-    try {
-      soldConflicts = await countSoldConflicts(supabase, blocks);
-    } catch (e) {
-      return bad(500, e.code === 'CELLS_QUERY_FAILED' ? 'CELLS_QUERY_FAILED' : 'CELLS_QUERY_FAILED', { message: e.message });
+    // --- 4) Lecture des infos order
+    const uid        = order.uid;
+    const name       = String(order.name || '').trim();
+    const linkUrl    = String(order.link_url || '').trim();
+    const blocks     = Array.isArray(order.blocks) ? order.blocks.map(n=>parseInt(n,10)).filter(Number.isFinite) : [];
+    const imageUrl   = order.image_url || null;
+    const usedCurrency = (order.currency || 'USD').toUpperCase();
+
+    if (!name || !linkUrl || !blocks.length) {
+      return bad(400, "MISSING_FIELDS");
     }
-    if (soldConflicts > 0) {
-      // refund + release + journal DB
+
+    // --- 5) Validation sécurisée : cells + locks
+    const soldC = await countSoldConflicts(supabase, blocks);
+    if (soldC > 0) {
       let refundedOk = false;
       let refundObj  = null;
       try {
@@ -252,8 +241,7 @@ exports.handler = async (event) => {
       } catch(_) {}
       try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
       await supabase.from('orders').update({
-        status: refundedOk ? 'refunded' : 'refund_failed',
-        refund_status: refundedOk ? 'succeeded' : 'failed',
+        status: refundedOk ? 'failed' : 'refund_failed',
         needs_manual_refund: !refundedOk,
         refund_attempted_at: new Date().toISOString(),
         refund_error: refundedOk ? null : String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
@@ -269,10 +257,10 @@ exports.handler = async (event) => {
             route: 'webhook',
             orderId,
             uid,
-            regionId: regionUuid,
+            regionId: order.region_id,
             blocks,
             amount: paidTotal,
-            currency: paidCurr,
+            currency: usedCurrency,
             paypalOrderId: paypalOrderId || order.paypal_order_id || null,
             paypalCaptureId: captureId || order.paypal_capture_id || null,
             reason: 'ALREADY_SOLD',
@@ -283,14 +271,8 @@ exports.handler = async (event) => {
       return bad(409, 'ALREADY_SOLD');
     }
 
-    let locksByOthers = 0;
-    try {
-      locksByOthers = await countLocksByOthers(supabase, blocks, uid);
-    } catch (e) {
-      return bad(500, 'LOCKS_QUERY_FAILED', { message: e.message });
-    }
-    if (locksByOthers > 0) {
-      // refund + release + journal DB
+    const locksByOth = await countLocksByOthers(supabase, blocks, uid);
+    if (locksByOth > 0) {
       let refundedOk = false;
       let refundObj  = null;
       try {
@@ -300,15 +282,14 @@ exports.handler = async (event) => {
       } catch(_) {}
       try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
       await supabase.from('orders').update({
-        status: refundedOk ? 'refunded' : 'refund_failed',
-        refund_status: refundedOk ? 'succeeded' : 'failed',
+        status: refundedOk ? 'failed' : 'refund_failed',
         needs_manual_refund: !refundedOk,
         refund_attempted_at: new Date().toISOString(),
         refund_error: refundedOk ? null : String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
         refund_id: refundedOk ? (refundObj?.id || refundObj?.refund_id || null) : null,
         paypal_order_id: paypalOrderId || order.paypal_order_id || null,
         paypal_capture_id: captureId || order.paypal_capture_id || null,
-        fail_reason: 'LOCKED_BY_OTHER',
+        fail_reason: 'LOCKS_INVALID',
         updated_at: new Date().toISOString()
       }).eq('order_id', orderId);
       if (!refundedOk) {
@@ -317,89 +298,38 @@ exports.handler = async (event) => {
             route: 'webhook',
             orderId,
             uid,
-            regionId: regionUuid,
+            regionId: order.region_id,
             blocks,
             amount: paidTotal,
-            currency: paidCurr,
+            currency: usedCurrency,
             paypalOrderId: paypalOrderId || order.paypal_order_id || null,
             paypalCaptureId: captureId || order.paypal_capture_id || null,
-            reason: 'LOCKED_BY_OTHER',
+            reason: 'LOCKS_INVALID',
             error: String(refundObj?.message || refundObj?.name || 'REFUND_FAILED')
           });
         } catch (_) {}
       }
-      return bad(409, 'LOCKED_BY_OTHER');
+      return bad(409, 'LOCK_MISSING_OR_EXPIRED');
     }
 
-    // 🔍 STRICT LOCK VALIDATION (count-only, anti-cap 1000)
-    {
-      const nowIso = new Date().toISOString();
-      const { count: validCount, error: lockErr2 } = await supabase
-        .from('locks')
-        .select('idx', { count: 'exact', head: true })
-        .in('idx', blocks)
-        .gt('until', nowIso)
-        .eq('uid', uid);
-
-      if (lockErr2) return bad(500, 'LOCKS_QUERY_FAILED', { message: lockErr2.message });
-      if ((validCount ?? 0) !== blocks.length) {
-        const currencyForRefund = (order.currency || paidCurr || 'USD').toUpperCase();
-
-        let refundedOk = false;
-        let refundObj  = null;
-        try {
-          const accessToken = await getPayPalAccessToken();
-          refundObj = captureId
-            ? await refundPayPalCapture(accessToken, captureId, paidTotal, currencyForRefund)
-            : null;
-          refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
-        } catch (_) {}
-
-        try { await releaseLocks(supabase, blocks, uid); } catch (_) {}
-
-        await supabase.from('orders').update({
-          status: refundedOk ? 'refunded' : 'refund_failed',
-          refund_status: refundedOk ? 'succeeded' : 'failed',
-          needs_manual_refund: !refundedOk,
-          refund_attempted_at: new Date().toISOString(),
-          refund_error: refundedOk ? null : 'REFUND_FAILED',
-          refund_id: refundedOk ? (refundObj?.id || refundObj?.refund_id || null) : null,
-          paypal_order_id: paypalOrderId || order.paypal_order_id || null,
-          paypal_capture_id: captureId || order.paypal_capture_id || null,
-          fail_reason: 'LOCKS_INVALID',
-          currency: currencyForRefund,
-          updated_at: new Date().toISOString()
-        }).eq('order_id', orderId);
-
-        if (!refundedOk) {
-          try {
-            await logManualRefundNeeded({
-              route: 'webhook',
-              orderId,
-              uid,
-              regionId: regionUuid,
-              blocks,
-              amount: paidTotal,
-              currency: currencyForRefund,
-              paypalOrderId: paypalOrderId || order.paypal_order_id || null,
-              paypalCaptureId: captureId || order.paypal_capture_id || null,
-              reason: 'LOCKS_INVALID',
-              error: 'REFUND_FAILED'
-            });
-          } catch(_) {}
-        }
-
-        return bad(409, 'LOCK_MISSING_OR_EXPIRED');
-      }
+    // --- 5b) Check UUID + currency + montant
+    let regionUuid = String(order.region_id || '').trim();
+    if (!isUuid(regionUuid)) {
+      regionUuid = (await import('node:crypto')).randomUUID();
     }
 
-    const total = Number(order.total);
-const usedCurrency = (order.currency || paidCurr || 'USD').toUpperCase();
-if (!Number.isFinite(total)) return bad(409, 'ORDER_PRICE_MISSING');
+    // Calcul prix serveur
+    const { count: bs } = await supabase
+      .from('cells').select('idx', { count:'exact', head:true })
+      .not('sold_at', 'is', null);
+    const blocksSold = bs || 0;
+    const tier = Math.floor(blocksSold / 10);
+    const unitPrice = Math.round((1 + tier * 0.01) * 100) / 100;
+    const totalPixels = blocks.length;
+    const total = Math.round(unitPrice * totalPixels * 100) / 100;
 
-
-    // (nouveau) devise incohérente → refund
-    if (paidCurr && usedCurrency && paidCurr !== usedCurrency) {
+    // Devise
+    if (usedCurrency !== paidCurr) {
       let refundedOk = false;
       let refundObj  = null;
       try {
@@ -409,15 +339,11 @@ if (!Number.isFinite(total)) return bad(409, 'ORDER_PRICE_MISSING');
       } catch(_) {}
       try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
       await supabase.from('orders').update({
-        status: refundedOk ? 'refunded' : 'refund_failed',
-        refund_status: refundedOk ? 'succeeded' : 'failed',
+        status: refundedOk ? 'failed' : 'refund_failed',
         needs_manual_refund: !refundedOk,
         refund_attempted_at: new Date().toISOString(),
         refund_error: refundedOk ? null : String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
         refund_id: refundedOk ? (refundObj?.id || refundObj?.refund_id || null) : null,
-        server_total: total,
-        amount: paidTotal,
-        currency: usedCurrency,
         paypal_order_id: paypalOrderId || order.paypal_order_id || null,
         paypal_capture_id: captureId || order.paypal_capture_id || null,
         fail_reason: 'CURRENCY_MISMATCH',
@@ -454,8 +380,7 @@ if (!Number.isFinite(total)) return bad(409, 'ORDER_PRICE_MISSING');
       } catch(_) {}
       try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
       await supabase.from('orders').update({
-        status: refundedOk ? 'refunded' : 'refund_failed',
-        refund_status: refundedOk ? 'succeeded' : 'failed',
+        status: refundedOk ? 'failed' : 'refund_failed',
         needs_manual_refund: !refundedOk,
         refund_attempted_at: new Date().toISOString(),
         refund_error: refundedOk ? null : String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
@@ -523,8 +448,7 @@ if (!Number.isFinite(total)) return bad(409, 'ORDER_PRICE_MISSING');
         } catch(_) {}
         try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
         await supabase.from('orders').update({
-          status: refundedOk ? 'refunded' : 'refund_failed',
-          refund_status: refundedOk ? 'succeeded' : 'failed',
+          status: refundedOk ? 'failed' : 'refund_failed',
           needs_manual_refund: !refundedOk,
           refund_attempted_at: new Date().toISOString(),
           refund_error: refundedOk ? null : String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
@@ -567,8 +491,7 @@ if (!Number.isFinite(total)) return bad(409, 'ORDER_PRICE_MISSING');
       } catch(_) {}
       try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
       await supabase.from('orders').update({
-        status: refundedOk ? 'refunded' : 'refund_failed',
-        refund_status: refundedOk ? 'succeeded' : 'failed',
+        status: refundedOk ? 'failed' : 'refund_failed',
         needs_manual_refund: !refundedOk,
         refund_attempted_at: new Date().toISOString(),
         refund_error: refundedOk ? null : String(refundObj?.message || refundObj?.name || 'REFUND_FAILED'),
