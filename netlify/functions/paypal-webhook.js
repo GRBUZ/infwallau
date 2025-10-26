@@ -12,7 +12,7 @@ const { verifyPayPalWebhook } = require('./_paypal-verify');
 const { logManualRefundNeeded } = require('./_manual-refund-logger');
 
 // ❌ DÉSACTIVER LE MODE TEST REFUND FAIL
-const FORCE_REFUND_FAIL = true; 
+//const FORCE_REFUND_FAIL = false; 
 
 function json(status, obj){
   return {
@@ -57,9 +57,9 @@ async function getOrderCustomId(accessToken, paypalOrderId){
 // Refund PayPal (amount/currency optionnels -> full refund si omis)
 async function refundPayPalCapture(accessToken, captureId, amount, currency) {
   // ✅ Mode test désactivé
-  if (FORCE_REFUND_FAIL) {
-    throw new Error('TEST_FORCED_REFUND_FAIL');
-  }
+  //if (FORCE_REFUND_FAIL) {
+    //throw new Error('TEST_FORCED_REFUND_FAIL');
+  //}
   
   try {
     const body = (Number.isFinite(amount) && currency)
