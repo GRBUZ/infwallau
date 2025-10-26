@@ -825,6 +825,17 @@ startLockMonitoring(warmupMs = 1200) {
     async returnToGrid() {
       console.log('[ViewManager] Returning to grid');
       
+      /*new*/
+      // ✅ Annuler l'order si existe (user était allé jusqu'au paiement)
+      if (AppState.currentOrder?.orderId) {
+        try {
+          await apiCall('/order-status?orderId=' + encodeURIComponent(AppState.currentOrder.orderId) + '&action=cancel');
+          console.log('[ViewManager] Order cancelled:', AppState.currentOrder.orderId);
+        } catch (e) {
+          console.warn('[ViewManager] Failed to cancel order:', e);
+        }
+      }
+      /*new */
       // Stop heartbeat
       try { window.LockManager.heartbeat.stop(); } catch (e) {}
       
@@ -1562,9 +1573,10 @@ isValidUrl(url) {
           const status = await apiCall('/order-status?orderId=' + encodeURIComponent(orderId));
           
           if (status?.ok) {
-            const s = String(status.status || '').toLowerCase();
+            // ✅ Utiliser effectiveStatus (normalisé par backend)
+            const s = String(status.effectiveStatus || status.status || '').toLowerCase();
             if (s === 'completed') return true;
-            if (['failed', 'failed_refund', 'cancelled', 'expired'].includes(s)) return false;
+            if (s === 'failed' || s === 'cancelled') return false;  // Simplifié : backend normalise tout en 'failed'
             console.log('[CheckoutFlow] Order status:', s);
           }
         } catch (e) {
@@ -1574,7 +1586,6 @@ isValidUrl(url) {
         await new Promise(r => setTimeout(r, delay));
         delay = Math.min(10000, Math.round(delay * 1.7));
       }
-      
       return false;
     },
     
