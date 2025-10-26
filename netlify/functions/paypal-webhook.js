@@ -251,11 +251,14 @@ exports.handler = async (event) => {
     if (soldC > 0) {
       let refundedOk = false;
       let refundObj  = null;
-      try {
-        const accessToken = await getPayPalAccessToken();
-        refundObj  = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
-        refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
-      } catch(_) {}
+      let accessToken = null;
+      
+      try { accessToken = await getPayPalAccessToken(); } catch(_) {}
+      if (accessToken && captureId) {
+        try { refundObj = await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr); } catch(_) {}
+      }
+      refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+      
       try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
       await supabase.from('orders').update({
         status: refundedOk ? 'failed' : 'refund_failed',
@@ -292,11 +295,14 @@ exports.handler = async (event) => {
     if (locksByOth > 0) {
       let refundedOk = false;
       let refundObj  = null;
-      try {
-        const accessToken = await getPayPalAccessToken();
-        refundObj  = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
-        refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
-      } catch(_) {}
+      let accessToken = null;
+      
+      try { accessToken = await getPayPalAccessToken(); } catch(_) {}
+      if (accessToken && captureId) {
+        try { refundObj = await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr); } catch(_) {}
+      }
+      refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+      
       try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
       await supabase.from('orders').update({
         status: refundedOk ? 'failed' : 'refund_failed',
@@ -349,11 +355,14 @@ exports.handler = async (event) => {
     if (usedCurrency !== paidCurr) {
       let refundedOk = false;
       let refundObj  = null;
-      try {
-        const accessToken = await getPayPalAccessToken();
-        refundObj  = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
-        refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
-      } catch(_) {}
+      let accessToken = null;
+      
+      try { accessToken = await getPayPalAccessToken(); } catch(_) {}
+      if (accessToken && captureId) {
+        try { refundObj = await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr); } catch(_) {}
+      }
+      refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+      
       try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
       await supabase.from('orders').update({
         status: refundedOk ? 'failed' : 'refund_failed',
@@ -390,11 +399,14 @@ exports.handler = async (event) => {
     if (Number.isFinite(paidTotal) && paidTotal + 1e-9 < total) {
       let refundedOk = false;
       let refundObj  = null;
-      try {
-        const accessToken = await getPayPalAccessToken();
-        refundObj  = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
-        refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
-      } catch(_) {}
+      let accessToken = null;
+      
+      try { accessToken = await getPayPalAccessToken(); } catch(_) {}
+      if (accessToken && captureId) {
+        try { refundObj = await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr); } catch(_) {}
+      }
+      refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+      
       try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
       await supabase.from('orders').update({
         status: refundedOk ? 'failed' : 'refund_failed',
@@ -458,11 +470,14 @@ exports.handler = async (event) => {
 
         let refundedOk = false;
         let refundObj  = null;
-        try {
-          const accessToken = await getPayPalAccessToken();
-          refundObj  = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
-          refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
-        } catch(_) {}
+        let accessToken = null;
+        
+        try { accessToken = await getPayPalAccessToken(); } catch(_) {}
+        if (accessToken && captureId) {
+          try { refundObj = await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr); } catch(_) {}
+        }
+        refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+        
         try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
         await supabase.from('orders').update({
           status: refundedOk ? 'failed' : 'refund_failed',
@@ -501,12 +516,29 @@ exports.handler = async (event) => {
       // Autres erreurs RPC : refund + release + journal DB
       let refundedOk = false;
       let refundObj  = null;
+      let accessToken = null;
+      
       try {
-        const accessToken = await getPayPalAccessToken();
-        refundObj  = captureId ? await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr) : null;
-        refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
-      } catch(_) {}
+        accessToken = await getPayPalAccessToken();
+      } catch(tokenErr) {
+        console.error('[webhook] Failed to get token for refund:', tokenErr);
+      }
+      
+      if (accessToken && captureId) {
+        try {
+          refundObj = await refundPayPalCapture(accessToken, captureId, paidTotal, paidCurr);
+          console.log('[webhook] Refund result:', refundObj);
+        } catch(refundErr) {
+          console.error('[webhook] Refund exception:', refundErr);
+        }
+      }
+      
+      // Calculer refundedOk APRÈS toutes les tentatives
+      refundedOk = !!(refundObj && (refundObj.id || refundObj.status));
+      console.log('[webhook] Final refund status:', { refundedOk, refundId: refundObj?.id });
+      
       try { await releaseLocks(supabase, blocks, uid); } catch(_) {}
+      
       await supabase.from('orders').update({
         status: refundedOk ? 'failed' : 'refund_failed',
         needs_manual_refund: !refundedOk,
