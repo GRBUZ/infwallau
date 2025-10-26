@@ -12,7 +12,7 @@ const { verifyPayPalWebhook } = require('./_paypal-verify');
 const { logManualRefundNeeded } = require('./_manual-refund-logger');
 
 // ❌ DÉSACTIVER LE MODE TEST REFUND FAIL
-const FORCE_REFUND_FAIL = false; 
+const FORCE_REFUND_FAIL = true; 
 
 function json(status, obj){
   return {
