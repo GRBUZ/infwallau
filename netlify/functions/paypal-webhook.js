@@ -65,6 +65,9 @@ async function refundPayPalCapture(accessToken, captureId, amount, currency) {
     const body = (Number.isFinite(amount) && currency)
       ? { amount: { value: Number(amount).toFixed(2), currency_code: String(currency).toUpperCase() } }
       : {};
+    
+    console.log('[webhook] Attempting refund:', { captureId, amount, currency });
+    
     const resp = await fetch(`${PAYPAL_BASE_URL}/v2/payments/captures/${captureId}/refund`, {
       method: 'POST',
       headers: {
@@ -74,11 +77,25 @@ async function refundPayPalCapture(accessToken, captureId, amount, currency) {
       },
       body: JSON.stringify(body)
     });
-    const j = await resp.json().catch(()=> ({}));
-    if (!resp.ok) throw new Error(`PAYPAL_REFUND_FAILED:${resp.status}:${j?.name || ''}`);
+    
+    console.log('[webhook] Refund response status:', resp.status);
+    
+    const j = await resp.json().catch((parseErr) => {
+      console.error('[webhook] JSON parse error:', parseErr);
+      return {};
+    });
+    
+    console.log('[webhook] Refund response body:', JSON.stringify(j));
+    
+    if (!resp.ok) {
+      console.error('[webhook] Refund failed - not OK:', resp.status, j);
+      throw new Error(`PAYPAL_REFUND_FAILED:${resp.status}:${j?.name || ''}`);
+    }
+    
+    console.log('[webhook] Refund SUCCESS:', j.id || j.refund_id);
     return j; // { id, status, ... }
   } catch (e) {
-    console.error('[PayPal Webhook] refund failed:', e);
+    console.error('[webhook] refund exception:', e);
     return null; // best-effort
   }
 }
