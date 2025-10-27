@@ -2324,7 +2324,10 @@ function renderRegions() {
     EventHandlers.init();
     
     // Load status
+    console.log('[App] Loading initial status...');
+    console.time('Initial status load');
     await StatusManager.load();
+    console.timeEnd('Initial status load');
     GridManager.paintAll();
     
     // Start polling
