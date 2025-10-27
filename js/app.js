@@ -1305,7 +1305,7 @@ async processForm() {
     }
     
     if (!haveMyValidLocks(AppState.orderData.blocks, 1000)) {
-      await StatusManager.load();
+      //await StatusManager.load();
       Toast.warning('Your reservation expired. Please reselect your pixels.');
       ViewManager.returnToGrid();
       this._processing = false;
@@ -2329,7 +2329,7 @@ function renderRegions() {
     window.getSelectedIndices = () => Array.from(AppState.selected);
     window.reservedTotal = 0;
     window.reservedPrice = 0;
-    
+
     // Load status
     console.log('[App] Loading initial status...');
     console.time('Initial status load');
