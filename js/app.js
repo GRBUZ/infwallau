@@ -2322,6 +2322,13 @@ function renderRegions() {
     GridManager.init();
     ImageUpload.init();
     EventHandlers.init();
+
+    // ✅ Exposer renderRegions AVANT le load
+    window.renderRegions = renderRegions;
+    window.ImageUpload = ImageUpload;
+    window.getSelectedIndices = () => Array.from(AppState.selected);
+    window.reservedTotal = 0;
+    window.reservedPrice = 0;
     
     // Load status
     console.log('[App] Loading initial status...');
@@ -2332,13 +2339,6 @@ function renderRegions() {
     
     // Start polling
     StatusManager.startPolling();
-    
-    // Expose global APIs
-    window.ImageUpload = ImageUpload;
-    window.getSelectedIndices = () => Array.from(AppState.selected);
-    window.renderRegions = renderRegions;
-    window.reservedTotal = 0; // Compat
-    window.reservedPrice = 0; // Compat
     
     // Debug API
     window.AppDebug = {
