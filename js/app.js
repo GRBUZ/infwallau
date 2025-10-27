@@ -823,6 +823,7 @@ startLockMonitoring(warmupMs = 1200) {
     },
     
     async returnToGrid() {
+      console.time('returnToGrid TOTAL');  // ✅
       console.log('[ViewManager] Returning to grid');
       
       // ✅ Annuler l'order si existe (user était allé jusqu'au paiement)
@@ -846,9 +847,6 @@ startLockMonitoring(warmupMs = 1200) {
           console.warn('[Unlock] Failed:', e);
         }
       }
-      // ✅ LOAD AVANT switch (pendant qu'on est encore sur checkout)
-      await StatusManager.load();
-      GridManager.paintAll();
       
       // Reset state
       AppState.orderData = {
@@ -884,12 +882,14 @@ startLockMonitoring(warmupMs = 1200) {
 
       // Switch view
       this.switchTo('grid');
+      
       this.setCheckoutStep(1);
       // ✅ AJOUTER CET APPEL
       this.updateCheckoutButtons();
       // Refresh
-      //await StatusManager.load();
-      //GridManager.paintAll();
+      await StatusManager.load();
+      GridManager.paintAll();
+      console.timeEnd('returnToGrid TOTAL');
     }
   };
 
