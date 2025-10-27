@@ -2129,7 +2129,7 @@ if (DOM.proceedToPayment) {
   };
 
   // ===== REGIONS RENDERING =====
-  function renderRegions() {
+  /*function renderRegions() {
     const gridEl = DOM.grid;
     if (!gridEl) return;
     
@@ -2181,7 +2181,76 @@ if (DOM.proceedToPayment) {
     
     gridEl.style.position = 'relative';
     gridEl.style.zIndex = 2;
+  }*/
+ // Remplacer renderRegions() par cette version ULTRA-OPTIMISÉE
+
+function renderRegions() {
+  console.time('renderRegions');
+  
+  const gridEl = DOM.grid;
+  if (!gridEl) return;
+  
+  // Supprimer anciens overlays
+  gridEl.querySelectorAll('.region-overlay').forEach(n => n.remove());
+  
+  const firstCell = gridEl.children[0];
+  const size = firstCell ? firstCell.offsetWidth : 10;
+  
+  // Build regionLink map
+  const regionLink = {};
+  for (const [idx, s] of Object.entries(AppState.sold)) {
+    const regionId = s.regionId || s.region_id;
+    const linkUrl = s.linkUrl || s.link_url;
+    if (s && regionId && !regionLink[regionId] && linkUrl) {
+      regionLink[regionId] = linkUrl;
+    }
   }
+  
+  // ✅ DocumentFragment pour éviter reflows
+  const fragment = document.createDocumentFragment();
+  
+  for (const [rid, reg] of Object.entries(AppState.regions)) {
+    if (!reg || !reg.rect || !reg.imageUrl) continue;
+    const { x, y, w, h } = reg.rect;
+    const idxTL = y * 100 + x;
+    
+    // ✅ Accès direct au lieu de querySelector
+    const tl = gridEl.children[idxTL];
+    if (!tl) continue;
+    
+    const a = document.createElement('a');
+    a.className = 'region-overlay';
+    if (regionLink[rid]) {
+      a.href = regionLink[rid];
+      a.target = '_blank';
+      a.rel = 'noopener nofollow';
+    }
+    
+    // ✅ Inline styles (plus rapide que Object.assign)
+    a.style.cssText = `
+      position: absolute;
+      left: ${tl.offsetLeft}px;
+      top: ${tl.offsetTop}px;
+      width: ${w * size}px;
+      height: ${h * size}px;
+      background-image: url("${reg.imageUrl}");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      z-index: 999;
+    `;
+    
+    fragment.appendChild(a);
+  }
+  
+  // ✅ 1 seul appendChild = 1 seul reflow
+  gridEl.appendChild(fragment);
+  
+  gridEl.style.position = 'relative';
+  gridEl.style.zIndex = 2;
+  
+  console.timeEnd('renderRegions');
+}
   
   // ===== INITIALIZATION =====
   async function init() {
