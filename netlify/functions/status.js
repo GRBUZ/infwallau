@@ -1,4 +1,7 @@
-// netlify/functions/status.js — Supabase version OPTIMISÉE
+// netlify/functions/status.js — FINAL avec pagination optimisée
+// REQUIS : Exécuter ce SQL dans Supabase AVANT de déployer :
+// CREATE INDEX IF NOT EXISTS idx_cells_sold_ordered ON cells(idx) WHERE sold_at IS NOT NULL;
+
 const { requireAuth } = require('./auth-middleware');
 
 const SUPABASE_URL     = process.env.SUPABASE_URL;
@@ -48,7 +51,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // ===== 2) SOLD (SANS JOIN) =====
+    // ===== 2) SOLD (avec pagination + index) =====
     const soldRows = [];
     {
       const pageSize = 1000;
@@ -58,7 +61,7 @@ exports.handler = async (event) => {
           .from('cells')
           .select('idx, region_id, sold_at')
           .not('sold_at', 'is', null)
-          // ✅ PAS DE .order() ! (trop lent sans index)
+          .order('idx', { ascending: true })  // ✅ Nécessite index idx_cells_sold_ordered
           .range(from, from + pageSize - 1);
 
         if (error) return bad(500, 'DB_SOLD_QUERY_FAILED', { message: error.message });
@@ -97,7 +100,7 @@ exports.handler = async (event) => {
         .from('locks')
         .select('idx, uid, until')
         .gt('until', cutoff)
-        // ✅ PAS DE .order() ! (pas nécessaire)
+        .order('idx', { ascending: true })  // OK car idx est primary key
         .range(from, from + pageSize - 1);
 
       if (error) return bad(500, 'DB_LOCKS_QUERY_FAILED', { message: error.message });
