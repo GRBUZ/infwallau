@@ -1,4 +1,4 @@
-// netlify/functions/status.js — Supabase version
+// netlify/functions/status.js — Supabase version OPTIMISÉE
 const { requireAuth } = require('./auth-middleware');
 
 const SUPABASE_URL     = process.env.SUPABASE_URL;
@@ -9,8 +9,8 @@ function j(status, obj){ return {
   headers: { 'content-type':'application/json', 'cache-control':'no-store' },
   body: JSON.stringify(obj)
 };}
-const bad = (s,e,extra={}) => j(s, { ok:false, error:e, ...extra, signature:'status.supabase.v1' });
-const ok  = (b)         => j(200,{ ok:true, signature:'status.supabase.v1', ...b });
+const bad = (s,e,extra={}) => j(s, { ok:false, error:e, ...extra, signature:'status.supabase.v2' });
+const ok  = (b)         => j(200,{ ok:true, signature:'status.supabase.v2', ...b });
 
 exports.handler = async (event) => {
   try{
@@ -25,7 +25,30 @@ exports.handler = async (event) => {
       auth: { persistSession: false }
     });
 
-    // ===== 1) SOLD =====
+    // ===== 1) REGIONS D'ABORD (pour le MAP) =====
+    const { data: regionRows, error: regErr } = await supabase
+      .from('regions')
+      .select('id, name, link_url, x, y, w, h, image_url');
+
+    if (regErr) return bad(500, 'DB_REGIONS_QUERY_FAILED', { message: regErr.message });
+
+    // Créer MAP pour lookup rapide
+    const regionsMap = {};
+    const regions = {};
+    
+    for (const r of (regionRows || [])) {
+      regionsMap[r.id] = {
+        name: r.name || '',
+        linkUrl: r.link_url || ''
+      };
+      
+      regions[r.id] = {
+        rect: { x: Number(r.x)||0, y: Number(r.y)||0, w: Number(r.w)||0, h: Number(r.h)||0 },
+        imageUrl: r.image_url || ''
+      };
+    }
+
+    // ===== 2) SOLD (SANS JOIN) =====
     const soldRows = [];
     {
       const pageSize = 1000;
@@ -33,8 +56,7 @@ exports.handler = async (event) => {
       while (true) {
         const { data, error } = await supabase
           .from('cells')
-          //.select('idx, region_id, sold_at')
-          .select('idx, region_id, sold_at, regions!inner ( id, name, link_url )')
+          .select('idx, region_id, sold_at')  // ✅ SANS JOIN
           .not('sold_at', 'is', null)
           .order('idx', { ascending: true })
           .range(from, from + pageSize - 1);
@@ -53,16 +75,18 @@ exports.handler = async (event) => {
       const idx       = Number(row.idx);
       const rid       = row.region_id;
       const soldAt    = row.sold_at ? new Date(row.sold_at).getTime() : Date.now();
-      const r         = row.regions || {};
-      const name      = r.name || '';
-      const linkUrl   = r.link_url || '';
+      
+      // ✅ Lookup dans le MAP (rapide)
+      const region    = regionsMap[rid] || {};
+      const name      = region.name || '';
+      const linkUrl   = region.linkUrl || '';
 
       if (Number.isFinite(idx) && rid) {
         sold[idx] = { name, linkUrl, ts: soldAt, regionId: rid };
       }
     }
 
-    // ===== 2) LOCKS =====
+    // ===== 3) LOCKS =====
     const lockRows = [];
     let from = 0;
     const pageSize = 1000;
@@ -91,28 +115,12 @@ exports.handler = async (event) => {
       locks[k] = { uid: r.uid, until: untilMs };
     }
 
-    // ===== 3) REGIONS =====
-    const { data: regionRows, error: regErr } = await supabase
-      .from('regions')
-      .select('id, x, y, w, h, image_url');
-
-    if (regErr) return bad(500, 'DB_REGIONS_QUERY_FAILED', { message: regErr.message });
-
-    const regions = {};
-    for (const r of (regionRows || [])) {
-      regions[r.id] = {
-        rect: { x: Number(r.x)||0, y: Number(r.y)||0, w: Number(r.w)||0, h: Number(r.h)||0 },
-        imageUrl: r.image_url || ''
-      };
-    }
-
     // ===== 4) PRIX COURANT =====
-    // PATCH: calcule le prix avec la même logique que price.js
     const blocksSold = soldRows.length;
     const pixelsSold = blocksSold * 100;
     const currentPrice = 1 + Math.floor(pixelsSold / 1000) * 0.01;
 
-    return ok({ sold, locks, regions, currentPrice }); // PATCH: ajout currentPrice
+    return ok({ sold, locks, regions, currentPrice });
 
   } catch (e) {
     return bad(500, 'SERVER_ERROR', { message: String(e?.message || e) });

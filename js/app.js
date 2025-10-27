@@ -1998,7 +1998,7 @@ highlightAndScrollToPurchasedPixels(blocks) {
     startPolling() {
       setInterval(async () => {
         await this.load();
-      }, 3500); // 3.5s optimisé
+      }, 4500); // 4.5s optimisé
     }
   };
 
@@ -2011,6 +2011,27 @@ highlightAndScrollToPurchasedPixels(blocks) {
       if (DOM.claimBtn) {
         DOM.claimBtn.addEventListener('click', async (e) => {
           e.preventDefault();
+          
+          // ✅ Force refresh pour avoir locks à jour
+          console.log('[Claim] Force refreshing status before claim...');
+          await StatusManager.load();
+          
+          // ✅ Re-vérifier si blocks toujours disponibles
+          const blockedIndexes = [];
+          for (const idx of AppState.selected) {
+            if (GridManager.isBlocked(idx)) {
+              blockedIndexes.push(idx);
+            }
+          }
+          
+          if (blockedIndexes.length > 0) {
+            Toast.error(`${blockedIndexes.length} block(s) were just reserved by another user. Please select again.`);
+            GridManager.clearSelection();
+            return;
+          }
+          
+          console.log('[Claim] All blocks still available, proceeding...');
+          
           console.log('[EventHandlers] Claim clicked');
           await CheckoutFlow.initiate();
         });
