@@ -1943,7 +1943,7 @@ highlightAndScrollToPurchasedPixels(blocks) {
   // ===== STATUS MANAGEMENT =====
   const StatusManager = {
     lastUpdate: 0,
-    
+    pollingInterval: null,
     async load() {
       console.log('[StatusManager.load] Called at', performance.now().toFixed(2));  // ✅
       try {
@@ -1996,11 +1996,23 @@ highlightAndScrollToPurchasedPixels(blocks) {
       }
     },
     
-    startPolling() {
+    /*startPolling() {
       setInterval(async () => {
         await this.load();
       }, 3500); // 3.5s optimisé
-    }
+    }*/
+   startPolling() {
+  // ✅ Protection contre double appel
+  if (this.pollingInterval) {
+    console.warn('[StatusManager] Polling already running!');
+    return;
+  }
+  
+  console.log('[StatusManager] Starting polling (3.5s)');
+  this.pollingInterval = setInterval(async () => {
+    await this.load();
+  }, 3500);
+}
   };
 
   // ===== EVENT HANDLERS =====
