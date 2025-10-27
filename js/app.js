@@ -1943,6 +1943,7 @@ highlightAndScrollToPurchasedPixels(blocks) {
   // ===== STATUS MANAGEMENT =====
   const StatusManager = {
     lastUpdate: 0,
+    pollingInterval: null,  // ✅ AJOUTER
     
     async load() {
       try {
@@ -1996,9 +1997,14 @@ highlightAndScrollToPurchasedPixels(blocks) {
     },
     
     startPolling() {
-      setInterval(async () => {
+      if (this.pollingInterval) {
+        console.warn('[StatusManager] Polling already started');
+        return;
+      }
+      console.log('[StatusManager] Starting polling every 5s');
+      this.pollingInterval = setInterval(async () => {
         await this.load();
-      }, 4500); // 4.5s optimisé
+      }, 5000);
     }
   };
 
