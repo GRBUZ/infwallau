@@ -1945,6 +1945,7 @@ highlightAndScrollToPurchasedPixels(blocks) {
     lastUpdate: 0,
     
     async load() {
+      console.log('[StatusManager.load] Called at', performance.now().toFixed(2));  // ✅
       try {
         const sinceParam = this.lastUpdate 
           ? '?since=' + encodeURIComponent(this.lastUpdate)
