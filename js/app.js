@@ -2010,6 +2010,7 @@ highlightAndScrollToPurchasedPixels(blocks) {
   
   console.log('[StatusManager] Starting polling (3.5s)');
   this.pollingInterval = setInterval(async () => {
+    console.log('[StatusManager] Polling tick');
     await this.load();
   }, 3500);
 }
