@@ -1998,7 +1998,7 @@ highlightAndScrollToPurchasedPixels(blocks) {
     startPolling() {
       setInterval(async () => {
         await this.load();
-      }, 4000); // 4.5s optimisé
+      }, 3500); // 3.5s optimisé
     }
   };
 
@@ -2129,7 +2129,7 @@ if (DOM.proceedToPayment) {
   };
 
   // ===== REGIONS RENDERING =====
-  /*function renderRegions() {
+  function renderRegions() {
     const gridEl = DOM.grid;
     if (!gridEl) return;
     
@@ -2181,88 +2181,8 @@ if (DOM.proceedToPayment) {
     
     gridEl.style.position = 'relative';
     gridEl.style.zIndex = 2;
-  }*/
-  // REMPLACER la fonction renderRegions (ligne 2111-2163)
-
-function renderRegions() {
-  const gridEl = DOM.grid;
-  if (!gridEl) return;
-  
-  gridEl.querySelectorAll('.region-overlay').forEach(n => n.remove());
-  
-  const firstCell = gridEl.querySelector('.cell');
-  const size = firstCell ? firstCell.offsetWidth : 10;
-  
-  const regionLink = {};
-  
-  for (const [idx, s] of Object.entries(AppState.sold)) {
-    const regionId = s.regionId || s.region_id;
-    const linkUrl = s.linkUrl || s.link_url;
-    if (s && regionId && !regionLink[regionId] && linkUrl) {
-      regionLink[regionId] = linkUrl;
-    }
   }
   
-  const overlays = [];
-  
-  for (const [rid, reg] of Object.entries(AppState.regions)) {
-    if (!reg || !reg.rect || !reg.imageUrl) continue;
-    const { x, y, w, h } = reg.rect;
-    const idxTL = y * 100 + x;
-    const tl = gridEl.querySelector(`.cell[data-idx="${idxTL}"]`);
-    if (!tl) continue;
-    
-    const a = document.createElement('a');
-    a.className = 'region-overlay';
-    if (regionLink[rid]) {
-      a.href = regionLink[rid];
-      a.target = '_blank';
-      a.rel = 'noopener nofollow';
-    }
-    
-    Object.assign(a.style, {
-      position: 'absolute',
-      left: tl.offsetLeft + 'px',
-      top: tl.offsetTop + 'px',
-      width: (w * size) + 'px',
-      height: (h * size) + 'px',
-      backgroundColor: '#f0f0f0', // ✅ Placeholder gris pendant chargement
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-      zIndex: 999
-    });
-    
-    // ✅ Lazy loading : stocke l'URL, ne charge pas tout de suite
-    a.dataset.imageUrl = reg.imageUrl;
-    
-    gridEl.appendChild(a);
-    overlays.push(a);
-  }
-  
-  gridEl.style.position = 'relative';
-  gridEl.style.zIndex = 2;
-  
-  // ✅ Lazy load avec IntersectionObserver
-  if (overlays.length > 0) {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const el = entry.target;
-          if (el.dataset.imageUrl && !el.style.backgroundImage.includes('url')) {
-            el.style.backgroundImage = `url("${el.dataset.imageUrl}")`;
-            observer.unobserve(el);
-          }
-        }
-      });
-    }, { 
-      rootMargin: '200px', // Commence à charger 200px avant que ce soit visible
-      threshold: 0.01
-    });
-    
-    overlays.forEach(a => observer.observe(a));
-  }
-}
   // ===== INITIALIZATION =====
   async function init() {
     console.log('[App] Initializing unified version with full lock logic');

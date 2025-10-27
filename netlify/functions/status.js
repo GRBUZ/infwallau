@@ -56,9 +56,9 @@ exports.handler = async (event) => {
       while (true) {
         const { data, error } = await supabase
           .from('cells')
-          .select('idx, region_id, sold_at')  // ✅ SANS JOIN
+          .select('idx, region_id, sold_at')
           .not('sold_at', 'is', null)
-          .order('idx', { ascending: true })
+          // ✅ PAS DE .order() ! (trop lent sans index)
           .range(from, from + pageSize - 1);
 
         if (error) return bad(500, 'DB_SOLD_QUERY_FAILED', { message: error.message });
@@ -97,7 +97,7 @@ exports.handler = async (event) => {
         .from('locks')
         .select('idx, uid, until')
         .gt('until', cutoff)
-        .order('idx', { ascending: true })
+        // ✅ PAS DE .order() ! (pas nécessaire)
         .range(from, from + pageSize - 1);
 
       if (error) return bad(500, 'DB_LOCKS_QUERY_FAILED', { message: error.message });
