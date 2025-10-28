@@ -896,16 +896,14 @@ startLockMonitoring(warmupMs = 1200) {
       StatusManager.resumePolling();
       console.timeEnd('returnToGrid TOTAL');
     }*/
-   async returnToGrid() {
+    async returnToGrid() {
   console.time('returnToGrid TOTAL');
-  console.log('[ViewManager] Returning to grid');
   
   StatusManager.pausePolling();
   
-  // Stop heartbeat immédiatement
   try { window.LockManager.heartbeat.stop(); } catch (e) {}
   
-  // ✅ Switch TOUT DE SUITE (sans attendre)
+  // Switch
   const grid = document.querySelector('.grid') || document.getElementById('grid');
   if (grid) {
     grid.style.margin = '0 auto';
@@ -913,7 +911,7 @@ startLockMonitoring(warmupMs = 1200) {
     grid.style.transform = 'none';
   }
   
-  this.switchTo('grid');  // ✅ Grille visible immédiatement
+  this.switchTo('grid');
   this.setCheckoutStep(1);
   this.updateCheckoutButtons();
   
@@ -925,40 +923,31 @@ startLockMonitoring(warmupMs = 1200) {
     DOM.proceedToPayment.textContent = '💳 Continue to Payment';
   }
   
-  // ✅ PUIS faire les appels réseau (en background)
-  
-  // Cancel order (non bloquant)
-  if (AppState.currentOrder?.orderId) {
-    apiCall('/order-status?orderId=' + encodeURIComponent(AppState.currentOrder.orderId) + '&action=cancel')
-      .catch(e => console.warn('[ViewManager] Failed to cancel order:', e));
+  // ✅ APPELER renderRegions() TOUT DE SUITE (avec les données déjà en mémoire)
+  if (window.renderRegions) {
+    window.renderRegions();
   }
   
-  // Unlock blocks (en parallèle avec load)
+  // PUIS faire les appels réseau en background
   const unlockPromise = AppState.orderData.blocks.length 
     ? window.LockManager.unlock(AppState.orderData.blocks)
         .then(() => console.log('[ViewManager] Unlocked', AppState.orderData.blocks.length, 'blocks'))
         .catch(e => console.warn('[Unlock] Failed:', e))
     : Promise.resolve();
   
-  // Load status (en parallèle)
+  if (AppState.currentOrder?.orderId) {
+    apiCall('/order-status?orderId=' + encodeURIComponent(AppState.currentOrder.orderId) + '&action=cancel')
+      .catch(e => console.warn('[ViewManager] Failed to cancel order:', e));
+  }
+  
   const loadPromise = StatusManager.load();
   
-  // Attendre les 2 en parallèle
   await Promise.all([unlockPromise, loadPromise]);
   
   GridManager.paintAll();
   
   // Reset state
-  AppState.orderData = {
-    blocks: [],
-    name: '',
-    linkUrl: '',
-    imageUrl: null,
-    regionId: null,
-    totalAmount: 0,
-    unitPrice: 0
-  };
-  
+  AppState.orderData = { blocks: [], name: '', linkUrl: '', imageUrl: null, regionId: null, totalAmount: 0, unitPrice: 0 };
   AppState.selected.clear();
   AppState.uploadedImageCache = null;
   AppState.currentOrder = null;
