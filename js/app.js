@@ -825,10 +825,8 @@ startLockMonitoring(warmupMs = 1200) {
     async returnToGrid() {
       console.time('returnToGrid TOTAL');  // ✅
       console.log('[ViewManager] Returning to grid');
-      // ✅ PAUSE le polling pendant qu'on fait le retour
-      if (window.CoreManager?.pauseStatusPolling) {
-        window.CoreManager.pauseStatusPolling('returnToGrid');
-      }
+      // ✅ Pause polling
+      StatusManager.pause();
       
       // ✅ Annuler l'order si existe (user était allé jusqu'au paiement)
       if (AppState.currentOrder?.orderId) {
@@ -894,10 +892,8 @@ startLockMonitoring(warmupMs = 1200) {
       await StatusManager.load();
       GridManager.paintAll();
 
-      // ✅ RESUME le polling
-      if (window.CoreManager?.resumeStatusPolling) {
-        window.CoreManager.resumeStatusPolling('returnToGrid');
-      }
+      // ✅ Resume polling
+      StatusManager.resume();
       console.timeEnd('returnToGrid TOTAL');
     }
   };
@@ -1954,7 +1950,12 @@ highlightAndScrollToPurchasedPixels(blocks) {
   const StatusManager = {
     lastUpdate: 0,
     pollingInterval: null,
+    _paused: false,
     async load() {
+      if (this._paused) {
+        console.log('[StatusManager.load] Paused, skip');
+        return;
+      }
       console.log('[StatusManager.load] Called at', performance.now().toFixed(2));  // ✅
       try {
         const sinceParam = this.lastUpdate 
@@ -2006,11 +2007,15 @@ highlightAndScrollToPurchasedPixels(blocks) {
       }
     },
     
-    /*startPolling() {
-      setInterval(async () => {
-        await this.load();
-      }, 3500); // 3.5s optimisé
-    }*/
+    pause() {
+    this._paused = true;
+    console.log('[StatusManager] Paused');
+  },
+  
+  resume() {
+    this._paused = false;
+    console.log('[StatusManager] Resumed');
+  },
    startPolling() {
   // ✅ Protection contre double appel
   if (this.pollingInterval) {
