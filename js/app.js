@@ -1257,58 +1257,65 @@ updateSelectionInfo() {
   // ===== CHECKOUT FLOW =====
   const CheckoutFlow = {
     async initiate() {
-  console.log('[CheckoutFlow] Initiating checkout');
+      console.time('[CheckoutFlow] TOTAL initiate');
+      console.log('[CheckoutFlow] Initiating checkout');
+    
+      const blocks = Array.from(AppState.selected);
+      if (!blocks.length) {
+        Toast.warning('Please select pixels first!');
+        return;
+      }
   
-  const blocks = Array.from(AppState.selected);
-  if (!blocks.length) {
-    Toast.warning('Please select pixels first!');
-    return;
-  }
-  
-  try {
-    // Lock avec retry de LockManager
-    const lockResult = await window.LockManager.lock(blocks, 180000);
-    console.log('[CheckoutFlow] Lock result:', lockResult);
+      try {
+        console.time('[CheckoutFlow] Lock API');
+        // Lock avec retry de LockManager
+        const lockResult = await window.LockManager.lock(blocks, 180000);
+        console.timeEnd('[CheckoutFlow] Lock API');
+        console.log('[CheckoutFlow] Lock result:', lockResult);
+        
+        if (!lockResult.ok || lockResult.conflicts?.length) {
+          console.warn('[CheckoutFlow] Lock failed or conflicts');
+          GridManager.showInvalidArea(0, 0, N-1, N-1);
+          GridManager.clearSelection();
+          return;
+        }
+        
+        // Setup order data
+        console.time('[CheckoutFlow] Setup data');
+        AppState.orderData = {
+          blocks: lockResult.locked || blocks,
+          name: '',
+          linkUrl: '',
+          imageUrl: null,
+          regionId: lockResult.regionId || null,
+          totalAmount: lockResult.totalAmount || GridManager.calculateTotal(blocks.length * 100),
+          unitPrice: lockResult.unitPrice || AppState.globalPrice
+        };
     
-    if (!lockResult.ok || lockResult.conflicts?.length) {
-      console.warn('[CheckoutFlow] Lock failed or conflicts');
-      GridManager.showInvalidArea(0, 0, N-1, N-1);
-      GridManager.clearSelection();
-      return;
-    }
-    
-    // Setup order data
-    AppState.orderData = {
-      blocks: lockResult.locked || blocks,
-      name: '',
-      linkUrl: '',
-      imageUrl: null,
-      regionId: lockResult.regionId || null,
-      totalAmount: lockResult.totalAmount || GridManager.calculateTotal(blocks.length * 100),
-      unitPrice: lockResult.unitPrice || AppState.globalPrice
-    };
-    
-    window.reservedTotal = AppState.orderData.totalAmount;
-    window.reservedPrice = AppState.orderData.unitPrice;
-    
-    console.log('[CheckoutFlow] Order data:', AppState.orderData);
-    
-    // ✅ START HEARTBEAT UNE SEULE FOIS - 5 MIN MAX
-    window.LockManager.heartbeat.start(AppState.orderData.blocks, {
-      intervalMs: 30000,     // 30s
-      ttlMs: 180000,         // 3 min par renewal
-      maxTotalMs: 300000,    // ✅ 5 MIN MAX TOTAL
-      autoUnlock: true
-    });
-    
-    // Switch to checkout
-    ViewManager.switchTo('checkout');
-    
-  } catch (e) {
-    console.error('[Checkout] Failed:', e);
-    Toast.error('Failed to reserve pixels. Please try again.');
-  }
-},
+        window.reservedTotal = AppState.orderData.totalAmount;
+        window.reservedPrice = AppState.orderData.unitPrice;
+        console.timeEnd('[CheckoutFlow] Setup data');
+        console.log('[CheckoutFlow] Order data:', AppState.orderData);
+        
+        // ✅ START HEARTBEAT UNE SEULE FOIS - 5 MIN MAX
+        console.time('[CheckoutFlow] Start heartbeat');
+        window.LockManager.heartbeat.start(AppState.orderData.blocks, {
+          intervalMs: 30000,     // 30s
+          ttlMs: 180000,         // 3 min par renewal
+          maxTotalMs: 300000,    // ✅ 5 MIN MAX TOTAL
+          autoUnlock: true
+        });
+        console.timeEnd('[CheckoutFlow] Start heartbeat');
+        // Switch to checkout
+        console.time('[CheckoutFlow] Switch view');
+        ViewManager.switchTo('checkout');
+        console.timeEnd('[CheckoutFlow] Switch view');
+        console.timeEnd('[CheckoutFlow] TOTAL initiate');
+      } catch (e) {
+        console.error('[Checkout] Failed:', e);
+        Toast.error('Failed to reserve pixels. Please try again.');
+      }
+    },
     
 async processForm() {
   console.log('[CheckoutFlow] Processing form');
