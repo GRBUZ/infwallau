@@ -620,7 +620,7 @@ renderPixelPreview() {
   `;
 },
  
-startLockTimer() {
+/*startLockTimer() {
   console.log('[Timer] Starting 5-minute countdown');
   
   const hbRunning = window.LockManager?.heartbeat?.isRunning?.();
@@ -684,7 +684,84 @@ startLockTimer() {
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     originalStop.call(this);
   };
+},*/
+startLockTimer() {
+  console.log('[Timer] Starting 5-minute countdown');
+  
+  const hbRunning = window.LockManager?.heartbeat?.isRunning?.();
+  if (!hbRunning) {
+    console.warn('[Timer] Not starting: heartbeat not running');
+    if (DOM.timerValue) DOM.timerValue.innerHTML = 'Reservation expired 😱';
+    return;
+  }
+  
+  if (AppState.lockTimer) {
+    clearInterval(AppState.lockTimer);
+    AppState.lockTimer = null;
+  }
+
+  AppState.lockStartTime = Date.now();
+  const LOCK_DURATION_MS = 300000; // 5 min
+
+  const updateDisplay = () => {
+    const elapsed = Date.now() - AppState.lockStartTime;
+    const remaining = Math.max(0, Math.floor((LOCK_DURATION_MS - elapsed) / 1000));
+    
+    AppState.lockSecondsRemaining = remaining;
+    
+    const minutes = Math.floor(remaining / 60);
+    const seconds = remaining % 60;
+    const progress = (remaining / 300) * 100; // Pourcentage
+
+    if (DOM.timerValue) {
+      if (remaining > 0) {
+        DOM.timerValue.innerHTML = `
+          <div class="circular-timer">
+            <svg width="80" height="80" style="transform: rotate(-90deg)">
+              <circle cx="40" cy="40" r="35" fill="none" stroke="#e5e7eb" stroke-width="6"/>
+              <circle cx="40" cy="40" r="35" fill="none" 
+                stroke="${progress > 50 ? '#10b981' : progress > 25 ? '#f59e0b' : '#ef4444'}" 
+                stroke-width="6" 
+                stroke-linecap="round"
+                stroke-dasharray="220" 
+                stroke-dashoffset="${220 - (220 * progress / 100)}"
+                style="transition: stroke-dashoffset 1s linear"/>
+            </svg>
+            <div class="timer-text">${minutes}:${seconds.toString().padStart(2, '0')}</div>
+          </div>
+        `;
+      } else {
+        DOM.timerValue.innerHTML = '<span style="color: #ef4444">Expired 😱</span>';
+      }
+    }
+
+    if (remaining <= 0) {
+      clearInterval(AppState.lockTimer);
+      AppState.lockTimer = null;
+      console.log('[Timer] Countdown reached 0:00');
+      return;
+    }
+  };
+
+  updateDisplay();
+  AppState.lockTimer = setInterval(updateDisplay, 1000);
+  
+  const handleVisibilityChange = () => {
+    if (!document.hidden) {
+      console.log('[Timer] Tab visible again, forcing update');
+      updateDisplay();
+    }
+  };
+  
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  
+  const originalStop = this.stopAllTimers;
+  this.stopAllTimers = function() {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    originalStop.call(this);
+  };
 },
+
 // Dans app.js - startLockMonitoring
 startLockMonitoring(warmupMs = 1200) {
   console.log('[Monitoring] Starting with warmup:', warmupMs);

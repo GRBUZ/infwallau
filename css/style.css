@@ -2075,3 +2075,20 @@ body.checkout-mode .btn-back {
     padding-right: 16px;
   }
 }
+
+/*timer circulaire*/
+.circular-timer {
+  position: relative;
+  display: inline-block;
+}
+
+.circular-timer .timer-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  pointer-events: none;
+}
