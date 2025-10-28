@@ -1655,7 +1655,7 @@ isValidUrl(url) {
       return false;
     },
     
-    async returnToGridWithHighlight() {
+    /*async returnToGridWithHighlight() {
   const purchasedBlocks = AppState.orderData.blocks.slice();
   
   // Cleanup
@@ -1701,6 +1701,47 @@ if (grid) {
     this.highlightAndScrollToPurchasedPixels(purchasedBlocks);
   }, 800);
 
+},*/
+async returnToGridWithHighlight() {
+  const purchasedBlocks = AppState.orderData.blocks.slice();
+  
+  try { window.LockManager.heartbeat.stop(); } catch (e) {}
+  
+  // ✅ Switch IMMÉDIATEMENT
+  const grid = document.querySelector('.grid') || document.getElementById('grid');
+  if (grid) {
+    grid.style.margin = '0 auto';
+    grid.style.left = '0';
+    grid.style.transform = 'none';
+  }
+  
+  ViewManager.switchTo('grid', { keepScroll: true });
+  ViewManager.setCheckoutStep(1);
+  ViewManager.clearCheckoutForm();
+  
+  // ✅ renderRegions TOUT DE SUITE (données déjà en mémoire)
+  if (window.renderRegions) {
+    window.renderRegions();
+  }
+  
+  // PUIS unlock + load en background
+  try { 
+    await window.LockManager.unlock(purchasedBlocks); 
+  } catch (e) {}
+  
+  await StatusManager.load();
+  
+  // Reset state
+  AppState.orderData = { blocks: [], name: '', linkUrl: '', imageUrl: null, regionId: null, totalAmount: 0, unitPrice: 0 };
+  AppState.selected.clear();
+  AppState.uploadedImageCache = null;
+  AppState.currentOrder = null;
+  
+  GridManager.paintAll();
+  
+  setTimeout(() => {
+    this.highlightAndScrollToPurchasedPixels(purchasedBlocks);
+  }, 800);
 },
 
 highlightAndScrollToPurchasedPixels(blocks) {
