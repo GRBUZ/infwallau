@@ -825,8 +825,8 @@ startLockMonitoring(warmupMs = 1200) {
     async returnToGrid() {
       console.time('returnToGrid TOTAL');  // ✅
       console.log('[ViewManager] Returning to grid');
-      // ✅ Pause polling
-      StatusManager.pause();
+      // ✅ Pause SEULEMENT le polling, pas les appels manuels
+      StatusManager.pausePolling();
       
       // ✅ Annuler l'order si existe (user était allé jusqu'au paiement)
       if (AppState.currentOrder?.orderId) {
@@ -893,7 +893,7 @@ startLockMonitoring(warmupMs = 1200) {
       GridManager.paintAll();
 
       // ✅ Resume polling
-      StatusManager.resume();
+      StatusManager.resumePolling();
       console.timeEnd('returnToGrid TOTAL');
     }
   };
@@ -1950,12 +1950,8 @@ highlightAndScrollToPurchasedPixels(blocks) {
   const StatusManager = {
     lastUpdate: 0,
     pollingInterval: null,
-    _paused: false,
+    _pollingPaused: false,
     async load() {
-      if (this._paused) {
-        console.log('[StatusManager.load] Paused, skip');
-        return;
-      }
       console.log('[StatusManager.load] Called at', performance.now().toFixed(2));  // ✅
       try {
         const sinceParam = this.lastUpdate 
@@ -2007,28 +2003,33 @@ highlightAndScrollToPurchasedPixels(blocks) {
       }
     },
     
-    pause() {
-    this._paused = true;
-    console.log('[StatusManager] Paused');
+    pausePolling() {
+    this._pollingPaused = true;
+    console.log('[StatusManager] Polling paused');
   },
   
-  resume() {
-    this._paused = false;
-    console.log('[StatusManager] Resumed');
+  resumePolling() {
+    this._pollingPaused = false;
+    console.log('[StatusManager] Polling resumed');
   },
    startPolling() {
-  // ✅ Protection contre double appel
-  if (this.pollingInterval) {
-    console.warn('[StatusManager] Polling already running!');
-    return;
+    if (this.pollingInterval) {
+      console.warn('[StatusManager] Polling already running!');
+      return;
+    }
+    
+    console.log('[StatusManager] Starting polling (3.5s)');
+    this.pollingInterval = setInterval(async () => {
+      // ✅ Skip SEULEMENT si en pause
+      if (this._pollingPaused) {
+        console.log('[StatusManager] Polling tick skipped (paused)');
+        return;
+      }
+      
+      console.log('[StatusManager] Polling tick');
+      await this.load();
+    }, 3500);
   }
-  
-  console.log('[StatusManager] Starting polling (3.5s)');
-  this.pollingInterval = setInterval(async () => {
-    console.log('[StatusManager] Polling tick');
-    await this.load();
-  }, 3500);
-}
   };
 
   // ===== EVENT HANDLERS =====
