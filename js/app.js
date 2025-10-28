@@ -822,7 +822,7 @@ startLockMonitoring(warmupMs = 1200) {
       }
     },
     
-    async returnToGrid() {
+    /*async returnToGrid() {
       console.time('returnToGrid TOTAL');  // ✅
       console.log('[ViewManager] Returning to grid');
       // ✅ Pause SEULEMENT le polling, pas les appels manuels
@@ -895,7 +895,78 @@ startLockMonitoring(warmupMs = 1200) {
       // ✅ Resume polling
       StatusManager.resumePolling();
       console.timeEnd('returnToGrid TOTAL');
-    }
+    }*/
+   async returnToGrid() {
+  console.time('returnToGrid TOTAL');
+  console.log('[ViewManager] Returning to grid');
+  
+  StatusManager.pausePolling();
+  
+  // Stop heartbeat immédiatement
+  try { window.LockManager.heartbeat.stop(); } catch (e) {}
+  
+  // ✅ Switch TOUT DE SUITE (sans attendre)
+  const grid = document.querySelector('.grid') || document.getElementById('grid');
+  if (grid) {
+    grid.style.margin = '0 auto';
+    grid.style.left = '0';
+    grid.style.transform = 'none';
+  }
+  
+  this.switchTo('grid');  // ✅ Grille visible immédiatement
+  this.setCheckoutStep(1);
+  this.updateCheckoutButtons();
+  
+  GridManager.clearSelection();
+  this.clearCheckoutForm();
+  
+  if (DOM.proceedToPayment) {
+    DOM.proceedToPayment.disabled = false;
+    DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+  }
+  
+  // ✅ PUIS faire les appels réseau (en background)
+  
+  // Cancel order (non bloquant)
+  if (AppState.currentOrder?.orderId) {
+    apiCall('/order-status?orderId=' + encodeURIComponent(AppState.currentOrder.orderId) + '&action=cancel')
+      .catch(e => console.warn('[ViewManager] Failed to cancel order:', e));
+  }
+  
+  // Unlock blocks (en parallèle avec load)
+  const unlockPromise = AppState.orderData.blocks.length 
+    ? window.LockManager.unlock(AppState.orderData.blocks)
+        .then(() => console.log('[ViewManager] Unlocked', AppState.orderData.blocks.length, 'blocks'))
+        .catch(e => console.warn('[Unlock] Failed:', e))
+    : Promise.resolve();
+  
+  // Load status (en parallèle)
+  const loadPromise = StatusManager.load();
+  
+  // Attendre les 2 en parallèle
+  await Promise.all([unlockPromise, loadPromise]);
+  
+  GridManager.paintAll();
+  
+  // Reset state
+  AppState.orderData = {
+    blocks: [],
+    name: '',
+    linkUrl: '',
+    imageUrl: null,
+    regionId: null,
+    totalAmount: 0,
+    unitPrice: 0
+  };
+  
+  AppState.selected.clear();
+  AppState.uploadedImageCache = null;
+  AppState.currentOrder = null;
+  
+  StatusManager.resumePolling();
+  
+  console.timeEnd('returnToGrid TOTAL');
+}
   };
 
   // ===== GRID MANAGEMENT =====
