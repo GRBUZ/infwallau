@@ -2077,9 +2077,15 @@ body.checkout-mode .btn-back {
 }
 
 /*timer circulaire*/
+.lock-timer {
+  text-align: center;
+  padding: 16px;
+}
+
 .circular-timer {
   position: relative;
   display: inline-block;
+  margin: 0 auto;
 }
 
 .circular-timer .timer-text {
@@ -2087,7 +2093,7 @@ body.checkout-mode .btn-back {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   color: #111827;
   pointer-events: none;
