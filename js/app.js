@@ -2201,6 +2201,7 @@ if (DOM.proceedToPayment) {
 
 function renderRegions() {
   console.time('renderRegions');
+  console.trace('[renderRegions] Called from'); 
   
   const gridEl = DOM.grid;
   if (!gridEl) return;
