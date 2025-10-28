@@ -825,6 +825,10 @@ startLockMonitoring(warmupMs = 1200) {
     async returnToGrid() {
       console.time('returnToGrid TOTAL');  // ✅
       console.log('[ViewManager] Returning to grid');
+      // ✅ PAUSE le polling pendant qu'on fait le retour
+      if (window.CoreManager?.pauseStatusPolling) {
+        window.CoreManager.pauseStatusPolling('returnToGrid');
+      }
       
       // ✅ Annuler l'order si existe (user était allé jusqu'au paiement)
       if (AppState.currentOrder?.orderId) {
@@ -889,6 +893,11 @@ startLockMonitoring(warmupMs = 1200) {
       // Refresh
       await StatusManager.load();
       GridManager.paintAll();
+
+      // ✅ RESUME le polling
+      if (window.CoreManager?.resumeStatusPolling) {
+        window.CoreManager.resumeStatusPolling('returnToGrid');
+      }
       console.timeEnd('returnToGrid TOTAL');
     }
   };
