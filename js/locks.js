@@ -242,6 +242,16 @@
 
         if (!res || !res.ok) {
           lockRetryCount = 0;
+           // ✅ NOUVEAU : Force refresh si conflicts détectés
+          if (res && res.conflicts && res.conflicts.length > 0) {
+            console.log(`[LockManager] ${res.conflicts.length} conflicts detected, forcing status refresh`);
+            if (window.StatusManager && typeof window.StatusManager.load === 'function') {
+              // Appel non-bloquant pour ne pas ralentir le flow
+              window.StatusManager.load().catch(e => 
+                console.warn('[LockManager] Force refresh failed:', e)
+              );
+            }
+          }
           return { 
             ok: false, 
             locked: [], 
@@ -253,7 +263,9 @@
 
         // Succès
         lockRetryCount = 0;
-        localLocks = merge(res.locks || {});
+        //localLocks = merge(res.locks || {});
+        // ✅ NOUVEAU : MAJ optimiste locale uniquement (pas de merge avec serveur)
+        setLocalLocks(res.locked || [], ttlMs);
         
         const until = Number(res.until) || 0;
         const totalAmount = (res.totalAmount != null && isFinite(Number(res.totalAmount))) ? Number(res.totalAmount) : undefined;

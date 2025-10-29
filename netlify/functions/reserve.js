@@ -24,7 +24,7 @@ function genRegionId(uid, blocks){
 }
 
 // --- helpers pagination (anti-cap 1000)
-async function selectAllLocks(supabase, { thresholdIso }) {
+/*async function selectAllLocks(supabase, { thresholdIso }) {
   const page = 1000;
   let from = 0;
   let out = [];
@@ -42,7 +42,7 @@ async function selectAllLocks(supabase, { thresholdIso }) {
     from += page;
   }
   return out;
-}
+}*/
 
 async function selectAllMyLocksFor(supabase, { uid, idxs, thresholdIso }) {
   if (!Array.isArray(idxs) || !idxs.length) return [];
@@ -120,7 +120,7 @@ exports.handler = async (event) => {
     const conflicts = Array.from(reqSet);
 
     // 4) Reconstituer l'état des locks pour le front (TOUS les locks courants, paginés)
-    const thresholdIso = new Date(Date.now() - 15000).toISOString(); // petite fenêtre de grâce
+    /*const thresholdIso = new Date(Date.now() - 15000).toISOString(); // petite fenêtre de grâce
     let lockRows;
     try {
       lockRows = await selectAllLocks(supabase, { thresholdIso });
@@ -134,7 +134,7 @@ exports.handler = async (event) => {
       const k = String(r.idx);
       const untilMs = r.until ? new Date(r.until).getTime() : 0;
       locks[k] = { uid: r.uid, until: untilMs };
-    }
+    }*/
 
     // 5) regionId + until + totalAmount (depuis SQL, sans cap 1000)
 let until = 0;
@@ -169,7 +169,7 @@ const regionId = genRegionId(uid, locked);
 const result = {
   locked,
   conflicts,
-  locks,
+  //locks,
   ttlSeconds: ttlSec,
   regionId,
   until,
