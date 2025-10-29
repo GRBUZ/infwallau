@@ -69,6 +69,8 @@ async function selectAllMyLocksFor(supabase, { uid, idxs, thresholdIso }) {
 
 exports.handler = async (event) => {
   try{
+    const startTime = Date.now();
+    console.log('[reserve] START');
     if (event.httpMethod !== 'POST') return bad(405, 'METHOD_NOT_ALLOWED');
     if (!SUPABASE_URL || !SUPA_SERVICE_KEY) return bad(500, 'SUPABASE_CONFIG_MISSING');
 
@@ -95,7 +97,7 @@ exports.handler = async (event) => {
     // 1) Réserver via RPC (concurrence safe sur la table locks)
     const { data: reservedArr, error: rpcErr } = await supabase
       .rpc('reserve_blocks', { _uid: uid, _blocks: blocks, _ttl_seconds: ttlSec });
-
+    console.log('[reserve] reserve_blocks:', Date.now() - startTime, 'ms');
     if (rpcErr) {
       console.error('[reserve] RPC failed:', rpcErr);
       return bad(500, 'RPC_RESERVE_FAILED', { message: rpcErr.message });
@@ -105,7 +107,7 @@ exports.handler = async (event) => {
     // 2) Filtrer les blocs déjà vendus (via RPC pour éviter 414)
     const { data: soldIdxRows, error: soldErr } = await supabase
       .rpc('sold_in_blocks', { _blocks: blocks });
-
+    console.log('[reserve] sold_in_blocks:', Date.now() - startTime, 'ms');
     if (soldErr) {
       console.error('[reserve] Sold check failed (RPC):', soldErr);
       return bad(500, 'CELLS_QUERY_FAILED', { message: soldErr.message });
@@ -118,7 +120,7 @@ exports.handler = async (event) => {
     locked.forEach(i => reqSet.delete(i));
     soldSet.forEach(i => reqSet.delete(i)); // déjà exclus, mais on peut les compter comme conflits
     const conflicts = Array.from(reqSet);
-
+console.log('[reserve] conflicts computed:', Date.now() - startTime, 'ms');
     // 4) Reconstituer l'état des locks pour le front (TOUS les locks courants, paginés)
     /*const thresholdIso = new Date(Date.now() - 15000).toISOString(); // petite fenêtre de grâce
     let lockRows;
@@ -144,6 +146,7 @@ if (locked.length) {
   // Utilise la même RPC de somme au lieu de sommer côté JS
   const { data: sumRows, error: sumErr } = await supabase
     .rpc('locks_pricing_sum', { _uid: uid, _blocks: locked });
+    console.log('[reserve] pricing done:', Date.now() - startTime, 'ms');
   if (sumErr) return bad(500, 'LOCKS_SELF_QUERY_FAILED', { message: sumErr.message });
 
   const row0 = Array.isArray(sumRows) ? sumRows[0] : null;
@@ -175,6 +178,7 @@ const result = {
   until,
   totalAmount
 };
+console.log('[reserve] TOTAL:', Date.now() - startTime, 'ms');
 return ok(result);
 
   }catch(e){
