@@ -703,7 +703,7 @@ startLockTimer() {
   AppState.lockStartTime = Date.now();
   const LOCK_DURATION_MS = 300000; // 5 min
 
-  const updateDisplay = () => {
+ const updateDisplay = () => {
   const elapsed = Date.now() - AppState.lockStartTime;
   const remaining = Math.max(0, Math.floor((LOCK_DURATION_MS - elapsed) / 1000));
   
@@ -717,14 +717,14 @@ startLockTimer() {
     if (remaining > 0) {
       DOM.timerValue.innerHTML = `
         <div class="circular-timer">
-          <svg width="60" height="60" style="transform: rotate(-90deg)">
-            <circle cx="30" cy="30" r="26" fill="none" stroke="#f3f4f6" stroke-width="4"/>
-            <circle cx="30" cy="30" r="26" fill="none" 
+          <svg width="50" height="50" style="transform: rotate(-90deg)">
+            <circle cx="25" cy="25" r="21" fill="none" stroke="#f3f4f6" stroke-width="3"/>
+            <circle cx="25" cy="25" r="21" fill="none" 
               stroke="#ef4444" 
-              stroke-width="4" 
+              stroke-width="3" 
               stroke-linecap="round"
-              stroke-dasharray="163" 
-              stroke-dashoffset="${163 - (163 * progress / 100)}"
+              stroke-dasharray="132" 
+              stroke-dashoffset="${132 - (132 * progress / 100)}"
               style="transition: stroke-dashoffset 1s linear"/>
           </svg>
           <div class="timer-text">${minutes}:${seconds.toString().padStart(2, '0')}</div>
