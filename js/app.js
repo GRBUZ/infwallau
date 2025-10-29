@@ -1332,8 +1332,7 @@ updateSelectionInfo() {
 
   // ===== CHECKOUT FLOW =====
   const CheckoutFlow = {
-    /*async initiate() {
-      console.time('[CheckoutFlow] TOTAL initiate');
+    async initiate() {
       console.log('[CheckoutFlow] Initiating checkout');
     
       const blocks = Array.from(AppState.selected);
@@ -1343,11 +1342,13 @@ updateSelectionInfo() {
       }
   
       try {
-        console.time('[CheckoutFlow] Lock API');
+        // ✅ 1. FEEDBACK IMMÉDIAT (< 10ms)
+        DOM.claimBtn.disabled = true;
+        DOM.claimBtn.textContent = '⏳ Reserving...';
+        DOM.claimBtn.style.opacity = '0.6';
+        
         // Lock avec retry de LockManager
         const lockResult = await window.LockManager.lock(blocks, 180000);
-        console.timeEnd('[CheckoutFlow] Lock API');
-        console.log('[CheckoutFlow] Lock result:', lockResult);
         
         if (!lockResult.ok || lockResult.conflicts?.length) {
           console.warn('[CheckoutFlow] Lock failed or conflicts');
@@ -1357,7 +1358,6 @@ updateSelectionInfo() {
         }
         
         // Setup order data
-        console.time('[CheckoutFlow] Setup data');
         AppState.orderData = {
           blocks: lockResult.locked || blocks,
           name: '',
@@ -1370,121 +1370,24 @@ updateSelectionInfo() {
     
         window.reservedTotal = AppState.orderData.totalAmount;
         window.reservedPrice = AppState.orderData.unitPrice;
-        console.timeEnd('[CheckoutFlow] Setup data');
-        console.log('[CheckoutFlow] Order data:', AppState.orderData);
         // ✅ STOP ancien heartbeat s'il existe
-        window.LockManager.heartbeat.stop();
+        //window.LockManager.heartbeat.stop();
         // ✅ START HEARTBEAT UNE SEULE FOIS - 5 MIN MAX
-        console.time('[CheckoutFlow] Start heartbeat');
         window.LockManager.heartbeat.start(AppState.orderData.blocks, {
           intervalMs: 30000,     // 30s
           ttlMs: 180000,         // 3 min par renewal
           maxTotalMs: 300000,    // ✅ 5 MIN MAX TOTAL
           autoUnlock: true
         });
-        console.timeEnd('[CheckoutFlow] Start heartbeat');
+        
         // Switch to checkout
-        console.time('[CheckoutFlow] Switch view');
         ViewManager.switchTo('checkout');
-        console.timeEnd('[CheckoutFlow] Switch view');
-        console.timeEnd('[CheckoutFlow] TOTAL initiate');
       } catch (e) {
         console.error('[Checkout] Failed:', e);
         Toast.error('Failed to reserve pixels. Please try again.');
       }
-    },*/
-    async initiate() {
-  console.time('[CheckoutFlow] TOTAL initiate');
-  console.log('[CheckoutFlow] Initiating checkout');
+    },
 
-  const blocks = Array.from(AppState.selected);
-  if (!blocks.length) {
-    Toast.warning('Please select pixels first!');
-    return;
-  }
-
-  try {
-    // ✅ 1. LOCK OPTIMISTE LOCAL (instantané)
-    console.time('[CheckoutFlow] Optimistic setup');
-    window.LockManager.setLocalLocks(blocks, 180000);
-    
-    // ✅ 2. SETUP ORDER DATA IMMÉDIATEMENT (avec estimations)
-    AppState.orderData = {
-      blocks: blocks,
-      name: '',
-      linkUrl: '',
-      imageUrl: null,
-      regionId: null,
-      totalAmount: GridManager.calculateTotal(blocks.length * 100),
-      unitPrice: AppState.globalPrice
-    };
-
-    window.reservedTotal = AppState.orderData.totalAmount;
-    window.reservedPrice = AppState.orderData.unitPrice;
-    
-    // ✅ 3. STOP ancien heartbeat
-    window.LockManager.heartbeat.stop();
-    
-    // ✅ 4. SWITCH TO CHECKOUT IMMÉDIATEMENT
-    ViewManager.switchTo('checkout');
-    console.timeEnd('[CheckoutFlow] Optimistic setup');
-    console.timeEnd('[CheckoutFlow] TOTAL initiate');
-    
-    // ✅ 5. LOCK RÉEL EN BACKGROUND (non-bloquant pour l'UI)
-    console.time('[CheckoutFlow] Background lock');
-    const lockResult = await window.LockManager.lock(blocks, 180000, { optimistic: false });
-    console.timeEnd('[CheckoutFlow] Background lock');
-    console.log('[CheckoutFlow] Background lock result:', lockResult);
-    
-    // ✅ 6. GÉRER LES CONFLICTS
-    if (!lockResult.ok || lockResult.conflicts?.length) {
-      console.warn('[CheckoutFlow] Background lock failed or conflicts:', lockResult.conflicts);
-      
-      // Retourner à la grille avec message
-      Toast.error(`${lockResult.conflicts?.length || 'Some'} pixels were just taken. Please reselect.`);
-      
-      // Afficher les zones en conflit
-      if (lockResult.conflicts?.length) {
-        GridManager.showInvalidArea(0, 0, N-1, N-1);
-      }
-      
-      // Retour à la grille
-      ViewManager.returnToGrid();
-      return;
-    }
-    
-    // ✅ 7. SUCCÈS : Mettre à jour avec les vraies données serveur
-    console.log('[CheckoutFlow] Background lock SUCCESS');
-    
-    // Mise à jour des données réelles
-    AppState.orderData.blocks = lockResult.locked || blocks;
-    AppState.orderData.regionId = lockResult.regionId || null;
-    AppState.orderData.totalAmount = lockResult.totalAmount || AppState.orderData.totalAmount;
-    AppState.orderData.unitPrice = lockResult.unitPrice || AppState.orderData.unitPrice;
-    
-    window.reservedTotal = AppState.orderData.totalAmount;
-    window.reservedPrice = AppState.orderData.unitPrice;
-    
-    // ✅ 8. START HEARTBEAT avec les blocs confirmés
-    console.time('[CheckoutFlow] Start heartbeat');
-    window.LockManager.heartbeat.start(AppState.orderData.blocks, {
-      intervalMs: 30000,
-      ttlMs: 180000,
-      maxTotalMs: 300000,
-      autoUnlock: true
-    });
-    console.timeEnd('[CheckoutFlow] Start heartbeat');
-    
-    console.log('[CheckoutFlow] Order data finalized:', AppState.orderData);
-    
-  } catch (e) {
-    console.error('[Checkout] Failed:', e);
-    Toast.error('Failed to reserve pixels. Please try again.');
-    
-    // En cas d'erreur réseau, retourner à la grille
-    ViewManager.returnToGrid();
-  }
-},
     
 async processForm() {
   console.log('[CheckoutFlow] Processing form');
