@@ -1414,7 +1414,7 @@ updateSelectionInfo() {
     // ✅ FEEDBACK IMMÉDIAT
     if (DOM.proceedToPayment) {
       DOM.proceedToPayment.disabled = true;
-      DOM.proceedToPayment.textContent = '💳 Processing...';
+      DOM.proceedToPayment.textContent = '⏳ Preparing Payment...';
       DOM.proceedToPayment.style.opacity = '0.6';
     }
     
