@@ -1354,6 +1354,10 @@ updateSelectionInfo() {
           console.warn('[CheckoutFlow] Lock failed or conflicts');
           GridManager.showInvalidArea(0, 0, N-1, N-1);
           GridManager.clearSelection();
+          // Reset bouton
+          DOM.claimBtn.disabled = false;
+          DOM.claimBtn.textContent = 'Claim Your Spot';
+          DOM.claimBtn.style.opacity = '1';
           return;
         }
         
@@ -1382,14 +1386,21 @@ updateSelectionInfo() {
         
         // Switch to checkout
         ViewManager.switchTo('checkout');
+        // ✅ 7. RESET BOUTON (important pour le retour)
+        DOM.claimBtn.disabled = false;
+        DOM.claimBtn.textContent = 'Claim Your Spot';
+        DOM.claimBtn.style.opacity = '1';
       } catch (e) {
         console.error('[Checkout] Failed:', e);
         Toast.error('Failed to reserve pixels. Please try again.');
+        // Reset bouton
+        DOM.claimBtn.disabled = false;
+        DOM.claimBtn.textContent = 'Claim Your Spot';
+        DOM.claimBtn.style.opacity = '1';
       }
     },
 
-    
-async processForm() {
+    async processForm() {
   console.log('[CheckoutFlow] Processing form');
   
   // ✅ DEBOUNCE: Empêcher double-click
@@ -1400,6 +1411,13 @@ async processForm() {
   this._processing = true;
   
   try {
+    // ✅ FEEDBACK IMMÉDIAT
+    if (DOM.proceedToPayment) {
+      DOM.proceedToPayment.disabled = true;
+      DOM.proceedToPayment.textContent = '💳 Processing...';
+      DOM.proceedToPayment.style.opacity = '0.6';
+    }
+    
     // Reset erreurs
     document.querySelectorAll('.field-error').forEach(el => el.classList.remove('show'));
     document.querySelectorAll('input').forEach(el => el.classList.remove('error'));
@@ -1437,6 +1455,12 @@ async processForm() {
     }
     
     if (hasError) {
+      // ✅ RESET BOUTON en cas d'erreur validation
+      if (DOM.proceedToPayment) {
+        DOM.proceedToPayment.disabled = false;
+        DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+        DOM.proceedToPayment.style.opacity = '1';
+      }
       this._processing = false;
       return;
     }
@@ -1445,14 +1469,27 @@ async processForm() {
     if (uploadAge > 300000) {
       Toast.warning('Image upload expired, please reselect your image');
       AppState.uploadedImageCache = null;
+      
+      // ✅ RESET BOUTON
+      if (DOM.proceedToPayment) {
+        DOM.proceedToPayment.disabled = false;
+        DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+        DOM.proceedToPayment.style.opacity = '1';
+      }
       this._processing = false;
       return;
     }
     
     if (!haveMyValidLocks(AppState.orderData.blocks, 1000)) {
-      //await StatusManager.load();
       Toast.warning('Your reservation expired. Please reselect your pixels.');
       ViewManager.returnToGrid();
+      
+      // ✅ RESET BOUTON (sera aussi reset par returnToGrid, mais par sécurité)
+      if (DOM.proceedToPayment) {
+        DOM.proceedToPayment.disabled = false;
+        DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+        DOM.proceedToPayment.style.opacity = '1';
+      }
       this._processing = false;
       return;
     }
@@ -1496,9 +1533,24 @@ async processForm() {
     
     await this.initializePayPal();
     
+    // ✅ SUCCÈS : Reset bouton (au cas où user revient en arrière plus tard)
+    if (DOM.proceedToPayment) {
+      DOM.proceedToPayment.disabled = false;
+      DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+      DOM.proceedToPayment.style.opacity = '1';
+    }
+    
   } catch (e) {
     console.error('[Order] Failed:', e);
     Toast.error('Failed to process order: ' + (e.message || e));
+    
+    // ✅ RESET BOUTON en cas d'erreur
+    if (DOM.proceedToPayment) {
+      DOM.proceedToPayment.disabled = false;
+      DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+      DOM.proceedToPayment.style.opacity = '1';
+    }
+    
   } finally {
     setTimeout(() => {
       this._processing = false;
