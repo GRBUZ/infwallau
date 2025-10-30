@@ -503,10 +503,13 @@
 
         if (AppState.checkoutStep === 1) {
           if (DOM.proceedToPayment) {
-            DOM.proceedToPayment.disabled = !valid;
-            DOM.proceedToPayment.textContent = valid
-              ? '💳 Continue to Payment'
-              : '⏰ Reservation expired - reselect';
+            // ✅ NE reset que si le bouton n'est pas en train de "Preparing"
+            if (DOM.proceedToPayment.textContent !== '⏳ Preparing Payment...') {
+              DOM.proceedToPayment.disabled = !valid;
+              DOM.proceedToPayment.textContent = valid
+                ? '💳 Continue to Payment'
+                : '⏰ Reservation expired - reselect';
+            }
           }
         } else if (AppState.checkoutStep === 2) {
           ViewManager.setPayPalEnabled(valid);

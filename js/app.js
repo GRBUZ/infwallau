@@ -302,6 +302,12 @@
 
           // Locks valid, allow editing
           ViewManager.setCheckoutStep(1);
+          // ✅ RESET LE BOUTON "CONTINUE TO PAYMENT"
+          if (DOM.proceedToPayment) {
+            DOM.proceedToPayment.disabled = false;
+            DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+            DOM.proceedToPayment.style.opacity = '1';
+          }
 
           // Scroll to form
           setTimeout(() => {
