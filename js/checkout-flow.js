@@ -229,11 +229,11 @@
         await this.initializePayPal();
 
         // Success: Reset button (in case user goes back later)
-        if (DOM.proceedToPayment) {
+        /*if (DOM.proceedToPayment) {
           DOM.proceedToPayment.disabled = false;
           DOM.proceedToPayment.textContent = '💳 Continue to Payment';
           DOM.proceedToPayment.style.opacity = '1';
-        }
+        }*/
 
       } catch (e) {
         console.error('[Order] Failed:', e);
