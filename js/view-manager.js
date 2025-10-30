@@ -117,6 +117,8 @@
         DOM.backToGrid.style.display = '';
         DOM.proceedToPayment.style.display = '';
         DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+        DOM.proceedToPayment.disabled = false;
+        DOM.proceedToPayment.style.opacity = '1';
       }
       else if (step === 2) {
         DOM.backToGrid.style.display = '';
