@@ -116,9 +116,12 @@
       if (step === 1) {
         DOM.backToGrid.style.display = '';
         DOM.proceedToPayment.style.display = '';
-        DOM.proceedToPayment.textContent = '💳 Continue to Payment';
-        DOM.proceedToPayment.disabled = false;
-        DOM.proceedToPayment.style.opacity = '1';
+        // ✅ NE reset QUE si le bouton n'est pas en train de "Preparing"
+  if (DOM.proceedToPayment.textContent !== '⏳ Preparing Payment...') {
+    DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+    DOM.proceedToPayment.disabled = false;
+    DOM.proceedToPayment.style.opacity = '1';
+  }
       }
       else if (step === 2) {
         DOM.backToGrid.style.display = '';
