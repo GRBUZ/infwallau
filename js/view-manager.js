@@ -108,7 +108,7 @@
       AppState.uploadedImageCache = null;
     },
 
-    updateCheckoutButtons() {
+    /*updateCheckoutButtons() {
       if (!DOM.backToGrid || !DOM.proceedToPayment) return;
 
       const step = AppState.checkoutStep;
@@ -131,7 +131,41 @@
         DOM.backToGrid.style.display = 'none';
         DOM.proceedToPayment.style.display = 'none';
       }
-    },
+    },*/
+    updateCheckoutButtons() {
+  console.log('[DEBUG] updateCheckoutButtons called, step:', AppState.checkoutStep);
+  
+  if (!DOM.backToGrid || !DOM.proceedToPayment) return;
+
+  const step = AppState.checkoutStep;
+  
+  console.log('[DEBUG] Button text AVANT:', DOM.proceedToPayment.textContent);
+
+  if (step === 1) {
+    DOM.backToGrid.style.display = '';
+    DOM.proceedToPayment.style.display = '';
+    
+    if (DOM.proceedToPayment.textContent !== '⏳ Preparing Payment...') {
+      console.log('[DEBUG] Resetting button text');
+      DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+      DOM.proceedToPayment.disabled = false;
+      DOM.proceedToPayment.style.opacity = '1';
+    } else {
+      console.log('[DEBUG] Keeping "Preparing Payment..." text');
+    }
+  }
+  else if (step === 2) {
+    console.log('[DEBUG] Step 2, hiding button');
+    DOM.backToGrid.style.display = '';
+    DOM.proceedToPayment.style.display = 'none';
+  }
+  else if (step === 3) {
+    DOM.backToGrid.style.display = 'none';
+    DOM.proceedToPayment.style.display = 'none';
+  }
+  
+  console.log('[DEBUG] Button text APRÈS:', DOM.proceedToPayment.textContent);
+},
 
     setCheckoutStep(step) {
       console.log('[ViewManager] Setting checkout step:', step);
