@@ -219,7 +219,11 @@
         };
 
         await window.LockManager.lock(AppState.orderData.blocks, 180000, { optimistic: false });
-
+        if (DOM.proceedToPayment) {
+          DOM.proceedToPayment.disabled = false;
+          DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+          DOM.proceedToPayment.style.opacity = '1';
+        }
         ViewManager.setCheckoutStep(2);
 
         // Wait for DOM to stabilize
