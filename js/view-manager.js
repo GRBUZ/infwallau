@@ -428,6 +428,7 @@
           // ✅ DÉSACTIVER LE BOUTON "CONTINUE TO PAYMENT"
           if (DOM.proceedToPayment) {
             DOM.proceedToPayment.disabled = true;
+            DOM.proceedToPayment.textContent = '⏰ Reservation expired - reselect';
             DOM.proceedToPayment.style.opacity = '0.5';
           }
           return;
