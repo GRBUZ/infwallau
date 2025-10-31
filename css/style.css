@@ -2103,7 +2103,3 @@ body.checkout-mode .btn-back {
   pointer-events: none;
   line-height: 1;
 }
-
-#lockTimer {
-  margin-top: 40px; /* Augmente pour descendre plus */
-}
