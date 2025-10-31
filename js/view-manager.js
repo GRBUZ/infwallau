@@ -425,6 +425,11 @@
         if (remaining <= 0) {
           clearInterval(AppState.lockTimer);
           AppState.lockTimer = null;
+          // ✅ DÉSACTIVER LE BOUTON "CONTINUE TO PAYMENT"
+          if (DOM.proceedToPayment) {
+            DOM.proceedToPayment.disabled = true;
+            DOM.proceedToPayment.style.opacity = '0.5';
+          }
           return;
         }
       };
