@@ -337,8 +337,8 @@
       const height = maxRow - minRow + 1;
 
       // Limit to 20×15 max
-      const maxWidth = 20;
-      const maxHeight = 15;
+      const maxWidth = 10;
+      const maxHeight = 8;
 
       const displayWidth = Math.min(width, maxWidth);
       const displayHeight = Math.min(height, maxHeight);
