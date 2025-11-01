@@ -608,6 +608,12 @@
         grid.style.transform = 'none';
       }
 
+      // ✅ FORCER le reset du bouton AVANT updateCheckoutButtons
+      if (DOM.proceedToPayment) {
+        DOM.proceedToPayment.disabled = false;
+        DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+        DOM.proceedToPayment.style.opacity = '1';
+      }
       this.switchTo('grid');
       this.setCheckoutStep(1);
       this.updateCheckoutButtons();
@@ -615,10 +621,10 @@
       window.GridManager.clearSelection();
       this.clearCheckoutForm();
 
-      if (DOM.proceedToPayment) {
+      /*if (DOM.proceedToPayment) {
         DOM.proceedToPayment.disabled = false;
         DOM.proceedToPayment.textContent = '💳 Continue to Payment';
-      }
+      }*/
 
       // Call renderRegions() immediately (with data already in memory)
       if (window.renderRegions) {
