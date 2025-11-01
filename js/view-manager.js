@@ -106,6 +106,12 @@
       AppState.orderData.imageUrl = null;
       AppState.orderData.regionId = null;
       AppState.uploadedImageCache = null;
+      // ✅ RESET LE BOUTON
+      if (DOM.proceedToPayment) {
+        DOM.proceedToPayment.disabled = false;
+        DOM.proceedToPayment.textContent = '💳 Continue to Payment';
+        DOM.proceedToPayment.style.opacity = '1';
+      }
     },
 
     /*updateCheckoutButtons() {
@@ -609,11 +615,11 @@
       }
 
       // ✅ FORCER le reset du bouton AVANT updateCheckoutButtons
-      if (DOM.proceedToPayment) {
+      /*if (DOM.proceedToPayment) {
         DOM.proceedToPayment.disabled = false;
         DOM.proceedToPayment.textContent = '💳 Continue to Payment';
         DOM.proceedToPayment.style.opacity = '1';
-      }
+      }*/
       this.switchTo('grid');
       this.setCheckoutStep(1);
       this.updateCheckoutButtons();
